@@ -416,12 +416,14 @@ function renderVote() {
 
 function renderVoteResult() {
   const result = snapshot.room.voteResult;
+  const { you } = snapshot;
   els.mainPanel.innerHTML = `
     ${phaseHeader(result.passed ? "投票通過" : "投票未通過", `同意 ${result.approve}，不同意 ${result.reject}。`)}
     <div class="vote-grid">
       ${result.votes.map((entry) => `<div class="vote-pill ${entry.vote}">${escapeHtml(entry.name)}：${entry.vote === "approve" ? "同意" : "不同意"}</div>`).join("")}
     </div>
-    <button class="primary-button" data-action="continueVote" type="button">${result.passed ? "進入任務" : "下一位領袖提案"}</button>
+    ${you.isLeader ? "" : `<div class="notice">等待當前領袖繼續。</div>`}
+    <button class="primary-button" data-action="continueVote" type="button" ${you.isLeader ? "" : "disabled"}>${result.passed ? "進入任務" : "下一位領袖提案"}</button>
   `;
   els.mainPanel.querySelector("[data-action='continueVote']").addEventListener("click", () => sendAction("continueVote"));
 }
@@ -451,13 +453,15 @@ function missionControls(you) {
 
 function renderMissionResult() {
   const last = snapshot.room.missionResults.at(-1);
+  const { you } = snapshot;
   els.mainPanel.innerHTML = `
     ${phaseHeader(last.result === "success" ? "任務成功" : "任務失敗", `失敗牌 ${last.fails} 張，需要 ${last.failNeed} 張。`)}
     <div class="result-card ${last.result}">
       <h3>第 ${last.round + 1} 次任務${last.result === "success" ? "成功" : "失敗"}</h3>
       <p>任務隊伍：${namesByIds(last.team)}</p>
     </div>
-    <button class="primary-button" data-action="continueMission" type="button">繼續</button>
+    ${you.isLeader ? "" : `<div class="notice">等待當前領袖繼續。</div>`}
+    <button class="primary-button" data-action="continueMission" type="button" ${you.isLeader ? "" : "disabled"}>繼續</button>
   `;
   els.mainPanel.querySelector("[data-action='continueMission']").addEventListener("click", () => sendAction("continueMission"));
 }

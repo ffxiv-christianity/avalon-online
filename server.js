@@ -282,6 +282,7 @@ function applyRoomAction(room, actor, action, payload) {
   }
   if (action === "continueVote") {
     if (room.phase !== "voteResult") return "現在沒有投票結果需要繼續。";
+    if (!isCurrentLeader(room, actor)) return "只有當前領袖可以繼續。";
     continueAfterVote(room);
     return null;
   }
@@ -295,6 +296,7 @@ function applyRoomAction(room, actor, action, payload) {
   }
   if (action === "continueMission") {
     if (room.phase !== "missionResult") return "現在沒有任務結果需要繼續。";
+    if (!isCurrentLeader(room, actor)) return "只有當前領袖可以繼續。";
     continueAfterMission(room);
     return null;
   }
