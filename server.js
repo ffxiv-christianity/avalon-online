@@ -7,6 +7,8 @@ const PORT = Number(process.env.PORT || 4173);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const ROOM_TTL_MS = 6 * 60 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const HEARTBEAT_INTERVAL_MS = 8000;
+const CLIENT_STALE_MS = 20000;
 
 const ROLE_DEFS = {
   merlin: { name: "梅林", side: "good", max: 1, mark: "梅", note: "知道邪惡方，但看不到莫德雷德。若最後被刺客刺殺，邪惡方勝利。" },
@@ -58,6 +60,7 @@ function makeRoom(hostName) {
     code: makeRoomCode(),
     createdAt: Date.now(),
     expiresAt: Date.now() + ROOM_TTL_MS,
+    version: 1,
     phase: "lobby",
     hostId: null,
     settings: {
@@ -112,6 +115,7 @@ function joinRoom(roomCode, name, requestedPlayerId = null) {
   room.players.push(player);
   addLog(room, `${player.name} 加入房間。`);
   markEveryoneUnready(room);
+  touchRoom(room);
   return { room, player };
 }
 
@@ -123,11 +127,15 @@ function makePlayer(name) {
     roll: null,
     tieBreak: Math.random(),
     role: null,
-    side: null
+    side: null,
+    online: false,
+    lastSeen: null
   };
 }
 
 function applyAction(client, message) {
+  client.alive = true;
+  client.lastSeen = Date.now();
   if (message.type === "createRoom") {
     const { room, player } = makeRoom(message.name || "玩家");
     attachClient(client, room.code, player.id);
@@ -146,6 +154,16 @@ function applyAction(client, message) {
     broadcast(result.room);
     return;
   }
+  if (message.type === "pong" || message.type === "heartbeat") {
+    markClientSeen(client);
+    return;
+  }
+  if (message.type === "syncState") {
+    markClientSeen(client);
+    const room = client.roomCode ? rooms.get(client.roomCode) : null;
+    if (room && client.playerId) send(client, makeView(room, client.playerId));
+    return;
+  }
   if (!client.roomCode || !client.playerId) {
     send(client, { type: "error", message: "尚未加入房間。" });
     return;
@@ -161,9 +179,11 @@ function applyAction(client, message) {
     detachRoomClients(room.code, "房間已超過 6 小時並自動清除。");
     return;
   }
+  markClientSeen(client);
   const payload = message.payload || {};
   const error = applyRoomAction(room, actor, message.action, payload);
   if (error) send(client, { type: "error", message: error });
+  if (!error) touchRoom(room);
   broadcast(room);
 }
 
@@ -473,6 +493,8 @@ function makeView(room, playerId) {
       index,
       ready: player.ready,
       roll: player.roll,
+      online: player.online,
+      lastSeen: player.lastSeen,
       isHost: player.id === room.hostId,
       isLeader: index === room.leaderIndex && room.phase !== "lobby",
       retiredLeader: room.retiredLeaderIds.includes(player.id),
@@ -489,6 +511,7 @@ function makeView(room, playerId) {
     room: {
       code: room.code,
       expiresAt: room.expiresAt,
+      version: room.version,
       phase: room.phase,
       settings: room.settings,
       players: publicPlayers,
@@ -654,6 +677,26 @@ function cleanupRooms() {
   });
 }
 
+function heartbeatClients() {
+  const changedRooms = new Set();
+  clients.forEach((client) => {
+    if (client.socket.destroyed) {
+      removeClient(client);
+      return;
+    }
+    if (Date.now() - (client.lastSeen || 0) > CLIENT_STALE_MS) {
+      client.socket.end();
+      removeClient(client);
+      return;
+    }
+    send(client, { type: "ping", at: Date.now() });
+  });
+  rooms.forEach((room) => {
+    if (refreshOnlineStatus(room)) changedRooms.add(room);
+  });
+  changedRooms.forEach((room) => broadcast(room));
+}
+
 function detachRoomClients(roomCode, message) {
   clients.forEach((client) => {
     if (client.roomCode !== roomCode) return;
@@ -661,6 +704,37 @@ function detachRoomClients(roomCode, message) {
     client.roomCode = null;
     client.playerId = null;
   });
+}
+
+function touchRoom(room) {
+  room.version += 1;
+}
+
+function markClientSeen(client) {
+  client.alive = true;
+  client.lastSeen = Date.now();
+  if (!client.roomCode || !client.playerId) return;
+  const room = rooms.get(client.roomCode);
+  const player = room?.players.find((item) => item.id === client.playerId);
+  if (!player) return;
+  player.online = true;
+  player.lastSeen = client.lastSeen;
+}
+
+function refreshOnlineStatus(room) {
+  const now = Date.now();
+  let changed = false;
+  room.players.forEach((player) => {
+    const online = [...clients].some((client) => {
+      return client.roomCode === room.code && client.playerId === player.id && client.lastSeen && now - client.lastSeen <= CLIENT_STALE_MS;
+    });
+    if (player.online !== online) {
+      player.online = online;
+      changed = true;
+    }
+  });
+  if (changed) touchRoom(room);
+  return changed;
 }
 
 function cleanName(name) {
@@ -702,9 +776,11 @@ function shuffle(array) {
 function attachClient(client, roomCode, playerId) {
   client.roomCode = roomCode;
   client.playerId = playerId;
+  markClientSeen(client);
 }
 
 function broadcast(room) {
+  refreshOnlineStatus(room);
   clients.forEach((client) => {
     if (client.roomCode === room.code) send(client, makeView(room, client.playerId));
   });
@@ -759,11 +835,20 @@ function handleUpgrade(req, socket) {
     "",
     ""
   ].join("\r\n"));
-  const client = { socket, buffer: Buffer.alloc(0), roomCode: null, playerId: null };
+  const client = { socket, buffer: Buffer.alloc(0), roomCode: null, playerId: null, alive: true, lastSeen: Date.now() };
   clients.add(client);
   socket.on("data", (chunk) => readFrames(client, chunk));
-  socket.on("close", () => clients.delete(client));
-  socket.on("error", () => clients.delete(client));
+  socket.on("close", () => removeClient(client));
+  socket.on("error", () => removeClient(client));
+}
+
+function removeClient(client) {
+  clients.delete(client);
+  if (!client.roomCode) return;
+  const room = rooms.get(client.roomCode);
+  if (!room) return;
+  refreshOnlineStatus(room);
+  broadcast(room);
 }
 
 function readFrames(client, chunk) {
@@ -834,12 +919,18 @@ function encodeFrame(text) {
 function createServer() {
   const server = http.createServer(serveStatic);
   server.on("upgrade", handleUpgrade);
+  const cleanupTimer = setInterval(cleanupRooms, CLEANUP_INTERVAL_MS);
+  const heartbeatTimer = setInterval(heartbeatClients, HEARTBEAT_INTERVAL_MS);
+  cleanupTimer.unref?.();
+  heartbeatTimer.unref?.();
+  server.on("close", () => {
+    clearInterval(cleanupTimer);
+    clearInterval(heartbeatTimer);
+  });
   return server;
 }
 
 if (require.main === module) {
-  const cleanupTimer = setInterval(cleanupRooms, CLEANUP_INTERVAL_MS);
-  cleanupTimer.unref?.();
   createServer().listen(PORT, () => {
     console.log(`Avalon online host running at http://localhost:${PORT}`);
   });

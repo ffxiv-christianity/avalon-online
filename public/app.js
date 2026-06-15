@@ -1,8 +1,13 @@
 const STORAGE_KEY = "avalon-online-session";
+const WAKING_TEXT = "伺服器喚醒中...\n預計需要30~60秒\n請稍候";
+const STALE_STATE_MS = 12000;
 
 let socket = null;
 let snapshot = null;
 let session = readSession();
+let lastStateAt = 0;
+let lastVersion = 0;
+let staleTimer = null;
 
 const els = {
   connectionChip: document.getElementById("connectionChip"),
@@ -30,10 +35,13 @@ function connect() {
   socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
   socket.addEventListener("open", () => {
     setConnection("已連線");
+    requestFullSync();
+    startStaleWatcher();
     updateJoinControls();
   });
   socket.addEventListener("close", () => {
-    setConnection("已斷線，重連中");
+    setConnection(WAKING_TEXT);
+    stopStaleWatcher();
     window.setTimeout(connect, 1200);
   });
   socket.addEventListener("message", (event) => {
@@ -47,10 +55,18 @@ function connect() {
       writeSession(session);
       history.replaceState(null, "", `?room=${message.roomCode}`);
       updateJoinControls();
+      requestFullSync();
+      return;
+    }
+    if (message.type === "ping") {
+      sendRaw({ type: "pong", at: message.at });
       return;
     }
     if (message.type === "state") {
+      lastStateAt = Date.now();
+      lastVersion = message.room.version || lastVersion;
       snapshot = message;
+      setConnection(lastVersion ? `已同步 v${lastVersion}` : "已連線");
       render();
       return;
     }
@@ -138,12 +154,12 @@ function renderRoster() {
   els.roster.innerHTML = room.players.map((player) => {
     const role = player.role ? snapshot.roles[player.role] : null;
     return `
-      <article class="player-card ${player.isLeader ? "leader" : ""} ${player.retiredLeader ? "retired" : ""}">
+      <article class="player-card ${player.isLeader ? "leader" : ""} ${player.retiredLeader ? "retired" : ""} ${player.online ? "" : "offline"}">
         <div class="seat">${player.index + 1}</div>
         <div>
           <strong>${escapeHtml(player.name)}</strong>
           <div class="player-meta">
-            ${player.roll ? `d100: ${player.roll}` : "未擲骰"}${player.ready ? " · 已準備" : ""}
+            ${player.roll ? `d100: ${player.roll}` : "未擲骰"}${player.ready ? " · 已準備" : ""} · ${player.online ? "在線" : "離線"}
           </div>
         </div>
         <div class="token-stack">
@@ -576,7 +592,32 @@ function send(payload) {
     showToast("尚未連線，請稍等。");
     return;
   }
+  sendRaw(payload);
+}
+
+function sendRaw(payload) {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
   socket.send(JSON.stringify(payload));
+}
+
+function requestFullSync() {
+  sendRaw({ type: "syncState", version: lastVersion });
+}
+
+function startStaleWatcher() {
+  stopStaleWatcher();
+  staleTimer = window.setInterval(() => {
+    if (!snapshot) return;
+    if (Date.now() - lastStateAt <= STALE_STATE_MS) return;
+    setConnection("同步中...\n正在重新取得完整狀態");
+    requestFullSync();
+  }, 3000);
+}
+
+function stopStaleWatcher() {
+  if (!staleTimer) return;
+  window.clearInterval(staleTimer);
+  staleTimer = null;
 }
 
 function setConnection(text) {
@@ -586,7 +627,7 @@ function setConnection(text) {
 function showToast(message) {
   els.connectionChip.textContent = message;
   window.setTimeout(() => {
-    if (socket?.readyState === WebSocket.OPEN) setConnection("已連線");
+    if (socket?.readyState === WebSocket.OPEN) setConnection(lastVersion ? `已同步 v${lastVersion}` : "已連線");
   }, 2200);
 }
 

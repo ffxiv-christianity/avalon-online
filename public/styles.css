@@ -135,9 +135,12 @@ h3 {
 
 .room-chip {
   min-width: 132px;
+  max-width: 220px;
   padding: 10px 13px;
   text-align: center;
   font-weight: 900;
+  line-height: 1.35;
+  white-space: pre-line;
 }
 
 .hero-panel {
@@ -325,6 +328,17 @@ h3 {
 
 .player-card.retired:not(.leader) {
   background: #f2eee5;
+}
+
+.player-card.offline {
+  opacity: .62;
+}
+
+.player-card.offline strong::after {
+  content: "（離線）";
+  color: var(--evil);
+  font-size: .78rem;
+  margin-left: 4px;
 }
 
 .seat {
