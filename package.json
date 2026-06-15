@@ -1,0 +1,14 @@
+{
+  "name": "avalon-online-host",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Realtime online host tool for The Resistance: Avalon.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node ../../work/test-avalon-online.js && node ../../work/test-avalon-websocket.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

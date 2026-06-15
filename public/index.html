@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>阿瓦隆線上版</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Avalon Online Host</p>
+        <h1>阿瓦隆線上版</h1>
+      </div>
+      <div class="room-chip" id="connectionChip">連線中</div>
+    </header>
+
+    <section id="joinView" class="join-view">
+      <div class="hero-panel">
+        <div>
+          <p class="eyebrow">多人即時房間</p>
+          <h2>由系統當主持人 大家一起玩</h2>
+          <p>基督教釣魚團提供</p>
+        </div>
+        <form id="joinForm" class="join-form">
+          <label class="field">
+            <span>你的名字</span>
+            <input id="nameInput" maxlength="16" required autocomplete="name" placeholder="">
+          </label>
+          <label class="field">
+            <span>房間代碼</span>
+            <input id="roomInput" maxlength="8" autocomplete="off" placeholder="加入房間時輸入">
+          </label>
+          <div class="button-row">
+            <button class="primary-button" id="createRoomButton" type="button">建立房間</button>
+            <button class="secondary-button" id="joinRoomButton" type="submit">加入房間</button>
+            <button class="ghost-button hidden" id="rejoinRoomButton" type="button">重新連線</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="roomView" class="room-view hidden">
+      <section class="status-strip" id="statusStrip"></section>
+      <div class="game-layout">
+        <aside class="side-panel">
+          <section class="panel chat-panel">
+            <h2>聊天</h2>
+            <div class="chat-list" id="chatList"></div>
+            <form class="chat-form" id="chatForm">
+              <input id="chatInput" maxlength="240" placeholder="輸入訊息">
+              <button class="primary-button" type="submit">送出</button>
+            </form>
+          </section>
+          <section class="panel room-panel">
+            <div class="room-code-block">
+              <span>房間代碼</span>
+              <strong id="roomCode">------</strong>
+            </div>
+            <button class="ghost-button" id="copyLinkButton" type="button">複製邀請連結</button>
+          </section>
+          <section class="panel">
+            <h2>玩家順序</h2>
+            <div class="roster" id="roster"></div>
+          </section>
+          <section class="panel game-only-panel">
+            <h2>任務進度</h2>
+            <div class="scoreboard" id="scoreboard"></div>
+            <div class="mission-table" id="missionTable"></div>
+          </section>
+          <section class="panel game-only-panel">
+            <h2>記錄</h2>
+            <ol class="log-list" id="logList"></ol>
+          </section>
+        </aside>
+
+        <section class="main-panel" id="mainPanel"></section>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,806 @@
+:root {
+  --bg: #f5f1e8;
+  --panel: #fffdf8;
+  --ink: #20282b;
+  --muted: #657173;
+  --line: #d9cfbd;
+  --good: #227468;
+  --good-soft: #d8eee7;
+  --evil: #9c2e3d;
+  --evil-soft: #f2d8dc;
+  --gold: #b37a20;
+  --gold-soft: #f4e2bd;
+  --blue: #1f5d7a;
+  --shadow: 0 14px 38px rgba(32, 40, 43, .13);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  color: var(--ink);
+  background:
+    linear-gradient(135deg, rgba(34, 116, 104, .16), rgba(179, 122, 32, .08) 42%, rgba(156, 46, 61, .13)),
+    var(--bg);
+  font-family: "Microsoft JhengHei", "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+}
+
+input,
+select {
+  min-height: 42px;
+  padding: 0 11px;
+}
+
+textarea {
+  min-height: 96px;
+  padding: 10px 11px;
+  resize: vertical;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: clamp(2rem, 5vw, 4.4rem);
+  line-height: .95;
+  letter-spacing: 0;
+}
+
+h2 {
+  margin-bottom: 8px;
+  font-size: clamp(1.65rem, 4vw, 3.1rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+h3 {
+  margin-bottom: 12px;
+  font-size: 1.05rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.app-shell {
+  width: min(1200px, calc(100vw - 24px));
+  margin: 0 auto;
+  padding: 22px 0 42px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.eyebrow {
+  margin-bottom: 6px;
+  color: var(--gold);
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.room-chip,
+.status-card,
+.panel,
+.main-panel,
+.hero-panel {
+  border: 1px solid rgba(32, 40, 43, .13);
+  border-radius: 8px;
+  background: rgba(255, 253, 248, .88);
+  box-shadow: var(--shadow);
+}
+
+.room-chip {
+  min-width: 132px;
+  padding: 10px 13px;
+  text-align: center;
+  font-weight: 900;
+}
+
+.hero-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 26px;
+  align-items: center;
+  min-height: 520px;
+  padding: 28px;
+}
+
+.hero-panel h2 {
+  max-width: 720px;
+}
+
+.hero-panel p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.join-form,
+.field {
+  display: grid;
+  gap: 9px;
+}
+
+.field {
+  color: var(--muted);
+  font-size: .9rem;
+  font-weight: 800;
+}
+
+.field.compact {
+  min-width: 0;
+}
+
+.button-row,
+.section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.section-heading {
+  justify-content: space-between;
+}
+
+.primary-button,
+.start-button {
+  background: var(--ink);
+  color: #fffdf8;
+  padding: 0 16px;
+}
+
+.start-button {
+  width: 100%;
+  min-height: 56px;
+  margin-top: 12px;
+  font-size: 1.08rem;
+}
+
+.secondary-button {
+  background: var(--gold-soft);
+  border-color: #dec083;
+  color: #55380b;
+  padding: 0 15px;
+}
+
+.ghost-button {
+  background: #fff;
+  border-color: var(--line);
+  color: var(--ink);
+  padding: 0 14px;
+}
+
+.danger-button {
+  background: var(--evil-soft);
+  border-color: #dfb0b8;
+  color: var(--evil);
+  padding: 0 15px;
+}
+
+.status-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.status-card {
+  min-height: 74px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.status-card span {
+  color: var(--muted);
+  font-size: .84rem;
+  font-weight: 800;
+}
+
+.status-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.08rem;
+}
+
+.game-layout {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.room-view.lobby-mode .game-layout {
+  grid-template-columns: 330px minmax(0, 1fr);
+}
+
+.room-view.lobby-mode .game-only-panel {
+  display: none;
+}
+
+.side-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.panel,
+.main-panel {
+  padding: 16px;
+}
+
+.main-panel {
+  min-height: 630px;
+}
+
+.room-code-block {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.room-code-block span {
+  color: var(--muted);
+  font-size: .84rem;
+  font-weight: 800;
+}
+
+.room-code-block strong {
+  font-size: 2rem;
+  letter-spacing: 0;
+}
+
+.roster,
+.role-builder,
+.log-list,
+.info-list,
+.validation-list {
+  display: grid;
+  gap: 8px;
+}
+
+.player-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 9px;
+}
+
+.player-card.leader {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.player-card.retired:not(.leader) {
+  background: #f2eee5;
+}
+
+.seat {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: var(--ink);
+  color: #fff;
+  font-weight: 900;
+}
+
+.player-meta {
+  color: var(--muted);
+  font-size: .82rem;
+  line-height: 1.35;
+}
+
+.token-stack {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.token,
+.role-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 7px;
+  font-weight: 900;
+}
+
+.token.sword {
+  background: var(--gold);
+  color: #fff8e9;
+}
+
+.token.sword::before {
+  content: "劍";
+}
+
+.token.retired {
+  background: #d9d4ca;
+  color: #6c665d;
+}
+
+.token.retired::before {
+  content: "退";
+}
+
+.role-icon {
+  border: 1px solid currentColor;
+  background: #fff;
+}
+
+.role-icon.good {
+  color: var(--good);
+  background: var(--good-soft);
+}
+
+.role-icon.evil {
+  color: var(--evil);
+  background: var(--evil-soft);
+}
+
+.scoreboard {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.score-slot {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f1ece2;
+  font-weight: 900;
+}
+
+.score-slot.current {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 2px rgba(179, 122, 32, .25);
+}
+
+.score-slot.success,
+.result-card.success {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.score-slot.fail,
+.result-card.fail {
+  background: var(--evil-soft);
+  color: var(--evil);
+}
+
+.mission-table {
+  display: grid;
+  gap: 6px;
+}
+
+.mission-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 76px;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: .86rem;
+}
+
+.mission-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #e8dfce;
+  overflow: hidden;
+}
+
+.mission-bar span {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+}
+
+.log-list {
+  max-height: 230px;
+  margin: 0;
+  padding-left: 20px;
+  overflow: auto;
+  color: var(--muted);
+  font-size: .87rem;
+}
+
+.chat-panel {
+  display: grid;
+  gap: 10px;
+  border-color: rgba(31, 93, 122, .35);
+}
+
+.chat-list {
+  display: grid;
+  height: 188px;
+  align-content: start;
+  gap: 4px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  padding: 8px;
+}
+
+.chat-message {
+  padding: 2px 0;
+}
+
+.chat-message.mine {
+  color: var(--blue);
+}
+
+.chat-message strong {
+  font-size: .92rem;
+  color: var(--ink);
+}
+
+.chat-line,
+.chat-empty {
+  display: block;
+  color: var(--muted);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.chat-empty {
+  padding: 2px 0;
+}
+
+.chat-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  gap: 8px;
+}
+
+.phase-header {
+  margin-bottom: 16px;
+}
+
+.phase-header p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.lobby-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, .72fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.section-block,
+.notice,
+.progress-panel,
+.action-card,
+.result-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+}
+
+.section-block.locked {
+  opacity: .82;
+}
+
+.action-card {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.host-instruction,
+.host-instruction-input {
+  margin-bottom: 14px;
+}
+
+.host-instruction {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.action-card p,
+.role-row p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: .87rem;
+  line-height: 1.45;
+}
+
+.validation {
+  border-radius: 7px;
+  padding: 10px;
+  font-size: .88rem;
+  font-weight: 800;
+}
+
+.validation.error {
+  background: var(--evil-soft);
+  color: var(--evil);
+}
+
+.validation.warn {
+  background: var(--gold-soft);
+  color: #5c3d09;
+}
+
+.validation.ok {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.settings-grid,
+.mission-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.mission-inputs {
+  grid-template-columns: repeat(5, minmax(70px, 1fr));
+}
+
+.role-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 112px;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-left-width: 5px;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+}
+
+.role-row.good {
+  border-left-color: var(--good);
+}
+
+.role-row.evil {
+  border-left-color: var(--evil);
+}
+
+.counter {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.counter button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 0;
+  background: #f0eadf;
+}
+
+.counter output {
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+}
+
+.role-reveal {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 16px;
+}
+
+.role-reveal.good {
+  border-top: 7px solid var(--good);
+}
+
+.role-reveal.evil {
+  border-top: 7px solid var(--evil);
+}
+
+.role-reveal .role-icon {
+  width: 68px;
+  height: 68px;
+  font-size: 1.6rem;
+}
+
+.info-list {
+  margin: 14px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.info-list li {
+  border-radius: 8px;
+  background: #f1ece2;
+  padding: 12px;
+}
+
+.progress-panel,
+.notice {
+  margin: 12px 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.choice-grid,
+.vote-grid,
+.reveal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.choice-card {
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+  text-align: left;
+}
+
+.choice-card.selected {
+  border-color: var(--blue);
+  background: #dcebf2;
+}
+
+.choice-card.retired-choice {
+  background: #ece7dd;
+}
+
+.choice-card strong,
+.choice-card span {
+  display: block;
+}
+
+.choice-card span {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.vote-pill {
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  font-weight: 900;
+}
+
+.vote-pill.approve {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.vote-pill.reject {
+  background: var(--evil-soft);
+  color: var(--evil);
+}
+
+.result-card {
+  margin: 14px 0;
+}
+
+.reveal-card {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.reveal-card.good {
+  border-left: 5px solid var(--good);
+}
+
+.reveal-card.evil {
+  border-left: 5px solid var(--evil);
+}
+
+.reveal-card p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+@media (max-width: 930px) {
+  .hero-panel,
+  .game-layout,
+  .lobby-grid,
+  .status-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .main-panel {
+    min-height: 0;
+  }
+
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    width: min(100vw - 16px, 1200px);
+    padding-top: 12px;
+  }
+
+  .topbar,
+  .button-row,
+  .section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-grid,
+  .mission-inputs,
+  .role-row {
+    grid-template-columns: 1fr;
+  }
+
+  .role-reveal {
+    grid-template-columns: 1fr;
+  }
+}
