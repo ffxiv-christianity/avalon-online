@@ -85,7 +85,7 @@ h1 {
 
 h2 {
   margin-bottom: 8px;
-  font-size: clamp(1.65rem, 4vw, 3.1rem);
+  font-size: clamp(1.35rem, 2vw, 2.25rem);
   line-height: 1;
   letter-spacing: 0;
 }
@@ -100,9 +100,9 @@ h3 {
 }
 
 .app-shell {
-  width: min(1200px, calc(100vw - 24px));
+  width: min(1760px, calc(100vw - clamp(24px, 4vw, 72px)));
   margin: 0 auto;
-  padding: 22px 0 42px;
+  padding: clamp(18px, 2vw, 34px) 0 clamp(36px, 4vw, 64px);
 }
 
 .topbar {
@@ -142,11 +142,11 @@ h3 {
 
 .hero-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 26px;
+  grid-template-columns: minmax(0, 1fr) clamp(340px, 28vw, 460px);
+  gap: clamp(22px, 2vw, 38px);
   align-items: center;
-  min-height: 520px;
-  padding: 28px;
+  min-height: clamp(500px, 58vh, 680px);
+  padding: clamp(24px, 2.2vw, 42px);
 }
 
 .hero-panel h2 {
@@ -224,8 +224,8 @@ h3 {
 .status-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: clamp(10px, 1vw, 16px);
+  margin-bottom: clamp(12px, 1vw, 18px);
 }
 
 .status-card {
@@ -248,13 +248,13 @@ h3 {
 
 .game-layout {
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: clamp(320px, 23vw, 420px) minmax(0, 1fr);
+  gap: clamp(14px, 1.2vw, 24px);
   align-items: start;
 }
 
 .room-view.lobby-mode .game-layout {
-  grid-template-columns: 330px minmax(0, 1fr);
+  grid-template-columns: clamp(320px, 23vw, 420px) minmax(0, 1fr);
 }
 
 .room-view.lobby-mode .game-only-panel {
@@ -263,16 +263,22 @@ h3 {
 
 .side-panel {
   display: grid;
-  gap: 14px;
+  gap: clamp(12px, 1vw, 18px);
 }
 
 .panel,
 .main-panel {
-  padding: 16px;
+  padding: clamp(14px, 1vw, 22px);
 }
 
 .main-panel {
-  min-height: 630px;
+  min-height: min(760px, calc(100vh - 180px));
+  padding: clamp(18px, 1.4vw, 30px);
+}
+
+.panel > h2 {
+  font-size: clamp(1rem, 1vw, 1.25rem);
+  line-height: 1.15;
 }
 
 .room-code-block {
@@ -466,7 +472,7 @@ h3 {
 
 .chat-list {
   display: grid;
-  height: 188px;
+  height: clamp(170px, 18vh, 230px);
   align-content: start;
   gap: 4px;
   overflow: auto;
@@ -511,6 +517,10 @@ h3 {
   margin-bottom: 16px;
 }
 
+.phase-header h2 {
+  font-size: clamp(1.8rem, 2.6vw, 3.4rem);
+}
+
 .phase-header p {
   color: var(--muted);
   line-height: 1.5;
@@ -518,8 +528,8 @@ h3 {
 
 .lobby-grid {
   display: grid;
-  grid-template-columns: minmax(260px, .72fr) minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(300px, .72fr) minmax(420px, 1fr);
+  gap: clamp(14px, 1vw, 20px);
   align-items: start;
 }
 
@@ -689,7 +699,7 @@ h3 {
 .vote-grid,
 .reveal-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(clamp(170px, 14vw, 230px), 1fr));
   gap: 10px;
   margin: 14px 0;
 }
@@ -767,18 +777,129 @@ h3 {
   color: var(--muted);
 }
 
+@media (min-width: 1280px) {
+  .side-panel {
+    position: sticky;
+    top: 18px;
+    max-height: calc(100vh - 36px);
+    overflow: auto;
+    padding-right: 2px;
+  }
+
+  .settings-grid {
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+  }
+
+  .mission-inputs {
+    grid-template-columns: repeat(5, minmax(88px, 1fr));
+  }
+}
+
+@media (min-width: 1500px) {
+  .app-shell {
+    width: min(1680px, calc(100vw - 72px));
+  }
+
+  .game-layout,
+  .room-view.lobby-mode .game-layout {
+    grid-template-columns: 390px minmax(0, 1fr);
+  }
+
+  .main-panel {
+    min-height: min(820px, calc(100vh - 190px));
+  }
+
+  .status-card {
+    padding: 16px;
+  }
+
+  .chat-list {
+    height: clamp(200px, 20vh, 280px);
+  }
+
+  .role-builder {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .role-row {
+    grid-template-columns: 38px minmax(0, 1fr) 112px;
+  }
+}
+
+@media (min-width: 2100px) {
+  .app-shell {
+    width: min(1900px, calc(100vw - 120px));
+  }
+
+  .game-layout,
+  .room-view.lobby-mode .game-layout {
+    grid-template-columns: 430px minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .hero-panel {
+    grid-template-columns: minmax(0, 1fr) 500px;
+  }
+
+  .main-panel {
+    min-height: min(900px, calc(100vh - 210px));
+  }
+
+  .chat-list {
+    height: clamp(230px, 22vh, 320px);
+  }
+}
+
+@media (max-width: 1180px) {
+  .game-layout,
+  .room-view.lobby-mode .game-layout {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+
+  .lobby-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 930px) {
   .hero-panel,
   .game-layout,
-  .lobby-grid,
-  .status-strip {
+  .lobby-grid {
     grid-template-columns: 1fr;
+  }
+
+  .status-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .game-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main-panel {
+    order: 1;
+    width: 100%;
+  }
+
+  .side-panel {
+    order: 2;
+    width: 100%;
   }
 
   .main-panel {
     min-height: 0;
   }
 
+  .chat-list {
+    height: 150px;
+  }
+
+  .choice-grid,
+  .vote-grid,
+  .reveal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 560px) {
@@ -794,13 +915,102 @@ h3 {
     flex-direction: column;
   }
 
+  h1 {
+    font-size: 2.1rem;
+    line-height: 1;
+  }
+
+  h2 {
+    font-size: 1.55rem;
+  }
+
+  .hero-panel,
+  .panel,
+  .main-panel {
+    padding: 12px;
+  }
+
+  .hero-panel {
+    min-height: auto;
+    gap: 18px;
+  }
+
+  .status-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .status-card {
+    min-height: 62px;
+    padding: 10px;
+  }
+
+  .status-card strong {
+    font-size: .98rem;
+    overflow-wrap: anywhere;
+  }
+
+  .room-code-block strong {
+    font-size: 1.55rem;
+  }
+
+  .player-card {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .token-stack {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .seat,
+  .token,
+  .role-icon {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+
+  .chat-list {
+    height: 132px;
+  }
+
+  .chat-form {
+    grid-template-columns: 1fr;
+  }
+
   .settings-grid,
   .mission-inputs,
-  .role-row {
+  .role-row,
+  .choice-grid,
+  .vote-grid,
+  .reveal-grid {
     grid-template-columns: 1fr;
+  }
+
+  .choice-card {
+    min-height: 74px;
+  }
+
+  .scoreboard {
+    gap: 5px;
+  }
+
+  .mission-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .mission-row strong {
+    grid-column: 2;
   }
 
   .role-reveal {
     grid-template-columns: 1fr;
+  }
+
+  .role-reveal .role-icon {
+    width: 54px;
+    height: 54px;
+    font-size: 1.2rem;
   }
 }

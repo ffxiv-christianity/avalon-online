@@ -547,6 +547,10 @@ function publicVoteResult(room) {
 
 function identityInfo(room, player) {
   if (player.role === "merlin") {
+    if (room.settings.playerCount === 4) {
+      const visibleAlly = room.players.find((p) => p.id !== player.id && p.side === "good");
+      return [`四人局特殊規則：你只看見一位正義隊友：${visibleAlly ? visibleAlly.name : "沒有任何人"}。你看不見對手。`];
+    }
     return [`你看見的邪惡方：${names(room.players.filter((p) => p.side === "evil" && p.role !== "mordred"))}。`];
   }
   if (player.role === "percival") {
