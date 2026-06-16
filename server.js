@@ -54,6 +54,42 @@ const RECOMMENDED_DECKS = {
 
 const rooms = new Map();
 const clients = new Set();
+const REACTIONS = [
+  { id: "like", emoji: "👍", label: "讚" },
+  { id: "cry", emoji: "😭", label: "哭哭" },
+  { id: "angry", emoji: "😡", label: "生氣" },
+  { id: "suspect", emoji: "🤔", label: "懷疑" },
+  { id: "shock", emoji: "😲", label: "震驚" },
+  { id: "laugh", emoji: "😂", label: "笑死" }
+];
+const ACHIEVEMENT_THRESHOLDS = {
+  goodWins: 2,
+  evilWins: 2,
+  merlinGoodWins: 2,
+  assassinHits: 2,
+  assassinMisses: 2,
+  servantBestStreak: 3,
+  percivalAssassinated: 1,
+  morganaEvilWins: 2,
+  oberonEvilWins: 3,
+  mordredThreeMissionGames: 1,
+  leaderGoodTeams: 3
+};
+const ACHIEVEMENT_PRIORITIES = {
+  "dice-god": 1,
+  "fate-joke": 1,
+  "good-light": 0,
+  "evil-king": 0,
+  "hidden-mirror": 3,
+  "top-assassin": 3,
+  "slipped-hand": 3,
+  "village-chief": 2,
+  "top-staff": 3,
+  "puppet-regime": 3,
+  "what-am-i-doing": 3,
+  "sorry-spy": 3,
+  "clear-eyed-leader": 3
+};
 
 function makeRoom(hostName) {
   const room = {
@@ -80,13 +116,19 @@ function makeRoom(hostName) {
     missionResults: [],
     revealed: {},
     winner: null,
+    gameStatsRecorded: false,
+    lastAssassination: null,
+    currentGame: null,
+    playerStats: {},
     hostInstruction: "請所有玩家先擲 d100，確認名字與設定後按準備。所有人準備好後由房主開始遊戲。",
     chat: [],
+    reactions: {},
     log: []
   };
   const player = makePlayer(hostName);
   room.hostId = player.id;
   room.players.push(player);
+  ensurePlayerStats(room, player);
   rooms.set(room.code, room);
   addLog(room, `${player.name} 建立房間。`);
   return { room, player };
@@ -113,6 +155,7 @@ function joinRoom(roomCode, name, requestedPlayerId = null) {
   if (room.players.some((player) => player.name.toLowerCase() === trimmed.toLowerCase())) return { error: "這個名字已經有人使用。" };
   const player = makePlayer(trimmed);
   room.players.push(player);
+  ensurePlayerStats(room, player);
   addLog(room, `${player.name} 加入房間。`);
   markEveryoneUnready(room);
   touchRoom(room);
@@ -235,6 +278,20 @@ function applyRoomAction(room, actor, action, payload) {
     room.chat = room.chat.slice(-80);
     return null;
   }
+  if (action === "react") {
+    const event = currentReactionEvent(room);
+    if (!event) return "現在沒有可回應的結果。";
+    if (payload.eventKey !== event.key) return "這個結果已經更新，請重新選擇表情。";
+    const reactionId = payload.reactionId === null ? null : String(payload.reactionId || "");
+    if (reactionId && !REACTIONS.some((reaction) => reaction.id === reactionId)) return "找不到這個表情。";
+    room.reactions[event.key] ||= {};
+    if (!reactionId || room.reactions[event.key][actor.id] === reactionId) {
+      delete room.reactions[event.key][actor.id];
+    } else {
+      room.reactions[event.key][actor.id] = reactionId;
+    }
+    return null;
+  }
   if (action === "startGame") {
     if (!isHost(room, actor)) return "只有房主可以開始遊戲。";
     const validation = validateLobby(room);
@@ -317,6 +374,7 @@ function applyRoomAction(room, actor, action, payload) {
     if (actor.role !== "assassin") return "只有刺客可以指定刺殺目標。";
     const target = room.players.find((player) => player.id === payload.playerId);
     if (!target || target.id === actor.id) return "刺殺目標不正確。";
+    room.lastAssassination = { assassinId: actor.id, targetId: target.id, hit: target.role === "merlin" };
     if (target.role === "merlin") {
       setWinner(room, "evil", `刺客刺中梅林：${target.name}。邪惡方勝利。`);
     } else {
@@ -340,6 +398,7 @@ function startGame(room) {
     player.role = deck[index];
     player.side = ROLE_DEFS[player.role].side;
     player.ready = false;
+    ensurePlayerStats(room, player);
   });
   room.phase = "reveal";
   room.round = 0;
@@ -352,6 +411,10 @@ function startGame(room) {
   room.missionResults = [];
   room.revealed = {};
   room.winner = null;
+  room.gameStatsRecorded = false;
+  room.lastAssassination = null;
+  room.currentGame = { missionCounts: {}, mordredThreeAwarded: {} };
+  room.reactions = {};
   room.log = [];
   addLog(room, `遊戲開始。${room.players[0].name} 骰點最高，成為首位領袖。`);
 }
@@ -393,6 +456,7 @@ function finishMission(room) {
     failNeed,
     result
   });
+  recordApprovedTeam(room);
   room.phase = "missionResult";
   addLog(room, `第 ${room.round + 1} 次任務${result === "success" ? "成功" : "失敗"}，失敗牌 ${fails} 張。`);
 }
@@ -456,6 +520,7 @@ function appointableLeaders(room) {
 
 function setWinner(room, side, reason) {
   room.winner = { side, reason };
+  recordGameOutcome(room, side);
   room.phase = "gameOver";
   addLog(room, reason);
 }
@@ -479,7 +544,11 @@ function resetRoom(room) {
   room.missionResults = [];
   room.revealed = {};
   room.winner = null;
+  room.gameStatsRecorded = false;
+  room.lastAssassination = null;
+  room.currentGame = null;
   room.chat = [];
+  room.reactions = {};
   room.log = [];
   addLog(room, "房間已重置。");
 }
@@ -489,6 +558,7 @@ function makeView(room, playerId) {
   const validation = validateLobby(room);
   const publicPlayers = room.players.map((player, index) => {
     const showRole = room.phase === "gameOver" || player.id === playerId;
+    const achievements = publicAchievements(room, player);
     return {
       id: player.id,
       name: player.name,
@@ -505,7 +575,8 @@ function makeView(room, playerId) {
       role: showRole ? player.role : null,
       roleName: showRole && player.role ? ROLE_DEFS[player.role].name : null,
       roleMark: showRole && player.role ? ROLE_DEFS[player.role].mark : null,
-      side: showRole ? player.side : null
+      side: showRole ? player.side : null,
+      achievements
     };
   });
   return {
@@ -530,6 +601,7 @@ function makeView(room, playerId) {
       winner: room.winner,
       hostInstruction: room.hostInstruction,
       chat: room.chat.slice(-80),
+      reactionEvent: publicReactionEvent(room, playerId),
       validation,
       canStart: validation.errors.length === 0,
       appointableLeaderIds: room.phase === "appointLeader" ? appointableLeaders(room).map((player) => player.id) : [],
@@ -553,6 +625,143 @@ function makeView(room, playerId) {
     roles: ROLE_DEFS,
     recommendedDecks: RECOMMENDED_DECKS,
     rules: PLAYER_RULES
+  };
+}
+
+function currentReactionEvent(room) {
+  if (room.phase === "voteResult" && room.voteResult) {
+    return {
+      key: `vote:${room.round}:${room.voteResult.passed ? "passed" : "failed"}:${room.voteResult.approve}:${room.voteResult.reject}`,
+      title: "投票結果"
+    };
+  }
+  if (room.phase === "missionResult") {
+    const last = room.missionResults.at(-1);
+    if (!last) return null;
+    return {
+      key: `mission:${last.round}:${last.result}:${last.fails}:${last.failNeed}`,
+      title: "任務結果"
+    };
+  }
+  if (room.phase === "gameOver" && room.winner) {
+    return {
+      key: `game:${room.winner.side}:${room.winner.reason}`,
+      title: "遊戲結果"
+    };
+  }
+  return null;
+}
+
+function ensurePlayerStats(room, player) {
+  room.playerStats ||= {};
+  const key = playerStatsKey(player.name);
+  room.playerStats[key] ||= {
+    name: player.name,
+    goodWins: 0,
+    evilWins: 0,
+    merlinGoodWins: 0,
+    assassinHits: 0,
+    assassinMisses: 0,
+    servantStreak: 0,
+    servantBestStreak: 0,
+    percivalAssassinated: 0,
+    morganaEvilWins: 0,
+    oberonEvilWins: 0,
+    mordredThreeMissionGames: 0,
+    leaderGoodTeams: 0
+  };
+  room.playerStats[key].name = player.name;
+  return room.playerStats[key];
+}
+
+function recordApprovedTeam(room) {
+  if (!room.currentGame) return;
+  const leader = currentLeader(room);
+  if (leader && room.selectedTeam.length && room.selectedTeam.every((id) => room.players.find((player) => player.id === id)?.side === "good")) {
+    ensurePlayerStats(room, leader).leaderGoodTeams += 1;
+  }
+  room.selectedTeam.forEach((playerId) => {
+    const player = room.players.find((item) => item.id === playerId);
+    if (!player) return;
+    room.currentGame.missionCounts[player.id] = (room.currentGame.missionCounts[player.id] || 0) + 1;
+    if (player.role !== "mordred") return;
+    if (room.currentGame.missionCounts[player.id] < 3) return;
+    if (room.currentGame.mordredThreeAwarded[player.id]) return;
+    room.currentGame.mordredThreeAwarded[player.id] = true;
+    ensurePlayerStats(room, player).mordredThreeMissionGames += 1;
+  });
+}
+
+function recordGameOutcome(room, winningSide) {
+  if (room.gameStatsRecorded) return;
+  room.gameStatsRecorded = true;
+  room.players.forEach((player) => {
+    const stats = ensurePlayerStats(room, player);
+    if (player.side === "good" && winningSide === "good") stats.goodWins += 1;
+    if (player.side === "evil" && winningSide === "evil") stats.evilWins += 1;
+    if (player.role === "merlin" && winningSide === "good") stats.merlinGoodWins += 1;
+    if (player.role === "morgana" && winningSide === "evil") stats.morganaEvilWins += 1;
+    if (player.role === "oberon" && winningSide === "evil") stats.oberonEvilWins += 1;
+    if (player.role === "servant") {
+      stats.servantStreak += 1;
+      stats.servantBestStreak = Math.max(stats.servantBestStreak, stats.servantStreak);
+    } else {
+      stats.servantStreak = 0;
+    }
+  });
+
+  const assassination = room.lastAssassination;
+  if (!assassination) return;
+  const assassin = room.players.find((player) => player.id === assassination.assassinId);
+  const target = room.players.find((player) => player.id === assassination.targetId);
+  if (assassin?.role === "assassin") {
+    const stats = ensurePlayerStats(room, assassin);
+    if (assassination.hit) stats.assassinHits += 1;
+    else stats.assassinMisses += 1;
+  }
+  if (target?.role === "percival") ensurePlayerStats(room, target).percivalAssassinated += 1;
+}
+
+function publicAchievements(room, player) {
+  const stats = ensurePlayerStats(room, player);
+  const achievements = [];
+  if (player.roll >= 95) achievements.push(achievement("dice-god", "骰子之神", `d100 擲出 ${player.roll}，達成 95 以上。`, 1));
+  if (player.roll && player.roll <= 5) achievements.push(achievement("fate-joke", "命運開玩笑", `d100 擲出 ${player.roll}，達成 5 以下。`, 1));
+  if (stats.goodWins >= ACHIEVEMENT_THRESHOLDS.goodWins) achievements.push(achievement("good-light", "正義之光", `正義方獲勝 ${stats.goodWins} 次。`, stats.goodWins));
+  if (stats.evilWins >= ACHIEVEMENT_THRESHOLDS.evilWins) achievements.push(achievement("evil-king", "暗影王者", `邪惡方獲勝 ${stats.evilWins} 次。`, stats.evilWins));
+  if (stats.merlinGoodWins >= ACHIEVEMENT_THRESHOLDS.merlinGoodWins) achievements.push(achievement("hidden-mirror", "藏鏡人", `擔任梅林且正義方勝利 ${stats.merlinGoodWins} 次。`, stats.merlinGoodWins));
+  if (stats.assassinHits >= ACHIEVEMENT_THRESHOLDS.assassinHits) achievements.push(achievement("top-assassin", "頂尖殺手", `擔任刺客且刺中梅林 ${stats.assassinHits} 次。`, stats.assassinHits));
+  if (stats.assassinMisses >= ACHIEVEMENT_THRESHOLDS.assassinMisses) achievements.push(achievement("slipped-hand", "手滑", `擔任刺客但沒有刺中梅林 ${stats.assassinMisses} 次。`, stats.assassinMisses));
+  if (stats.servantBestStreak >= ACHIEVEMENT_THRESHOLDS.servantBestStreak) achievements.push(achievement("village-chief", "村長", `連續擔任忠臣最高 ${stats.servantBestStreak} 次。`, stats.servantBestStreak));
+  if (stats.percivalAssassinated >= ACHIEVEMENT_THRESHOLDS.percivalAssassinated) achievements.push(achievement("top-staff", "頂級幕僚", `擔任派西維爾且最後被刺客刺殺 ${stats.percivalAssassinated} 次。`, stats.percivalAssassinated));
+  if (stats.morganaEvilWins >= ACHIEVEMENT_THRESHOLDS.morganaEvilWins) achievements.push(achievement("puppet-regime", "魁儡政權", `擔任莫甘娜且邪惡方勝利 ${stats.morganaEvilWins} 次。`, stats.morganaEvilWins));
+  if (stats.oberonEvilWins >= ACHIEVEMENT_THRESHOLDS.oberonEvilWins) achievements.push(achievement("what-am-i-doing", "我在幹嘛", `擔任奧伯倫且邪惡方勝利 ${stats.oberonEvilWins} 次。`, stats.oberonEvilWins));
+  if (stats.mordredThreeMissionGames >= ACHIEVEMENT_THRESHOLDS.mordredThreeMissionGames) achievements.push(achievement("sorry-spy", "對不起我是臥底", `擔任莫德雷德且單場被派出任務 3 次，共 ${stats.mordredThreeMissionGames} 場。`, stats.mordredThreeMissionGames));
+  if (stats.leaderGoodTeams >= ACHIEVEMENT_THRESHOLDS.leaderGoodTeams) achievements.push(achievement("clear-eyed-leader", "慧眼領袖", `身為領袖僅指派正義方出任務 ${stats.leaderGoodTeams} 次。`, stats.leaderGoodTeams));
+  return achievements;
+}
+
+function achievement(id, name, detail, count) {
+  return { id, name, detail, count, priority: ACHIEVEMENT_PRIORITIES[id] || 0 };
+}
+
+function publicReactionEvent(room, playerId) {
+  const event = currentReactionEvent(room);
+  if (!event) return null;
+  const votes = room.reactions[event.key] || {};
+  return {
+    ...event,
+    reactions: REACTIONS.map((reaction) => {
+      const namesForReaction = room.players
+        .filter((player) => votes[player.id] === reaction.id)
+        .map((player) => player.name);
+      return {
+        ...reaction,
+        count: namesForReaction.length,
+        names: namesForReaction,
+        active: votes[playerId] === reaction.id
+      };
+    })
   };
 }
 
@@ -741,6 +950,10 @@ function refreshOnlineStatus(room) {
 
 function cleanName(name) {
   return String(name || "").trim().slice(0, 16);
+}
+
+function playerStatsKey(name) {
+  return cleanName(name).toLocaleLowerCase();
 }
 
 function cleanMessage(message, maxLength) {
@@ -943,6 +1156,7 @@ module.exports = {
   PLAYER_RULES,
   DEFAULT_DECK,
   RECOMMENDED_DECKS,
+  ACHIEVEMENT_THRESHOLDS,
   rooms,
   makeRoom,
   joinRoom,

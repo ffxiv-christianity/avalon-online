@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node ../../work/test-avalon-online.js && node ../../work/test-avalon-websocket.js"
+    "test": "node tests/game-flow.test.js && node tests/achievements.test.js"
   },
   "engines": {
     "node": ">=18"

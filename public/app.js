@@ -157,7 +157,10 @@ function renderRoster() {
       <article class="player-card ${player.isLeader ? "leader" : ""} ${player.retiredLeader ? "retired" : ""} ${player.online ? "" : "offline"}">
         <div class="seat">${player.index + 1}</div>
         <div>
-          <strong>${escapeHtml(player.name)}</strong>
+          <div class="player-name-line">
+            <strong>${escapeHtml(player.name)}</strong>
+            ${renderAchievementBadge(player.achievements || [])}
+          </div>
           <div class="player-meta">
             ${player.roll ? `d100: ${player.roll}` : "未擲骰"}${player.ready ? " · 已準備" : ""} · ${player.online ? "在線" : "離線"}
           </div>
@@ -170,6 +173,30 @@ function renderRoster() {
       </article>
     `;
   }).join("");
+}
+
+function renderAchievementBadge(achievements) {
+  if (!achievements.length) return "";
+  const featured = achievements.reduce((best, item) => {
+    const priorityDiff = Number(item.priority || 0) - Number(best.priority || 0);
+    if (priorityDiff > 0) return item;
+    if (priorityDiff < 0) return best;
+    return Number(item.count || 0) > Number(best.count || 0) ? item : best;
+  }, achievements[0]);
+  const label = achievements.length > 1 ? `${featured.name} +${achievements.length - 1}` : featured.name;
+  return `
+    <span class="achievement-badge" tabindex="0" aria-label="已取得 ${achievements.length} 個稱號">
+      ${escapeHtml(label)}
+      <span class="achievement-popover" role="tooltip">
+        ${achievements.map((item) => `
+          <span class="achievement-entry">
+            <strong>${escapeHtml(item.name)}</strong>
+            <span>${escapeHtml(item.detail)}</span>
+          </span>
+        `).join("")}
+      </span>
+    </span>
+  `;
 }
 
 function renderScoreboard() {
@@ -422,10 +449,12 @@ function renderVoteResult() {
     <div class="vote-grid">
       ${result.votes.map((entry) => `<div class="vote-pill ${entry.vote}">${escapeHtml(entry.name)}：${entry.vote === "approve" ? "同意" : "不同意"}</div>`).join("")}
     </div>
+    ${renderReactionPanel()}
     ${you.isLeader ? "" : `<div class="notice">等待當前領袖繼續。</div>`}
     <button class="primary-button" data-action="continueVote" type="button" ${you.isLeader ? "" : "disabled"}>${result.passed ? "進入任務" : "下一位領袖提案"}</button>
   `;
   els.mainPanel.querySelector("[data-action='continueVote']").addEventListener("click", () => sendAction("continueVote"));
+  bindReactionButtons();
 }
 
 function renderMission() {
@@ -460,10 +489,12 @@ function renderMissionResult() {
       <h3>第 ${last.round + 1} 次任務${last.result === "success" ? "成功" : "失敗"}</h3>
       <p>任務隊伍：${namesByIds(last.team)}</p>
     </div>
+    ${renderReactionPanel()}
     ${you.isLeader ? "" : `<div class="notice">等待當前領袖繼續。</div>`}
     <button class="primary-button" data-action="continueMission" type="button" ${you.isLeader ? "" : "disabled"}>繼續</button>
   `;
   els.mainPanel.querySelector("[data-action='continueMission']").addEventListener("click", () => sendAction("continueMission"));
+  bindReactionButtons();
 }
 
 function renderAppointLeader() {
@@ -522,9 +553,43 @@ function renderGameOver() {
         </article>
       `).join("")}
     </div>
+    ${renderReactionPanel()}
     ${you.isHost ? `<button class="danger-button" data-action="resetRoom" type="button">重置房間</button>` : ""}
   `;
   els.mainPanel.querySelector("[data-action='resetRoom']")?.addEventListener("click", () => sendAction("resetRoom"));
+  bindReactionButtons();
+}
+
+function renderReactionPanel() {
+  const event = snapshot.room.reactionEvent;
+  if (!event) return "";
+  return `
+    <section class="reaction-panel" aria-label="${escapeHtml(event.title)}反應">
+      <div class="reaction-title">大家的反應</div>
+      <div class="reaction-buttons">
+        ${event.reactions.map((reaction) => {
+          const names = reaction.names.length ? reaction.names.join("、") : reaction.label;
+          return `
+            <button class="reaction-button ${reaction.active ? "active" : ""}" data-reaction="${reaction.id}" data-event-key="${escapeHtml(event.key)}" type="button" title="${escapeHtml(names)}" aria-label="${escapeHtml(reaction.label)}">
+              <span class="reaction-emoji">${reaction.emoji}</span>
+              <span class="reaction-count">${reaction.count}</span>
+            </button>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function bindReactionButtons() {
+  els.mainPanel.querySelectorAll("[data-reaction]").forEach((button) => {
+    button.addEventListener("click", () => {
+      sendAction("react", {
+        eventKey: button.dataset.eventKey,
+        reactionId: button.dataset.reaction
+      });
+    });
+  });
 }
 
 function phaseHeader(title, subtitle) {

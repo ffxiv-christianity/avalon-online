@@ -311,6 +311,7 @@ h3 {
 }
 
 .player-card {
+  position: relative;
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
   gap: 9px;
@@ -319,6 +320,18 @@ h3 {
   border-radius: 8px;
   background: #fff;
   padding: 9px;
+}
+
+.player-name-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.player-name-line strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .player-card.leader {
@@ -355,6 +368,65 @@ h3 {
 .player-meta {
   color: var(--muted);
   font-size: .82rem;
+  line-height: 1.35;
+}
+
+.achievement-badge {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  min-height: 22px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(31, 93, 122, .28);
+  border-radius: 999px;
+  background: rgba(31, 93, 122, .08);
+  color: var(--blue);
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 4px 7px;
+  cursor: help;
+}
+
+.achievement-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  display: none;
+  width: min(280px, calc(100vw - 36px));
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid rgba(31, 93, 122, .28);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(32, 31, 28, .16);
+  color: var(--ink);
+  padding: 9px;
+}
+
+.achievement-badge:hover .achievement-popover,
+.achievement-badge:focus .achievement-popover,
+.achievement-badge:focus-within .achievement-popover {
+  display: grid;
+  gap: 8px;
+}
+
+.achievement-entry {
+  display: grid;
+  gap: 3px;
+  white-space: normal;
+}
+
+.achievement-entry strong {
+  color: var(--ink);
+  font-size: .86rem;
+}
+
+.achievement-entry span {
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 500;
   line-height: 1.35;
 }
 
@@ -556,6 +628,60 @@ h3 {
   border-radius: 8px;
   background: #fff;
   padding: 14px;
+}
+
+.reaction-panel {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  padding: 10px;
+  border: 1px solid rgba(31, 93, 122, .18);
+  border-radius: 8px;
+  background: #fffdfa;
+}
+
+.reaction-title {
+  color: var(--muted);
+  font-size: .84rem;
+}
+
+.reaction-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reaction-button {
+  display: inline-grid;
+  grid-template-columns: 24px minmax(18px, auto);
+  align-items: center;
+  min-height: 36px;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  padding: 5px 9px 5px 7px;
+  cursor: pointer;
+}
+
+.reaction-button:hover,
+.reaction-button.active {
+  border-color: rgba(31, 93, 122, .55);
+  background: rgba(31, 93, 122, .08);
+}
+
+.reaction-emoji {
+  font-size: 1.12rem;
+  line-height: 1;
+}
+
+.reaction-count {
+  min-width: 1ch;
+  color: var(--muted);
+  font-size: .9rem;
+  font-weight: 700;
+  text-align: center;
 }
 
 .section-block.locked {
