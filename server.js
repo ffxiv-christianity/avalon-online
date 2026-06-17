@@ -1302,6 +1302,7 @@ function contentType(filePath) {
   if (filePath.endsWith(".css")) return "text/css; charset=utf-8";
   if (filePath.endsWith(".js")) return "text/javascript; charset=utf-8";
   if (filePath.endsWith(".json")) return "application/json; charset=utf-8";
+  if (filePath.endsWith(".webmanifest")) return "application/manifest+json; charset=utf-8";
   if (filePath.endsWith(".svg")) return "image/svg+xml; charset=utf-8";
   if (filePath.endsWith(".png")) return "image/png";
   if (filePath.endsWith(".ico")) return "image/x-icon";
