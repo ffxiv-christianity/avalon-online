@@ -459,8 +459,11 @@ h3 {
 
 .token-stack {
   display: flex;
+  flex-wrap: wrap;
   gap: 5px;
   align-items: center;
+  justify-content: flex-end;
+  max-width: 78px;
 }
 
 .token,
@@ -474,12 +477,17 @@ h3 {
   font-weight: 900;
 }
 
-.token.sword {
+.token.leader,
+.token.excalibur {
   background: var(--gold);
   color: #fff8e9;
 }
 
-.token.sword::before {
+.token.leader::before {
+  content: "領";
+}
+
+.token.excalibur::before {
   content: "劍";
 }
 
@@ -489,7 +497,25 @@ h3 {
 }
 
 .token.retired::before {
-  content: "退";
+  content: "領";
+}
+
+.token.lady {
+  background: var(--blue);
+  color: #f5fbff;
+}
+
+.token.lady::before {
+  content: "湖";
+}
+
+.token.lady-used {
+  background: #d9d4ca;
+  color: #6c665d;
+}
+
+.token.lady-used::before {
+  content: "湖";
 }
 
 .role-icon {
@@ -553,6 +579,80 @@ h3 {
   align-items: center;
   color: var(--muted);
   font-size: .86rem;
+}
+
+.setting-option {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.setting-option label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-option input[type="checkbox"] {
+  flex: 0 0 18px;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--blue);
+}
+
+.section-heading {
+  position: relative;
+}
+
+.help-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  border: 1px solid rgba(31, 93, 122, .35);
+  border-radius: 999px;
+  color: var(--blue);
+  font-size: .76rem;
+  font-weight: 900;
+  cursor: help;
+}
+
+.help-popover {
+  position: absolute;
+  z-index: 18;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  display: none;
+  border: 1px solid rgba(31, 93, 122, .28);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 16px 36px rgba(32, 31, 28, .14);
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.45;
+  padding: 9px;
+}
+
+.help-dot:hover + .help-popover,
+.help-dot:focus + .help-popover {
+  display: block;
+}
+
+.compact-tool {
+  margin: 14px 0;
+  padding: 12px;
+}
+
+.choice-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .mission-bar {
@@ -821,6 +921,14 @@ h3 {
 
 .role-reveal.evil {
   border-top: 7px solid var(--evil);
+}
+
+.lake-side.good {
+  color: var(--good);
+}
+
+.lake-side.evil {
+  color: var(--evil);
 }
 
 .role-reveal .role-icon {

@@ -166,8 +166,9 @@ function renderRoster() {
           </div>
         </div>
         <div class="token-stack">
-          ${player.isLeader ? token("sword", "聖劍") : ""}
-          ${player.retiredLeader ? token("retired", "退役領袖") : ""}
+          ${player.isLeader ? token("leader", "領袖") : player.retiredLeader ? token("retired", "退役領袖") : ""}
+          ${player.excaliburHolder ? token("excalibur", "王者之劍") : ""}
+          ${player.ladyHolder ? token("lady", "湖中女神") : player.usedLady ? token("lady-used", "曾持有湖中女神") : ""}
           ${role ? roleIcon(player.role, player.side, role.mark) : ""}
         </div>
       </article>
@@ -242,7 +243,10 @@ function renderMain() {
   if (phase === "vote") return renderVote();
   if (phase === "voteResult") return renderVoteResult();
   if (phase === "mission") return renderMission();
+  if (phase === "excalibur") return renderExcalibur();
   if (phase === "missionResult") return renderMissionResult();
+  if (phase === "lake") return renderLake();
+  if (phase === "lakeResult") return renderLakeResult();
   if (phase === "appointLeader") return renderAppointLeader();
   if (phase === "assassination") return renderAssassination();
   if (phase === "gameOver") return renderGameOver();
@@ -296,6 +300,12 @@ function renderLobby() {
             </select>
           </label>
         </div>
+        <h3>擴充規則</h3>
+        <div class="settings-grid">
+          ${settingToggle("excaliburToggle", "啟用王者之劍", settings.expansions?.excalibur, "投票通過後，若領袖把王者之劍交給任務成員，任務牌提交完畢後由持劍者選擇是否發動；若發動，系統會翻轉一名任務成員的任務牌再結算。", you.isHost)}
+          ${settingToggle("excaliburUniqueToggle", "王者之劍不可重複持有", settings.expansions?.excaliburUnique, "啟用後，每位玩家每局最多持有一次王者之劍；投票未通過不會消耗持有次數。", you.isHost && settings.expansions?.excalibur)}
+          ${settingToggle("ladyToggle", "啟用湖中女神", settings.expansions?.ladyOfLake, "建議大於七人遊戲使用。開局由擲骰第二大的玩家持有；第 2、3、4 次任務結束後，湖中女神可以私下查驗一名玩家陣營。若被查驗者已持有過湖中女神，指示物會依擲骰順序交給下一位未持有者。", you.isHost)}
+        </div>
         <h3>每輪任務人數</h3>
         <div class="mission-inputs">
           ${settings.teamSizes.map((size, index) => `
@@ -323,7 +333,8 @@ function bindLobby(settings) {
       playerCount: count,
       roles: snapshot.recommendedDecks[count],
       teamSizes: snapshot.rules[count].team,
-      leaderMode: settings.leaderMode
+      leaderMode: settings.leaderMode,
+      expansions: settings.expansions
     });
   });
   const countSelect = document.getElementById("playerCountSelect");
@@ -337,6 +348,13 @@ function bindLobby(settings) {
   });
   const leaderSelect = document.getElementById("leaderModeSelect");
   leaderSelect?.addEventListener("change", () => sendAction("setSettings", { ...settings, leaderMode: leaderSelect.value }));
+  bindExpansionToggle("excaliburToggle", settings, (checked) => ({
+    ...settings.expansions,
+    excalibur: checked,
+    excaliburUnique: checked ? settings.expansions?.excaliburUnique : false
+  }));
+  bindExpansionToggle("excaliburUniqueToggle", settings, (checked) => ({ ...settings.expansions, excaliburUnique: checked }));
+  bindExpansionToggle("ladyToggle", settings, (checked) => ({ ...settings.expansions, ladyOfLake: checked }));
   els.mainPanel.querySelectorAll(".team-size-input").forEach((input) => {
     input.addEventListener("change", () => {
       const teamSizes = [...settings.teamSizes];
@@ -345,6 +363,26 @@ function bindLobby(settings) {
     });
   });
   renderRoleBuilder(settings);
+}
+
+function settingToggle(id, label, checked, help, enabled) {
+  return `
+    <div class="field setting-option">
+      <label>
+        <input id="${id}" type="checkbox" ${checked ? "checked" : ""} ${enabled ? "" : "disabled"}>
+        ${label}
+      </label>
+      <span class="help-dot" tabindex="0">?</span>
+      <span class="help-popover">${escapeHtml(help)}</span>
+    </div>
+  `;
+}
+
+function bindExpansionToggle(id, settings, buildExpansions) {
+  const input = document.getElementById(id);
+  input?.addEventListener("change", () => {
+    sendAction("setSettings", { ...settings, expansions: buildExpansions(input.checked) });
+  });
 }
 
 function renderRoleBuilder(settings) {
@@ -397,7 +435,7 @@ function renderTeam() {
   const { room, you } = snapshot;
   const teamSize = room.settings.teamSizes[room.round];
   els.mainPanel.innerHTML = `
-    ${phaseHeader(`第 ${room.round + 1} 次任務`, `${leaderName()} 持有聖劍，需要選出 ${teamSize} 位任務成員。`)}
+    ${phaseHeader(`第 ${room.round + 1} 次任務`, `${leaderName()} 持有領袖指示物，需要選出 ${teamSize} 位任務成員。`)}
     <div class="notice">${you.isLeader ? "你是領袖，請選擇隊伍。" : "等待領袖選擇隊伍。隊伍會即時更新。"}</div>
     <div class="choice-grid">
       ${room.players.map((player) => `
@@ -407,12 +445,42 @@ function renderTeam() {
         </button>
       `).join("")}
     </div>
+    ${renderExcaliburPicker(room, you)}
     <button class="primary-button" data-action="submitTeam" type="button" ${you.isLeader && room.selectedTeam.length === teamSize ? "" : "disabled"}>送出隊伍</button>
   `;
   els.mainPanel.querySelectorAll("[data-player]").forEach((button) => {
     button.addEventListener("click", () => sendAction("toggleTeam", { playerId: button.dataset.player }));
   });
+  els.mainPanel.querySelectorAll("[data-excalibur-holder]").forEach((button) => {
+    button.addEventListener("click", () => sendAction("setExcaliburHolder", { playerId: button.dataset.excaliburHolder || null }));
+  });
   els.mainPanel.querySelector("[data-action='submitTeam']")?.addEventListener("click", () => sendAction("submitTeam"));
+}
+
+function renderExcaliburPicker(room, you) {
+  if (!room.settings.expansions?.excalibur) return "";
+  const candidates = room.players.filter((player) => room.excaliburCandidateIds.includes(player.id));
+  return `
+    <section class="section-block compact-tool">
+      <div class="section-heading">
+        <h3>王者之劍</h3>
+        <span class="help-dot" tabindex="0">?</span>
+        <span class="help-popover">可由領袖交給一名任務成員。任務牌提交完畢後，持劍者可選擇不發動，或公開選擇一名任務成員翻轉任務牌再結算。</span>
+      </div>
+      <div class="choice-grid compact">
+        <button class="choice-card ${room.selectedExcaliburHolderId ? "" : "selected"}" data-excalibur-holder="" type="button" ${you.isLeader ? "" : "disabled"}>
+          <strong>不給</strong>
+          <span>本次不使用王者之劍</span>
+        </button>
+        ${candidates.map((player) => `
+          <button class="choice-card ${room.selectedExcaliburHolderId === player.id ? "selected" : ""}" data-excalibur-holder="${player.id}" type="button" ${you.isLeader ? "" : "disabled"}>
+            <strong>${escapeHtml(player.name)}</strong>
+            <span>${room.selectedExcaliburHolderId === player.id ? "持有王者之劍" : "交給此玩家"}</span>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function renderVote() {
@@ -471,6 +539,32 @@ function missionControls(you) {
   `;
 }
 
+function renderExcalibur() {
+  const { room, you } = snapshot;
+  const holder = room.players.find((player) => player.id === room.activeExcaliburHolderId);
+  els.mainPanel.innerHTML = `
+    ${phaseHeader("王者之劍", `${holder?.name || "持劍者"} 可以選擇不發動，或公開選擇一名任務成員翻轉任務牌後結算。`)}
+    ${you.isExcaliburHolder ? `
+      <div class="choice-grid">
+        <button class="choice-card" data-excalibur-skip type="button">
+          <strong>不發動</strong>
+          <span>保留原本任務牌結果</span>
+        </button>
+        ${room.players.filter((player) => room.selectedTeam.includes(player.id)).map((player) => `
+          <button class="choice-card" data-excalibur-target="${player.id}" type="button">
+            <strong>${escapeHtml(player.name)}</strong>
+            <span>翻轉此人的任務牌</span>
+          </button>
+        `).join("")}
+      </div>
+    ` : `<div class="notice">等待王者之劍持有者選擇目標。</div>`}
+  `;
+  els.mainPanel.querySelectorAll("[data-excalibur-target]").forEach((button) => {
+    button.addEventListener("click", () => sendAction("useExcalibur", { playerId: button.dataset.excaliburTarget }));
+  });
+  els.mainPanel.querySelector("[data-excalibur-skip]")?.addEventListener("click", () => sendAction("useExcalibur", { skip: true }));
+}
+
 function renderMissionResult() {
   const last = snapshot.room.missionResults.at(-1);
   const { you } = snapshot;
@@ -479,6 +573,7 @@ function renderMissionResult() {
     <div class="result-card ${last.result}">
       <h3>第 ${last.round + 1} 次任務${last.result === "success" ? "成功" : "失敗"}</h3>
       <p>任務隊伍：${namesByIds(last.team)}</p>
+      ${last.excalibur ? `<p>${excaliburResultText(last.excalibur)}</p>` : ""}
     </div>
     ${renderReactionPanel()}
     ${you.isLeader ? "" : `<div class="notice">等待當前領袖繼續。</div>`}
@@ -488,10 +583,57 @@ function renderMissionResult() {
   bindReactionButtons();
 }
 
+function renderLake() {
+  const { room, you } = snapshot;
+  const holder = room.players.find((player) => player.id === room.ladyHolderId);
+  els.mainPanel.innerHTML = `
+    ${phaseHeader("湖中女神", `${holder?.name || "湖中女神"} 可以查驗一位玩家。若對方已持有過湖中女神，指示物會交給下一位未持有者。`)}
+    ${you.isLadyHolder ? `
+      <div class="choice-grid">
+        ${room.players.filter((player) => room.lakeCandidateIds.includes(player.id)).map((player) => `
+          <button class="choice-card" data-lake-target="${player.id}" type="button">
+            <strong>${escapeHtml(player.name)}</strong>
+            <span>查驗陣營</span>
+          </button>
+        `).join("")}
+      </div>
+    ` : `<div class="notice">等待湖中女神進行查驗。</div>`}
+  `;
+  els.mainPanel.querySelectorAll("[data-lake-target]").forEach((button) => {
+    button.addEventListener("click", () => sendAction("inspectWithLady", { playerId: button.dataset.lakeTarget }));
+  });
+}
+
+function renderLakeResult() {
+  const { room } = snapshot;
+  const lakeSide = room.lakeResultText?.includes("邪惡方") ? "evil" : "good";
+  els.mainPanel.innerHTML = `
+    ${phaseHeader("湖中女神查驗", "查驗結果只會顯示給使用湖中女神的玩家。")}
+    ${room.lakeResultText ? `
+      <div class="role-reveal ${lakeSide}">
+        ${token("lady", "湖中女神")}
+        <div>
+          <p class="eyebrow">查驗結果</p>
+          <h2>${renderLakeResultText(room.lakeResultText)}</h2>
+          <p>您可以自由選擇要不要公開給其他玩家。</p>
+        </div>
+      </div>
+      <button class="primary-button" data-action="confirmLakeResult" type="button">繼續</button>
+    ` : `<div class="notice">等待湖中女神確認查驗結果。</div>`}
+  `;
+  els.mainPanel.querySelector("[data-action='confirmLakeResult']")?.addEventListener("click", () => sendAction("confirmLakeResult"));
+}
+
+function renderLakeResultText(text) {
+  return escapeHtml(text)
+    .replace("正義方", `<span class="lake-side good">正義方</span>`)
+    .replace("邪惡方", `<span class="lake-side evil">邪惡方</span>`);
+}
+
 function renderAppointLeader() {
   const { room, you } = snapshot;
   els.mainPanel.innerHTML = `
-    ${phaseHeader("指定下一位領袖", `${leaderName()} 持有聖劍，請從沒有退役領袖徽章的玩家中指定下一位。`)}
+    ${phaseHeader("指定下一位領袖", `${leaderName()} 持有領袖指示物，請從沒有退役領袖徽章的玩家中指定下一位。`)}
     <div class="choice-grid">
       ${room.players.map((player) => {
         const canPick = you.isLeader && room.appointableLeaderIds.includes(player.id);
@@ -603,6 +745,8 @@ function phaseProgressText() {
   const room = snapshot.room;
   if (room.phase === "vote") return `${room.voteProgress.done} / ${room.voteProgress.total} 投票`;
   if (room.phase === "mission") return `${room.missionProgress.done} / ${room.missionProgress.total} 任務`;
+  if (room.phase === "excalibur") return "等待持劍者";
+  if (room.phase === "lake" || room.phase === "lakeResult") return "湖中女神";
   if (room.phase === "reveal") return `${room.players.filter((player) => player.revealed).length} / ${room.players.length} 身份`;
   if (room.phase === "lobby") return `${room.players.filter((player) => player.ready).length} / ${room.settings.playerCount} 準備`;
   return `${room.rejectedVotes} / 5 反對`;
@@ -616,7 +760,10 @@ function phaseLabel(phase) {
     vote: "投票",
     voteResult: "投票結果",
     mission: "任務",
+    excalibur: "王者之劍",
     missionResult: "任務結果",
+    lake: "湖中女神",
+    lakeResult: "湖中女神",
     appointLeader: "指定領袖",
     assassination: "刺殺",
     gameOver: "結束"
@@ -633,6 +780,16 @@ function currentPlayer() {
 
 function namesByIds(ids) {
   return ids.map((id) => snapshot.room.players.find((player) => player.id === id)?.name || id).join("、");
+}
+
+function nameById(id) {
+  return snapshot.room.players.find((player) => player.id === id)?.name || id;
+}
+
+function excaliburResultText(excalibur) {
+  const holderName = nameById(excalibur.holderId);
+  if (!excalibur.used) return `${holderName} 持有王者之劍，但沒有發動。`;
+  return `${holderName} 對 ${nameById(excalibur.targetId)} 發動王者之劍。`;
 }
 
 function token(kind, label) {

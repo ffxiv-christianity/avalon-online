@@ -47,6 +47,13 @@ function setManualGame(room, players, roles) {
   room.votes = {};
   room.missionCards = {};
   room.missionResults = [];
+  room.selectedExcaliburHolderId = null;
+  room.activeExcaliburHolderId = null;
+  room.excaliburTargetId = null;
+  room.usedExcaliburHolderIds = [];
+  room.ladyHolderId = null;
+  room.ladyUsedIds = [];
+  room.pendingLakeResult = null;
   room.revealed = {};
   room.winner = null;
   room.gameStatsRecorded = false;
@@ -60,6 +67,14 @@ function voteAll(room, players, vote) {
 
 function submitSuccessfulMission(room, team) {
   team.forEach((player) => action(room, player, "submitMission", { card: "success" }));
+}
+
+function proposeAndApprove(room, players, leader, team) {
+  room.selectedTeam = [];
+  team.forEach((player) => action(room, leader, "toggleTeam", { playerId: player.id }));
+  action(room, leader, "submitTeam");
+  voteAll(room, players, "approve");
+  action(room, leader, "continueVote");
 }
 
 function testRoomJoinAndRejoin() {
@@ -83,7 +98,13 @@ function testRoomJoinAndRejoin() {
 function testLobbySettingsReadyAndStart() {
   const { room, players, host } = makePlayers(5);
   expectError(room, players[1], "setSettings", { playerCount: 4 }, "房主");
-  action(room, host, "setSettings", { playerCount: 5, roles: room.settings.roles, teamSizes: [2, 3, 2, 3, 3], leaderMode: "appoint" });
+  action(room, host, "setSettings", {
+    playerCount: 5,
+    roles: room.settings.roles,
+    teamSizes: [2, 3, 2, 3, 3],
+    leaderMode: "appoint",
+    expansions: { excalibur: false, excaliburUnique: false, ladyOfLake: true }
+  });
   expectError(room, host, "startGame", {}, "擲 d100");
 
   players.forEach((player) => {
@@ -97,6 +118,28 @@ function testLobbySettingsReadyAndStart() {
   assert.strictEqual(room.phase, "reveal");
   assert.strictEqual(room.players[0].roll, Math.max(...room.players.map((player) => player.roll)));
   assert.strictEqual(makeView(room, host.id).room.leaderId, room.players[0].id);
+  assert.strictEqual(room.ladyHolderId, room.players[1].id, "Lady of the Lake should start on the second-highest d100 roll");
+}
+
+function testLadyInitialHolderUsesSecondHighestRoll() {
+  const { room, players, host } = makePlayers(5);
+  action(room, host, "setSettings", {
+    playerCount: 5,
+    roles: room.settings.roles,
+    teamSizes: [2, 3, 2, 3, 3],
+    leaderMode: "appoint",
+    expansions: { excalibur: false, excaliburUnique: false, ladyOfLake: true }
+  });
+  [1, 99, 2, 100, 3].forEach((roll, index) => {
+    players[index].roll = roll;
+    players[index].tieBreak = 0;
+    players[index].ready = true;
+  });
+
+  action(room, host, "startGame");
+  assert.strictEqual(room.players[0].roll, 100);
+  assert.strictEqual(room.players[1].roll, 99);
+  assert.strictEqual(room.ladyHolderId, players[1].id, "Lady of the Lake must not go to the lowest d100 roll");
 }
 
 function testIdentityInfo() {
@@ -209,12 +252,132 @@ function testChatReactionsAssassinationAndReset() {
   assert(room.players.every((player) => player.roll === null && player.role === null));
 }
 
+function testExcaliburExpansion() {
+  const { room, players } = makePlayers(5);
+  room.settings.expansions = { excalibur: true, excaliburUnique: true, ladyOfLake: false };
+  setManualGame(room, players, ["merlin", "servant", "servant", "assassin", "morgana"]);
+  const leader = players[0];
+  const evilOnTeam = players[3];
+
+  action(room, leader, "toggleTeam", { playerId: leader.id });
+  action(room, leader, "toggleTeam", { playerId: evilOnTeam.id });
+  expectError(room, players[1], "setExcaliburHolder", { playerId: evilOnTeam.id }, "領袖");
+  action(room, leader, "setExcaliburHolder", { playerId: evilOnTeam.id });
+  assert.strictEqual(makeView(room, leader.id).room.players.find((player) => player.id === evilOnTeam.id).excaliburHolder, true);
+  action(room, leader, "submitTeam");
+  voteAll(room, players, "approve");
+  action(room, leader, "continueVote");
+  assert.strictEqual(room.phase, "mission");
+  assert(room.usedExcaliburHolderIds.includes(evilOnTeam.id));
+
+  action(room, leader, "submitMission", { card: "success" });
+  action(room, evilOnTeam, "submitMission", { card: "fail" });
+  assert.strictEqual(room.phase, "excalibur");
+  expectError(room, leader, "useExcalibur", { playerId: evilOnTeam.id }, "王者之劍持有者");
+  action(room, evilOnTeam, "useExcalibur", { playerId: evilOnTeam.id });
+  assert.strictEqual(room.phase, "missionResult");
+  assert.strictEqual(room.missionResults.at(-1).result, "success");
+  assert.strictEqual(room.missionResults.at(-1).fails, 0);
+  assert.strictEqual(room.missionResults.at(-1).excalibur.targetId, evilOnTeam.id);
+  assert.strictEqual(room.missionResults.at(-1).excalibur.used, true);
+
+  room.phase = "team";
+  room.selectedTeam = [evilOnTeam.id];
+  expectError(room, leader, "setExcaliburHolder", { playerId: evilOnTeam.id }, "已持有");
+
+  const { room: skipRoom, players: skipPlayers } = makePlayers(5);
+  skipRoom.settings.expansions = { excalibur: true, excaliburUnique: false, ladyOfLake: false };
+  setManualGame(skipRoom, skipPlayers, ["merlin", "servant", "servant", "assassin", "morgana"]);
+  const skipLeader = skipPlayers[0];
+  const skipHolder = skipPlayers[3];
+  action(skipRoom, skipLeader, "toggleTeam", { playerId: skipLeader.id });
+  action(skipRoom, skipLeader, "toggleTeam", { playerId: skipHolder.id });
+  action(skipRoom, skipLeader, "setExcaliburHolder", { playerId: skipHolder.id });
+  action(skipRoom, skipLeader, "submitTeam");
+  voteAll(skipRoom, skipPlayers, "approve");
+  action(skipRoom, skipLeader, "continueVote");
+  action(skipRoom, skipLeader, "submitMission", { card: "success" });
+  action(skipRoom, skipHolder, "submitMission", { card: "fail" });
+  assert.strictEqual(skipRoom.phase, "excalibur");
+  action(skipRoom, skipHolder, "useExcalibur", { skip: true });
+  assert.strictEqual(skipRoom.phase, "missionResult");
+  assert.strictEqual(skipRoom.missionResults.at(-1).result, "fail");
+  assert.strictEqual(skipRoom.missionResults.at(-1).fails, 1);
+  assert.deepStrictEqual(skipRoom.missionResults.at(-1).excalibur, {
+    holderId: skipHolder.id,
+    targetId: null,
+    used: false
+  });
+  assert(skipRoom.log.some((entry) => entry.includes("但沒有發動")));
+
+  const { room: failedRoom, players: failedPlayers } = makePlayers(5);
+  failedRoom.settings.expansions = { excalibur: true, excaliburUnique: true, ladyOfLake: false };
+  setManualGame(failedRoom, failedPlayers, ["merlin", "servant", "servant", "assassin", "morgana"]);
+  const failedLeader = failedPlayers[0];
+  action(failedRoom, failedLeader, "toggleTeam", { playerId: failedPlayers[1].id });
+  action(failedRoom, failedLeader, "toggleTeam", { playerId: failedPlayers[2].id });
+  action(failedRoom, failedLeader, "setExcaliburHolder", { playerId: failedPlayers[1].id });
+  action(failedRoom, failedLeader, "submitTeam");
+  voteAll(failedRoom, failedPlayers, "reject");
+  action(failedRoom, failedLeader, "continueVote");
+  assert(!failedRoom.usedExcaliburHolderIds.includes(failedPlayers[1].id), "failed vote should not consume Excalibur holder");
+}
+
+function completeApprovedSuccessRound(room, players, team) {
+  const leader = room.players[room.leaderIndex];
+  proposeAndApprove(room, players, leader, team);
+  submitSuccessfulMission(room, team);
+  assert.strictEqual(room.phase, "missionResult");
+  action(room, leader, "continueMission");
+}
+
+function testLadyOfLakeExpansion() {
+  const { room, players } = makePlayers(5);
+  room.settings.leaderMode = "standard";
+  room.settings.expansions = { excalibur: false, excaliburUnique: false, ladyOfLake: true };
+  setManualGame(room, players, ["merlin", "servant", "servant", "assassin", "morgana"]);
+  room.ladyHolderId = players[4].id;
+  room.ladyUsedIds = [players[4].id];
+
+  completeApprovedSuccessRound(room, players, [players[0], players[1]]);
+  assert.strictEqual(room.phase, "team");
+  assert.strictEqual(room.round, 1);
+
+  completeApprovedSuccessRound(room, players, [players[1], players[2], players[3]]);
+  assert.strictEqual(room.phase, "lake");
+  assert.strictEqual(makeView(room, players[0].id).room.players.find((player) => player.id === players[4].id).ladyHolder, true);
+  expectError(room, players[0], "inspectWithLady", { playerId: players[2].id }, "湖中女神");
+  action(room, players[4], "inspectWithLady", { playerId: players[2].id });
+  assert.strictEqual(room.phase, "lakeResult");
+  assert(makeView(room, players[4].id).room.lakeResultText.includes(`你查驗 ${players[2].name} 是正義方`));
+  assert.strictEqual(makeView(room, players[0].id).room.lakeResultText, null);
+  expectError(room, players[0], "confirmLakeResult", {}, "湖中女神");
+  action(room, players[4], "confirmLakeResult");
+  assert.strictEqual(room.phase, "team");
+  assert.strictEqual(room.round, 2);
+  assert.strictEqual(room.ladyHolderId, players[2].id);
+  assert(room.ladyUsedIds.includes(players[2].id));
+  room.phase = "lake";
+  assert(makeView(room, players[2].id).room.lakeCandidateIds.includes(players[4].id));
+  action(room, players[2], "inspectWithLady", { playerId: players[4].id });
+  assert.strictEqual(room.phase, "lakeResult");
+  assert(makeView(room, players[2].id).room.lakeResultText.includes(`你查驗 ${players[4].name} 是邪惡方`));
+  assert.strictEqual(room.ladyHolderId, players[0].id, "used target should pass Lady to next unused player by d100 order");
+  assert(room.ladyUsedIds.includes(players[0].id));
+  action(room, players[2], "confirmLakeResult");
+  assert.strictEqual(room.phase, "team");
+  assert.strictEqual(room.round, 3);
+}
+
 testRoomJoinAndRejoin();
 testLobbySettingsReadyAndStart();
+testLadyInitialHolderUsesSecondHighestRoll();
 testIdentityInfo();
 testVoteMissionAndLeaderRules();
 testFailedVoteRotatesWithoutRetiringLeader();
 testFiveRejectedVotesEvilWin();
 testChatReactionsAssassinationAndReset();
+testExcaliburExpansion();
+testLadyOfLakeExpansion();
 
 console.log("game flow unit tests passed");
