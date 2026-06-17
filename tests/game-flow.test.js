@@ -124,6 +124,95 @@ function testRoomJoinAndRejoin() {
   assert.strictEqual(joinRoom(room.code, "", a.id).player.id, a.id);
 }
 
+function testTransferHost() {
+  const { room, players, host } = makePlayers(5);
+  expectError(room, players[1], "transferHost", { playerId: players[2].id }, "房主");
+  expectError(room, host, "transferHost", { playerId: host.id }, "已經是房主");
+  action(room, host, "transferHost", { playerId: players[1].id });
+  assert.strictEqual(room.hostId, players[1].id);
+  assert.strictEqual(makeView(room, host.id).room.players.find((player) => player.id === players[1].id).isHost, true);
+  expectError(room, host, "setSettings", { playerCount: 4 }, "房主");
+  action(room, players[1], "setSettings", { ...room.settings, playerCount: 5 });
+}
+
+function testAutoTransferHostAfterOfflineGrace() {
+  const { room, players, host } = makePlayers(5);
+  const onlineClient = {
+    roomCode: room.code,
+    playerId: players[1].id,
+    lastSeen: Date.now(),
+    socket: { destroyed: false, write() {} }
+  };
+  clients.add(onlineClient);
+  room.players.forEach((player) => {
+    player.online = player.id === host.id;
+  });
+
+  cleanupRooms();
+  assert.strictEqual(room.hostId, host.id);
+  assert(room.hostOfflineSince, "offline host should start transfer grace period");
+
+  room.hostOfflineSince = Date.now() - (119 * 1000);
+  cleanupRooms();
+  assert.strictEqual(room.hostId, host.id, "host should not transfer before 2 minutes");
+
+  room.hostOfflineSince = Date.now() - (121 * 1000);
+  cleanupRooms();
+  clients.delete(onlineClient);
+  assert.strictEqual(room.hostId, players[1].id, "host should transfer to first online player after 2 minutes");
+  assert(room.log.some((entry) => entry.includes("房主自動轉移")));
+
+  const { room: returnRoom, players: returnPlayers, host: returnHost } = makePlayers(5);
+  const hostClient = {
+    roomCode: returnRoom.code,
+    playerId: returnHost.id,
+    lastSeen: Date.now(),
+    socket: { destroyed: false, write() {} }
+  };
+  clients.add(hostClient);
+  returnRoom.hostOfflineSince = Date.now() - (121 * 1000);
+  returnRoom.players.forEach((player) => {
+    player.online = false;
+  });
+  cleanupRooms();
+  clients.delete(hostClient);
+  assert.strictEqual(returnRoom.hostId, returnHost.id, "returning host should keep host before auto transfer");
+  assert.strictEqual(returnRoom.hostOfflineSince, null);
+}
+
+function testPrivateStateIsScopedToViewer() {
+  const { room, players } = makePlayers(5);
+  setManualGame(room, players, ["merlin", "servant", "servant", "assassin", "morgana"]);
+  room.phase = "mission";
+  room.selectedTeam = [players[0].id, players[3].id];
+  room.missionCards = {
+    [players[0].id]: "success",
+    [players[3].id]: "fail"
+  };
+  room.pendingLakeResult = {
+    viewerId: players[0].id,
+    targetId: players[3].id,
+    text: `你查驗 ${players[3].name} 是邪惡方。`
+  };
+
+  const merlinView = makeView(room, players[0].id);
+  const servantView = makeView(room, players[1].id);
+  const assassinView = makeView(room, players[3].id);
+
+  assert.strictEqual(servantView.room.players.find((player) => player.id === players[0].id).role, null);
+  assert.strictEqual(servantView.room.players.find((player) => player.id === players[3].id).side, null);
+  assert.strictEqual(servantView.you.role, "servant");
+  assert.strictEqual(assassinView.you.role, "assassin");
+  assert(merlinView.you.privateInfo.join("").includes(players[3].name));
+  assert(!servantView.you.privateInfo.join("").includes(players[3].name));
+  assert.strictEqual(merlinView.room.lakeResultText, `你查驗 ${players[3].name} 是邪惡方。`);
+  assert.strictEqual(servantView.room.lakeResultText, null);
+  assert.strictEqual(assassinView.room.lakeResultText, null);
+  assert.strictEqual(servantView.room.missionCards, undefined);
+  assert.strictEqual(servantView.room.players.find((player) => player.id === players[3].id).roleName, null);
+  assert.strictEqual(servantView.room.players.find((player) => player.id === players[3].id).roleMark, null);
+}
+
 function testLobbySettingsReadyAndStart() {
   const { room, players, host } = makePlayers(5);
   expectError(room, players[1], "setSettings", { playerCount: 4 }, "房主");
@@ -399,6 +488,9 @@ function testLadyOfLakeExpansion() {
 }
 
 testRoomJoinAndRejoin();
+testTransferHost();
+testAutoTransferHostAfterOfflineGrace();
+testPrivateStateIsScopedToViewer();
 testEmptyRoomCleanup();
 testLobbySettingsReadyAndStart();
 testLadyInitialHolderUsesSecondHighestRoll();

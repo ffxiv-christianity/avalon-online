@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Avalon A banner">
+  <rect width="64" height="64" rx="12" fill="#f5f1e8"/>
+  <path d="M14 8h36v47l-18-8-18 8V8Z" fill="#9c2e3d"/>
+  <path d="M18 12h28v36l-14-6-14 6V12Z" fill="#b37a20"/>
+  <path d="M19 45 30 17h4.2L45 45h-6.6l-2-5.7h-8.7L25.6 45H19Zm10.5-11h5l-2.5-7.3-2.5 7.3Z" fill="#fffdf8"/>
+</svg>

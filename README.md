@@ -48,6 +48,16 @@ https://avalon-online-lhem.onrender.com/
 - 沒有倒數限制，投票、任務、刺殺等階段會停在目前進度等待玩家回來。
 - WebSocket 斷線後前端會自動重連並重新同步完整狀態。
 
+## 管理統計
+
+設定環境變數 `ADMIN_TOKEN` 後，可以用以下網址查看目前房間與在線人數：
+
+```text
+https://你的網域/admin/stats?token=你的ADMIN_TOKEN
+```
+
+統計頁不顯示玩家名稱，只顯示房間數、連線數、玩家數、在線玩家數，以及各房間的在線人數。
+
 ## 本機執行
 
 ```powershell

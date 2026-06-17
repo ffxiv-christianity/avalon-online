@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Avalon A minimal">
+  <rect width="64" height="64" rx="10" fill="#20282b"/>
+  <path d="M14 51 29.8 12h4.8L51 51h-8.2l-3.1-8.2H25.2L22.1 51H14Zm13.8-15h9.3l-4.7-12.5L27.8 36Z" fill="#fffdf8"/>
+  <path d="M22 55h20" stroke="#b37a20" stroke-width="4" stroke-linecap="round"/>
+</svg>

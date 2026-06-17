@@ -5,10 +5,12 @@ const path = require("path");
 
 const PORT = Number(process.env.PORT || 4173);
 const PUBLIC_DIR = path.join(__dirname, "public");
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
 const ROOM_EMPTY_TTL_MS = 30 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 const HEARTBEAT_INTERVAL_MS = 8000;
 const CLIENT_STALE_MS = 20000;
+const HOST_AUTO_TRANSFER_MS = 2 * 60 * 1000;
 
 const ROLE_DEFS = {
   merlin: { name: "梅林", side: "good", max: 1, mark: "梅", note: "知道邪惡方，但看不到莫德雷德。若最後被刺客刺殺，邪惡方勝利。" },
@@ -97,6 +99,7 @@ function makeRoom(hostName) {
     createdAt: Date.now(),
     emptySince: Date.now(),
     expiresAt: Date.now() + ROOM_EMPTY_TTL_MS,
+    hostOfflineSince: null,
     version: 1,
     phase: "lobby",
     hostId: null,
@@ -244,6 +247,16 @@ function applyAction(client, message) {
 }
 
 function applyRoomAction(room, actor, action, payload) {
+  if (action === "transferHost") {
+    if (!isHost(room, actor)) return "只有房主可以轉移房主。";
+    const target = room.players.find((player) => player.id === payload.playerId);
+    if (!target) return "找不到這位玩家。";
+    if (target.id === actor.id) return "你已經是房主。";
+    room.hostId = target.id;
+    room.hostOfflineSince = null;
+    addLog(room, `${actor.name} 將房主轉移給 ${target.name}。`);
+    return null;
+  }
   if (action === "setSettings") {
     if (!isHost(room, actor)) return "只有房主可以更改設定。";
     if (room.phase !== "lobby") return "遊戲開始後不能更改設定。";
@@ -1157,8 +1170,37 @@ function refreshOnlineStatus(room) {
     }
   });
   if (updateRoomEmptyState(room, now)) changed = true;
+  if (updateHostAutoTransfer(room, now)) changed = true;
   if (changed) touchRoom(room);
   return changed;
+}
+
+function updateHostAutoTransfer(room, now = Date.now()) {
+  const host = room.players.find((player) => player.id === room.hostId);
+  if (!host) return false;
+  if (host.online) {
+    if (!room.hostOfflineSince) return false;
+    room.hostOfflineSince = null;
+    return true;
+  }
+
+  const nextHost = room.players.find((player) => player.online && player.id !== room.hostId);
+  if (!nextHost) {
+    if (!room.hostOfflineSince) return false;
+    room.hostOfflineSince = null;
+    return true;
+  }
+
+  if (!room.hostOfflineSince) {
+    room.hostOfflineSince = now;
+    return true;
+  }
+  if (now - room.hostOfflineSince < HOST_AUTO_TRANSFER_MS) return false;
+  const oldHostName = host.name;
+  room.hostId = nextHost.id;
+  room.hostOfflineSince = null;
+  addLog(room, `${oldHostName} 離線超過 2 分鐘，房主自動轉移給 ${nextHost.name}。`);
+  return true;
 }
 
 function updateRoomEmptyState(room, now = Date.now()) {
@@ -1230,7 +1272,12 @@ function send(client, payload) {
 }
 
 function serveStatic(req, res) {
-  const urlPath = decodeURIComponent(new URL(req.url, `http://${req.headers.host}`).pathname);
+  const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+  if (requestUrl.pathname === "/admin/stats") {
+    serveAdminStats(req, res, requestUrl);
+    return;
+  }
+  const urlPath = decodeURIComponent(requestUrl.pathname);
   const safePath = urlPath === "/" ? "index.html" : path.normalize(urlPath).replace(/^[/\\]+/, "").replace(/^(\.\.[/\\])+/, "");
   const publicRoot = path.resolve(PUBLIC_DIR);
   const filePath = path.resolve(PUBLIC_DIR, safePath);
@@ -1255,7 +1302,45 @@ function contentType(filePath) {
   if (filePath.endsWith(".css")) return "text/css; charset=utf-8";
   if (filePath.endsWith(".js")) return "text/javascript; charset=utf-8";
   if (filePath.endsWith(".json")) return "application/json; charset=utf-8";
+  if (filePath.endsWith(".svg")) return "image/svg+xml; charset=utf-8";
+  if (filePath.endsWith(".png")) return "image/png";
+  if (filePath.endsWith(".ico")) return "image/x-icon";
   return "application/octet-stream";
+}
+
+function serveAdminStats(req, res, requestUrl) {
+  const authHeader = req.headers.authorization || "";
+  const bearerToken = authHeader.replace(/^Bearer\s+/i, "");
+  const token = requestUrl.searchParams.get("token") || bearerToken;
+  if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) {
+    res.writeHead(403, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ error: "admin stats disabled or token incorrect" }));
+    return;
+  }
+
+  rooms.forEach((room) => refreshOnlineStatus(room));
+  const roomList = [...rooms.values()].map((room) => {
+    const onlinePlayers = room.players.filter((player) => player.online).length;
+    return {
+      code: room.code,
+      phase: room.phase,
+      players: room.players.length,
+      onlinePlayers,
+      emptyForMs: room.emptySince ? Math.max(0, Date.now() - room.emptySince) : 0,
+      expiresAt: room.expiresAt
+    };
+  });
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    rooms: roomList.length,
+    activeRooms: roomList.filter((room) => room.onlinePlayers > 0).length,
+    connections: clients.size,
+    players: roomList.reduce((sum, room) => sum + room.players, 0),
+    onlinePlayers: roomList.reduce((sum, room) => sum + room.onlinePlayers, 0),
+    roomList
+  };
+  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+  res.end(JSON.stringify(payload, null, 2));
 }
 
 function handleUpgrade(req, socket) {

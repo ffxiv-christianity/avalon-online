@@ -153,6 +153,7 @@ function renderRoster() {
   const room = snapshot.room;
   els.roster.innerHTML = room.players.map((player) => {
     const role = player.role ? snapshot.roles[player.role] : null;
+    const canTransferHost = snapshot.you.isHost && player.id !== snapshot.room.hostId;
     return `
       <article class="player-card ${player.isLeader ? "leader" : ""} ${player.retiredLeader ? "retired" : ""} ${player.online ? "" : "offline"}">
         <div class="seat">${player.index + 1}</div>
@@ -164,8 +165,10 @@ function renderRoster() {
           <div class="player-meta">
             ${player.roll ? `d100: ${player.roll}` : "未擲骰"}${player.ready ? " · 已準備" : ""} · ${player.online ? "在線" : "離線"}
           </div>
+          ${canTransferHost ? `<button class="mini-action" data-transfer-host="${player.id}" type="button">轉房主</button>` : ""}
         </div>
         <div class="token-stack">
+          ${player.isHost ? token("host", "房主") : ""}
           ${player.isLeader ? token("leader", "領袖") : player.retiredLeader ? token("retired", "退役領袖") : ""}
           ${player.excaliburHolder ? token("excalibur", "王者之劍") : ""}
           ${player.ladyHolder ? token("lady", "湖中女神") : player.usedLady ? token("lady-used", "曾持有湖中女神") : ""}
@@ -174,6 +177,9 @@ function renderRoster() {
       </article>
     `;
   }).join("");
+  els.roster.querySelectorAll("[data-transfer-host]").forEach((button) => {
+    button.addEventListener("click", () => sendAction("transferHost", { playerId: button.dataset.transferHost }));
+  });
 }
 
 function renderAchievementBadge(achievements) {
