@@ -5,7 +5,7 @@ const path = require("path");
 
 const PORT = Number(process.env.PORT || 4173);
 const PUBLIC_DIR = path.join(__dirname, "public");
-const ROOM_TTL_MS = 6 * 60 * 60 * 1000;
+const ROOM_EMPTY_TTL_MS = 30 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 const HEARTBEAT_INTERVAL_MS = 8000;
 const CLIENT_STALE_MS = 20000;
@@ -95,7 +95,8 @@ function makeRoom(hostName) {
   const room = {
     code: makeRoomCode(),
     createdAt: Date.now(),
-    expiresAt: Date.now() + ROOM_TTL_MS,
+    emptySince: Date.now(),
+    expiresAt: Date.now() + ROOM_EMPTY_TTL_MS,
     version: 1,
     phase: "lobby",
     hostId: null,
@@ -149,10 +150,11 @@ function joinRoom(roomCode, name, requestedPlayerId = null) {
   const code = normalizeRoomCode(roomCode);
   const room = rooms.get(code);
   if (!room) return { error: "找不到這個房間。" };
+  refreshOnlineStatus(room);
   if (isRoomExpired(room)) {
     rooms.delete(code);
-    detachRoomClients(code, "房間已超過 6 小時並自動清除。");
-    return { error: "房間已超過 6 小時並自動清除。" };
+    detachRoomClients(code, "房間已無人在線超過 30 分鐘並自動清除。");
+    return { error: "房間已無人在線超過 30 分鐘並自動清除。" };
   }
   if (room.phase !== "lobby" && !requestedPlayerId) return { error: "遊戲已開始，不能加入新玩家。" };
   if (requestedPlayerId) {
@@ -228,12 +230,12 @@ function applyAction(client, message) {
     send(client, { type: "error", message: "房間狀態已失效。" });
     return;
   }
+  markClientSeen(client);
   if (isRoomExpired(room)) {
     rooms.delete(room.code);
-    detachRoomClients(room.code, "房間已超過 6 小時並自動清除。");
+    detachRoomClients(room.code, "房間已無人在線超過 30 分鐘並自動清除。");
     return;
   }
-  markClientSeen(client);
   const payload = message.payload || {};
   const error = applyRoomAction(room, actor, message.action, payload);
   if (error) send(client, { type: "error", message: error });
@@ -1085,14 +1087,15 @@ function uniqueIds(ids) {
 }
 
 function isRoomExpired(room) {
-  return Date.now() >= room.expiresAt;
+  return Boolean(room.emptySince && Date.now() - room.emptySince >= ROOM_EMPTY_TTL_MS);
 }
 
 function cleanupRooms() {
   rooms.forEach((room, code) => {
+    refreshOnlineStatus(room);
     if (!isRoomExpired(room)) return;
     rooms.delete(code);
-    detachRoomClients(code, "房間已超過 6 小時並自動清除。");
+    detachRoomClients(code, "房間已無人在線超過 30 分鐘並自動清除。");
   });
 }
 
@@ -1138,6 +1141,7 @@ function markClientSeen(client) {
   if (!player) return;
   player.online = true;
   player.lastSeen = client.lastSeen;
+  updateRoomEmptyState(room, client.lastSeen);
 }
 
 function refreshOnlineStatus(room) {
@@ -1152,8 +1156,19 @@ function refreshOnlineStatus(room) {
       changed = true;
     }
   });
+  if (updateRoomEmptyState(room, now)) changed = true;
   if (changed) touchRoom(room);
   return changed;
+}
+
+function updateRoomEmptyState(room, now = Date.now()) {
+  const hasOnlinePlayer = room.players.some((player) => player.online);
+  const nextEmptySince = hasOnlinePlayer ? null : room.emptySince || now;
+  const nextExpiresAt = hasOnlinePlayer ? null : nextEmptySince + ROOM_EMPTY_TTL_MS;
+  if (room.emptySince === nextEmptySince && room.expiresAt === nextExpiresAt) return false;
+  room.emptySince = nextEmptySince;
+  room.expiresAt = nextExpiresAt;
+  return true;
 }
 
 function cleanName(name) {
@@ -1366,6 +1381,7 @@ module.exports = {
   RECOMMENDED_DECKS,
   ACHIEVEMENT_THRESHOLDS,
   rooms,
+  clients,
   makeRoom,
   joinRoom,
   applyRoomAction,

@@ -4,7 +4,10 @@ const {
   joinRoom,
   applyRoomAction,
   makeView,
-  validateLobby
+  validateLobby,
+  cleanupRooms,
+  rooms,
+  clients
 } = require("../server");
 
 function action(room, actor, name, payload = {}) {
@@ -27,6 +30,32 @@ function makePlayers(count = 5) {
   room.settings.playerCount = count;
   room.settings.teamSizes = count === 4 ? [2, 2, 2, 3, 3] : [2, 3, 2, 3, 3];
   return { room, players, host };
+}
+
+function testEmptyRoomCleanup() {
+  const { room } = makeRoom("Cleanup");
+  room.emptySince = Date.now() - (31 * 60 * 1000);
+  room.expiresAt = room.emptySince + (30 * 60 * 1000);
+  room.players.forEach((player) => {
+    player.online = false;
+  });
+  cleanupRooms();
+  assert(!rooms.has(room.code), "empty room should be cleaned after 30 minutes");
+
+  const { room: activeRoom, player } = makeRoom("Active");
+  activeRoom.emptySince = Date.now() - (31 * 60 * 1000);
+  activeRoom.expiresAt = activeRoom.emptySince + (30 * 60 * 1000);
+  const fakeClient = {
+    roomCode: activeRoom.code,
+    playerId: player.id,
+    lastSeen: Date.now(),
+    socket: { destroyed: false, write() {} }
+  };
+  clients.add(fakeClient);
+  cleanupRooms();
+  clients.delete(fakeClient);
+  assert(rooms.has(activeRoom.code), "room with an online player should not be cleaned");
+  rooms.delete(activeRoom.code);
 }
 
 function setManualGame(room, players, roles) {
@@ -370,6 +399,7 @@ function testLadyOfLakeExpansion() {
 }
 
 testRoomJoinAndRejoin();
+testEmptyRoomCleanup();
 testLobbySettingsReadyAndStart();
 testLadyInitialHolderUsesSecondHighestRoll();
 testIdentityInfo();
