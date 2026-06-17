@@ -120,7 +120,6 @@ function makeRoom(hostName) {
     lastAssassination: null,
     currentGame: null,
     playerStats: {},
-    hostInstruction: "請所有玩家先擲 d100，確認名字與設定後按準備。所有人準備好後由房主開始遊戲。",
     chat: [],
     reactions: {},
     log: []
@@ -257,12 +256,6 @@ function applyRoomAction(room, actor, action, payload) {
     if (room.phase !== "lobby") return "遊戲已開始。";
     if (!actor.roll) return "請先擲 d100 決定順序。";
     actor.ready = Boolean(payload.ready);
-    return null;
-  }
-  if (action === "setHostInstruction") {
-    if (!isHost(room, actor)) return "只有房主可以更改房主指示。";
-    if (room.phase !== "lobby") return "遊戲開始後不能更改房主指示。";
-    room.hostInstruction = cleanMessage(payload.text || "", 180) || "請所有玩家先擲 d100，確認名字與設定後按準備。";
     return null;
   }
   if (action === "sendChat") {
@@ -599,7 +592,6 @@ function makeView(room, playerId) {
       voteResult: publicVoteResult(room),
       missionResults: room.missionResults,
       winner: room.winner,
-      hostInstruction: room.hostInstruction,
       chat: room.chat.slice(-80),
       reactionEvent: publicReactionEvent(room, playerId),
       validation,

@@ -66,7 +66,7 @@ function connect() {
       lastStateAt = Date.now();
       lastVersion = message.room.version || lastVersion;
       snapshot = message;
-      setConnection(lastVersion ? `已同步 v${lastVersion}` : "已連線");
+      setConnection(syncStatusText());
       render();
       return;
     }
@@ -187,14 +187,14 @@ function renderAchievementBadge(achievements) {
   return `
     <span class="achievement-badge" tabindex="0" aria-label="已取得 ${achievements.length} 個稱號">
       ${escapeHtml(label)}
-      <span class="achievement-popover" role="tooltip">
-        ${achievements.map((item) => `
-          <span class="achievement-entry">
-            <strong>${escapeHtml(item.name)}</strong>
-            <span>${escapeHtml(item.detail)}</span>
-          </span>
-        `).join("")}
-      </span>
+    </span>
+    <span class="achievement-popover" role="tooltip">
+      ${achievements.map((item) => `
+        <span class="achievement-entry">
+          <strong>${escapeHtml(item.name)}</strong>
+          <span>${escapeHtml(item.detail)}</span>
+        </span>
+      `).join("")}
     </span>
   `;
 }
@@ -257,12 +257,6 @@ function renderLobby() {
     ${phaseHeader("準備房間", "房主設定人數、牌庫與任務人數；每位玩家擲 d100 後按準備。")}
     <div class="lobby-grid">
       <section class="section-block">
-        <h3>房主指示</h3>
-        ${you.isHost ? `
-          <textarea class="host-instruction-input" id="hostInstructionInput" maxlength="180">${escapeHtml(room.hostInstruction)}</textarea>
-          <button class="ghost-button" data-action="saveInstruction" type="button">更新指示</button>
-        ` : `<div class="host-instruction">${escapeHtml(room.hostInstruction)}</div>`}
-
         <h3>你的狀態</h3>
         <div class="action-card">
           <div>
@@ -323,9 +317,6 @@ function bindLobby(settings) {
   els.mainPanel.querySelector('[data-action="roll"]')?.addEventListener("click", () => sendAction("roll"));
   els.mainPanel.querySelector('[data-action="ready"]')?.addEventListener("click", () => sendAction("setReady", { ready: !currentPlayer().ready }));
   els.mainPanel.querySelector('[data-action="start"]')?.addEventListener("click", () => sendAction("startGame"));
-  els.mainPanel.querySelector('[data-action="saveInstruction"]')?.addEventListener("click", () => {
-    sendAction("setHostInstruction", { text: document.getElementById("hostInstructionInput").value });
-  });
   els.mainPanel.querySelector('[data-action="recommend"]')?.addEventListener("click", () => {
     const count = settings.playerCount;
     sendAction("setSettings", {
@@ -364,7 +355,7 @@ function renderRoleBuilder(settings) {
       ${roleIcon(key, role.side, role.mark)}
       <div>
         <strong>${role.name}</strong>
-        <p>${role.note}</p>
+        <p>${roleNote(key, role, settings)}</p>
       </div>
       <div class="counter">
         <button data-role="${key}" data-delta="-1" type="button" ${snapshot.you.isHost ? "" : "disabled"}>-</button>
@@ -392,7 +383,7 @@ function renderReveal() {
       <div>
         <p class="eyebrow">${you.side === "good" ? "正義方" : "邪惡方"}</p>
         <h2>${you.roleName}</h2>
-        <p>${snapshot.roles[you.role].note}</p>
+        <p>${roleNote(you.role, snapshot.roles[you.role], room.settings)}</p>
       </div>
     </div>
     <ul class="info-list">${you.privateInfo.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
@@ -652,6 +643,13 @@ function roleIcon(role, side, mark) {
   return `<span class="role-icon ${side || ""} role-${role}" title="${snapshot.roles?.[role]?.name || ""}">${escapeHtml(mark || snapshot.roles?.[role]?.mark || "?")}</span>`;
 }
 
+function roleNote(roleKey, role, settings) {
+  if (roleKey === "merlin" && Number(settings?.playerCount) === 4) {
+    return "只能看見一個隊友身份。若最後被刺客刺殺，邪惡方勝利。";
+  }
+  return role?.note || "";
+}
+
 function sendAction(action, payload = {}) {
   send({ type: "action", action, payload });
 }
@@ -693,10 +691,26 @@ function setConnection(text) {
   els.connectionChip.textContent = text;
 }
 
+function syncStatusText() {
+  return lastVersion ? `已同步 ${formatCountUnit(lastVersion)}` : "已連線";
+}
+
+function formatCountUnit(value) {
+  const count = Number(value || 0);
+  if (count >= 1000000000) return `${trimUnit(count / 1000000000)}B 次`;
+  if (count >= 1000000) return `${trimUnit(count / 1000000)}M 次`;
+  if (count >= 1000) return `${trimUnit(count / 1000)}K 次`;
+  return `${count} 次`;
+}
+
+function trimUnit(value) {
+  return Number(value.toFixed(value >= 10 ? 0 : 1)).toString();
+}
+
 function showToast(message) {
   els.connectionChip.textContent = message;
   window.setTimeout(() => {
-    if (socket?.readyState === WebSocket.OPEN) setConnection(lastVersion ? `已同步 v${lastVersion}` : "已連線");
+    if (socket?.readyState === WebSocket.OPEN) setConnection(syncStatusText());
   }, 2200);
 }
 

@@ -269,6 +269,34 @@ h3 {
   gap: clamp(12px, 1vw, 18px);
 }
 
+.chat-panel {
+  order: 1;
+}
+
+.mission-panel {
+  order: 3;
+}
+
+.roster-panel {
+  order: 2;
+}
+
+.log-panel {
+  order: 4;
+}
+
+.room-panel {
+  order: 5;
+}
+
+.room-view.lobby-mode .roster-panel {
+  order: 2;
+}
+
+.room-view.lobby-mode .room-panel {
+  order: 3;
+}
+
 .panel,
 .main-panel {
   padding: clamp(14px, 1vw, 22px);
@@ -372,7 +400,6 @@ h3 {
 }
 
 .achievement-badge {
-  position: relative;
   display: inline-grid;
   place-items: center;
   min-height: 22px;
@@ -391,10 +418,11 @@ h3 {
 .achievement-popover {
   position: absolute;
   z-index: 20;
-  top: calc(100% + 8px);
-  right: 0;
+  top: calc(100% - 5px);
+  left: 9px;
+  right: 9px;
   display: none;
-  width: min(280px, calc(100vw - 36px));
+  width: auto;
   max-height: 240px;
   overflow: auto;
   border: 1px solid rgba(31, 93, 122, .28);
@@ -405,9 +433,8 @@ h3 {
   padding: 9px;
 }
 
-.achievement-badge:hover .achievement-popover,
-.achievement-badge:focus .achievement-popover,
-.achievement-badge:focus-within .achievement-popover {
+.player-card:hover .achievement-popover,
+.player-card:focus-within .achievement-popover {
   display: grid;
   gap: 8px;
 }
@@ -692,20 +719,6 @@ h3 {
   display: grid;
   gap: 12px;
   margin-bottom: 12px;
-}
-
-.host-instruction,
-.host-instruction-input {
-  margin-bottom: 14px;
-}
-
-.host-instruction {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  padding: 12px;
-  color: var(--muted);
-  line-height: 1.55;
 }
 
 .action-card p,
