@@ -1,4 +1,5 @@
-const STORAGE_KEY = "avalon-online-session";
+const STORAGE_KEY = "avalon-online-sessions";
+const LEGACY_STORAGE_KEY = "avalon-online-session";
 const WAKING_TEXT = "伺服器喚醒中...\n預計需要30~60秒\n請稍候";
 const STALE_STATE_MS = 12000;
 
@@ -8,19 +9,31 @@ let session = readSession();
 let lastStateAt = 0;
 let lastVersion = 0;
 let staleTimer = null;
+let activeInfoTab = "chat";
+let infoRoomCode = null;
+let lastObservedChatId = null;
+let unreadChatCount = 0;
+let lastPlayerJoinSerial = 0;
+let unreadRosterCount = 0;
+let resultCountdownTimer = null;
+let revealedLakeResultKey = null;
+let revealedExcaliburResultKey = null;
+let pendingExcaliburChoice = null;
+let pendingLakeTargetId = null;
 
 const els = {
   connectionChip: document.getElementById("connectionChip"),
   joinView: document.getElementById("joinView"),
   roomView: document.getElementById("roomView"),
   joinForm: document.getElementById("joinForm"),
+  changelog: document.getElementById("changelog"),
   nameInput: document.getElementById("nameInput"),
   roomInput: document.getElementById("roomInput"),
   createRoomButton: document.getElementById("createRoomButton"),
   rejoinRoomButton: document.getElementById("rejoinRoomButton"),
   statusStrip: document.getElementById("statusStrip"),
-  roomCode: document.getElementById("roomCode"),
-  copyLinkButton: document.getElementById("copyLinkButton"),
+  roomCodes: document.querySelectorAll(".room-code-value"),
+  copyLinkButtons: document.querySelectorAll("[data-copy-link]"),
   roster: document.getElementById("roster"),
   scoreboard: document.getElementById("scoreboard"),
   missionTable: document.getElementById("missionTable"),
@@ -28,6 +41,9 @@ const els = {
   chatList: document.getElementById("chatList"),
   chatForm: document.getElementById("chatForm"),
   chatInput: document.getElementById("chatInput"),
+  infoTabs: document.getElementById("infoTabs"),
+  chatUnread: document.getElementById("chatUnread"),
+  rosterUnread: document.getElementById("rosterUnread"),
   mainPanel: document.getElementById("mainPanel")
 };
 
@@ -53,7 +69,7 @@ function connect() {
         name: els.nameInput.value.trim() || session?.name || ""
       };
       writeSession(session);
-      history.replaceState(null, "", `?room=${message.roomCode}`);
+      history.replaceState(null, "", `?room=${message.roomCode}&player=${message.playerId}`);
       updateJoinControls();
       requestFullSync();
       return;
@@ -75,6 +91,13 @@ function connect() {
 }
 
 function bindEvents() {
+  const mobileHomeQuery = window.matchMedia("(max-width: 560px)");
+  const syncChangelog = () => {
+    if (els.changelog) els.changelog.open = !mobileHomeQuery.matches;
+  };
+  syncChangelog();
+  mobileHomeQuery.addEventListener("change", syncChangelog);
+
   const queryRoom = new URLSearchParams(location.search).get("room");
   if (queryRoom) els.roomInput.value = queryRoom;
   if (session?.name) els.nameInput.value = session.name;
@@ -97,15 +120,8 @@ function bindEvents() {
     if (!session?.roomCode || !session?.playerId) return;
     send({ type: "joinRoom", roomCode: session.roomCode, playerId: session.playerId, name: session.name || "" });
   });
-  els.copyLinkButton.addEventListener("click", async () => {
-    if (!snapshot) return;
-    const url = `${location.origin}${location.pathname}?room=${snapshot.room.code}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      showToast("邀請連結已複製。");
-    } catch {
-      prompt("複製邀請連結", url);
-    }
+  els.copyLinkButtons.forEach((button) => {
+    button.addEventListener("click", copyInviteLink);
   });
   els.chatForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -114,10 +130,24 @@ function bindEvents() {
     sendAction("sendChat", { text });
     els.chatInput.value = "";
   });
+  els.infoTabs.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-info-tab]");
+    if (!button || button.classList.contains("hidden")) return;
+    activeInfoTab = button.dataset.infoTab;
+    if (activeInfoTab === "chat") unreadChatCount = 0;
+    if (activeInfoTab === "roster") unreadRosterCount = 0;
+    renderInfoTabs();
+    if (activeInfoTab === "chat") els.chatList.scrollTop = els.chatList.scrollHeight;
+  });
 }
 
 function updateJoinControls() {
   const roomCode = els.roomInput.value.trim() || new URLSearchParams(location.search).get("room") || "";
+  session = readSession({
+    roomCode,
+    playerId: new URLSearchParams(location.search).get("player") || "",
+    name: els.nameInput.value.trim()
+  });
   const canRejoin = Boolean(session?.roomCode && session?.playerId && session.roomCode.toUpperCase() === roomCode.toUpperCase());
   els.rejoinRoomButton.classList.toggle("hidden", !canRejoin);
   if (canRejoin) els.rejoinRoomButton.textContent = `以 ${session.name || "原玩家"} 重新連線`;
@@ -128,7 +158,11 @@ function render() {
   els.joinView.classList.add("hidden");
   els.roomView.classList.remove("hidden");
   els.roomView.classList.toggle("lobby-mode", snapshot.room.phase === "lobby");
-  els.roomCode.textContent = snapshot.room.code;
+  els.roomCodes.forEach((element) => {
+    element.textContent = snapshot.room.code;
+  });
+  syncInfoUnread();
+  renderInfoTabs();
   renderStatus();
   renderRoster();
   renderScoreboard();
@@ -136,6 +170,68 @@ function render() {
   renderLog();
   renderChat();
   renderMain();
+}
+
+async function copyInviteLink() {
+  if (!snapshot) return;
+  const url = `${location.origin}${location.pathname}?room=${snapshot.room.code}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast("邀請連結已複製。");
+  } catch {
+    prompt("複製邀請連結", url);
+  }
+}
+
+function syncInfoUnread() {
+  const room = snapshot.room;
+  const chat = room.chat || [];
+  if (infoRoomCode !== room.code) {
+    infoRoomCode = room.code;
+    lastObservedChatId = chat.at(-1)?.id || null;
+    unreadChatCount = 0;
+    lastPlayerJoinSerial = AvalonClientState.latestJoinSerial(room.playerJoinEvents || []);
+    unreadRosterCount = 0;
+    activeInfoTab = "chat";
+    return;
+  }
+  const newestId = chat.at(-1)?.id || null;
+  if (newestId && newestId !== lastObservedChatId) {
+    const previousIndex = chat.findIndex((entry) => entry.id === lastObservedChatId);
+    const newEntries = previousIndex >= 0 ? chat.slice(previousIndex + 1) : chat.slice(-1);
+    if (activeInfoTab !== "chat") {
+      unreadChatCount += newEntries.filter((entry) => entry.playerId !== snapshot.you.id).length;
+    }
+    lastObservedChatId = newestId;
+  }
+  if (activeInfoTab === "chat") unreadChatCount = 0;
+
+  const joinUpdate = AvalonClientState.unreadPlayerJoins(
+    room.playerJoinEvents || [],
+    lastPlayerJoinSerial,
+    snapshot.you.id,
+    activeInfoTab === "roster"
+  );
+  unreadRosterCount += joinUpdate.count;
+  lastPlayerJoinSerial = joinUpdate.lastSerial;
+  if (activeInfoTab === "roster") unreadRosterCount = 0;
+}
+
+function renderInfoTabs() {
+  const isLobby = snapshot?.room.phase === "lobby";
+  if (isLobby && ["mission", "log"].includes(activeInfoTab)) activeInfoTab = "chat";
+  els.infoTabs.querySelectorAll("[data-info-tab]").forEach((button) => {
+    const unavailable = isLobby && button.classList.contains("game-only-tab");
+    button.classList.toggle("hidden", unavailable);
+    button.classList.toggle("active", button.dataset.infoTab === activeInfoTab);
+  });
+  document.querySelectorAll("[data-info-panel]").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.infoPanel === activeInfoTab);
+  });
+  els.chatUnread.textContent = String(unreadChatCount);
+  els.chatUnread.classList.toggle("hidden", unreadChatCount === 0);
+  els.rosterUnread.textContent = String(unreadRosterCount);
+  els.rosterUnread.classList.toggle("hidden", unreadRosterCount === 0);
 }
 
 function renderStatus() {
@@ -220,9 +316,9 @@ function renderMissionTable() {
   const failRules = snapshot.rules[settings.playerCount].fail;
   els.missionTable.innerHTML = settings.teamSizes.map((size, index) => `
     <div class="mission-row">
-      <span>第 ${index + 1}</span>
+      <span class="mission-round">第 ${index + 1}</span>
       <div class="mission-bar"><span style="width:${(size / settings.playerCount) * 100}%"></span></div>
-      <strong>${size} 人${failRules[index] > 1 ? ` / ${failRules[index]} 失敗` : ""}</strong>
+      <strong class="mission-size">${size} 人${failRules[index] > 1 ? ` / ${failRules[index]} 失敗` : ""}</strong>
     </div>
   `).join("");
 }
@@ -242,7 +338,13 @@ function renderChat() {
 }
 
 function renderMain() {
+  window.clearTimeout(resultCountdownTimer);
+  resultCountdownTimer = null;
   const phase = snapshot.room.phase;
+  if (phase !== "lakeResult") revealedLakeResultKey = null;
+  if (phase !== "excaliburResult") revealedExcaliburResultKey = null;
+  if (phase !== "excalibur") pendingExcaliburChoice = null;
+  if (phase !== "lake") pendingLakeTargetId = null;
   if (phase === "lobby") return renderLobby();
   if (phase === "reveal") return renderReveal();
   if (phase === "team") return renderTeam();
@@ -250,6 +352,7 @@ function renderMain() {
   if (phase === "voteResult") return renderVoteResult();
   if (phase === "mission") return renderMission();
   if (phase === "excalibur") return renderExcalibur();
+  if (phase === "excaliburResult") return renderExcaliburResult();
   if (phase === "missionResult") return renderMissionResult();
   if (phase === "lake") return renderLake();
   if (phase === "lakeResult") return renderLakeResult();
@@ -269,7 +372,9 @@ function renderLobby() {
       <section class="section-block">
         <h3>你的狀態</h3>
         <div class="action-card">
-          <div>
+          <span class="ready-alert ${current.ready ? "ready" : "not-ready"}" tabindex="0" aria-label="${current.ready ? "已準備" : "尚未準備"}"></span>
+          <span class="ready-alert-popover" role="tooltip">${current.ready ? "已準備" : "尚未準備"}</span>
+          <div class="action-card-status">
             <strong>${escapeHtml(you.name)}</strong>
             <p>${current.roll ? `你的骰點是 ${current.roll}` : "尚未擲骰"}</p>
           </div>
@@ -305,10 +410,18 @@ function renderLobby() {
               <option value="standard" ${settings.leaderMode === "standard" ? "selected" : ""}>標準順時針</option>
             </select>
           </label>
+          <label class="field">
+            <span>公開結果延遲</span>
+            <select id="resultDelaySelect" ${you.isHost ? "" : "disabled"}>
+              <option value="0" ${settings.resultDelaySeconds === 0 ? "selected" : ""}>不延遲</option>
+              <option value="3" ${settings.resultDelaySeconds === 3 ? "selected" : ""}>3 秒</option>
+              <option value="5" ${settings.resultDelaySeconds === 5 ? "selected" : ""}>5 秒</option>
+            </select>
+          </label>
         </div>
         <h3>擴充規則</h3>
         <div class="settings-grid">
-          ${settingToggle("excaliburToggle", "啟用王者之劍", settings.expansions?.excalibur, "投票通過後，若領袖把王者之劍交給任務成員，任務牌提交完畢後由持劍者選擇是否發動；若發動，系統會翻轉一名任務成員的任務牌再結算。", you.isHost)}
+          ${settingToggle("excaliburToggle", "啟用王者之劍", settings.expansions?.excalibur, "領袖可將王者之劍交給參與任務的其他玩家。任務牌提交完畢後，持劍者先選擇目標並確認，私下查看該玩家原本的任務牌，再翻轉並結算。", you.isHost)}
           ${settingToggle("excaliburUniqueToggle", "王者之劍不可重複持有", settings.expansions?.excaliburUnique, "啟用後，每位玩家每局最多持有一次王者之劍；投票未通過不會消耗持有次數。", you.isHost && settings.expansions?.excalibur)}
           ${settingToggle("ladyToggle", "啟用湖中女神", settings.expansions?.ladyOfLake, "建議大於七人遊戲使用。開局由擲骰第二大的玩家持有；第 2、3、4 次任務結束後，湖中女神可以私下查驗一名玩家陣營。若被查驗者已持有過湖中女神，指示物會依擲骰順序交給下一位未持有者。", you.isHost)}
         </div>
@@ -340,6 +453,7 @@ function bindLobby(settings) {
       roles: snapshot.recommendedDecks[count],
       teamSizes: snapshot.rules[count].team,
       leaderMode: settings.leaderMode,
+      resultDelaySeconds: settings.resultDelaySeconds,
       expansions: settings.expansions
     });
   });
@@ -354,6 +468,11 @@ function bindLobby(settings) {
   });
   const leaderSelect = document.getElementById("leaderModeSelect");
   leaderSelect?.addEventListener("change", () => sendAction("setSettings", { ...settings, leaderMode: leaderSelect.value }));
+  const resultDelaySelect = document.getElementById("resultDelaySelect");
+  resultDelaySelect?.addEventListener("change", () => sendAction("setSettings", {
+    ...settings,
+    resultDelaySeconds: Number(resultDelaySelect.value)
+  }));
   bindExpansionToggle("excaliburToggle", settings, (checked) => ({
     ...settings.expansions,
     excalibur: checked,
@@ -421,20 +540,48 @@ function renderRoleBuilder(settings) {
 function renderReveal() {
   const { room, you } = snapshot;
   els.mainPanel.innerHTML = `
-    ${phaseHeader("身份確認", "每位玩家只會在自己的裝置看到自己的身份與可得資訊。")}
-    <div class="role-reveal ${you.side}">
-      ${roleIcon(you.role, you.side, you.roleMark)}
-      <div>
-        <p class="eyebrow">${you.side === "good" ? "正義方" : "邪惡方"}</p>
-        <h2>${you.roleName}</h2>
-        <p>${roleNote(you.role, snapshot.roles[you.role], room.settings)}</p>
-      </div>
+    <div class="identity-overlay">
+      <section class="identity-lightbox ${you.side}">
+        <header class="identity-header">
+          ${roleIcon(you.role, you.side, you.roleMark)}
+          <div>
+            <p class="eyebrow">${you.side === "good" ? "正義方" : "邪惡方"}</p>
+            <h2>${escapeHtml(you.roleName)}</h2>
+            <p>${escapeHtml(roleNote(you.role, snapshot.roles[you.role], room.settings))}</p>
+          </div>
+        </header>
+        <div class="identity-clues">
+          ${(you.identityClues || []).map(renderIdentityClue).join("")}
+        </div>
+        <footer class="identity-footer">
+          <span>身份確認：${room.players.filter((player) => player.revealed).length} / ${room.players.length}</span>
+          <button class="primary-button" data-action="confirmReveal" type="button" ${you.hasRevealed ? "disabled" : ""}>${you.hasRevealed ? "已確認，等待其他玩家" : "我已記住身份"}</button>
+        </footer>
+      </section>
     </div>
-    <ul class="info-list">${you.privateInfo.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
-    <div class="progress-panel">身份確認：${room.players.filter((player) => player.revealed).length} / ${room.players.length}</div>
-    <button class="primary-button" data-action="confirmReveal" type="button" ${you.hasRevealed ? "disabled" : ""}>${you.hasRevealed ? "已確認，等待其他玩家" : "我已記住身份"}</button>
   `;
   els.mainPanel.querySelector("[data-action='confirmReveal']")?.addEventListener("click", () => sendAction("confirmReveal"));
+}
+
+function renderIdentityClue(clue) {
+  return `
+    <section class="identity-clue ${escapeHtml(clue.tone || "neutral")}">
+      <div class="identity-clue-heading">
+        <h3>${escapeHtml(clue.title)}</h3>
+        <p>${escapeHtml(clue.note || "")}</p>
+      </div>
+      ${clue.players?.length ? `
+        <div class="identity-player-grid">
+          ${clue.players.map((player) => `
+            <div class="identity-player">
+              <span>${escapeHtml(player.avatarMark || Array.from(player.name)[0] || "?")}</span>
+              <strong>${escapeHtml(player.name)}</strong>
+            </div>
+          `).join("")}
+        </div>
+      ` : `<div class="identity-empty">沒有可顯示的玩家</div>`}
+    </section>
+  `;
 }
 
 function renderTeam() {
@@ -471,7 +618,7 @@ function renderExcaliburPicker(room, you) {
       <div class="section-heading">
         <h3>王者之劍</h3>
         <span class="help-dot" tabindex="0">?</span>
-        <span class="help-popover">可由領袖交給一名任務成員。任務牌提交完畢後，持劍者可選擇不發動，或公開選擇一名任務成員翻轉任務牌再結算。</span>
+        <span class="help-popover">可由領袖交給一名參與任務的其他玩家，不能交給自己。任務牌提交完畢後，持劍者可選擇不發動，或公開選擇一名任務成員翻轉任務牌再結算。</span>
       </div>
       <div class="choice-grid compact">
         <button class="choice-card ${room.selectedExcaliburHolderId ? "" : "selected"}" data-excalibur-holder="" type="button" ${you.isLeader ? "" : "disabled"}>
@@ -509,6 +656,7 @@ function renderVote() {
 function renderVoteResult() {
   const result = snapshot.room.voteResult;
   const { you } = snapshot;
+  const delay = resultDelayState();
   els.mainPanel.innerHTML = `
     ${phaseHeader(result.passed ? "投票通過" : "投票未通過", `同意 ${result.approve}，不同意 ${result.reject}。`)}
     <div class="vote-grid">
@@ -516,10 +664,14 @@ function renderVoteResult() {
     </div>
     ${renderReactionPanel()}
     ${you.isLeader ? "" : `<div class="notice">等待當前領袖繼續。</div>`}
-    <button class="primary-button" data-action="continueVote" type="button" ${you.isLeader ? "" : "disabled"}>${result.passed ? "進入任務" : "下一位領袖提案"}</button>
+    <div class="continue-row">
+      <button class="primary-button" data-action="continueVote" type="button" ${you.isLeader && delay.ready ? "" : "disabled"}>${result.passed ? "進入任務" : "下一位領袖提案"}</button>
+      ${delay.ready ? "" : `<span class="result-countdown">${delay.seconds} 秒後可繼續</span>`}
+    </div>
   `;
   els.mainPanel.querySelector("[data-action='continueVote']").addEventListener("click", () => sendAction("continueVote"));
   bindReactionButtons();
+  scheduleResultCountdown(delay);
 }
 
 function renderMission() {
@@ -552,28 +704,88 @@ function renderExcalibur() {
     ${phaseHeader("王者之劍", `${holder?.name || "持劍者"} 可以選擇不發動，或公開選擇一名任務成員翻轉任務牌後結算。`)}
     ${you.isExcaliburHolder ? `
       <div class="choice-grid">
-        <button class="choice-card" data-excalibur-skip type="button">
+        <button class="choice-card ${pendingExcaliburChoice === "skip" ? "selected" : ""}" data-excalibur-choice="skip" type="button">
           <strong>不發動</strong>
           <span>保留原本任務牌結果</span>
         </button>
         ${room.players.filter((player) => room.selectedTeam.includes(player.id)).map((player) => `
-          <button class="choice-card" data-excalibur-target="${player.id}" type="button">
+          <button class="choice-card ${pendingExcaliburChoice === player.id ? "selected" : ""}" data-excalibur-choice="${player.id}" type="button">
             <strong>${escapeHtml(player.name)}</strong>
             <span>翻轉此人的任務牌</span>
           </button>
         `).join("")}
       </div>
+      <button class="primary-button confirm-choice-button" data-confirm-excalibur type="button" ${pendingExcaliburChoice ? "" : "disabled"}>
+        ${pendingExcaliburChoice === "skip" ? "確定不發動" : "確定對此玩家發動"}
+      </button>
     ` : `<div class="notice">等待王者之劍持有者選擇目標。</div>`}
   `;
-  els.mainPanel.querySelectorAll("[data-excalibur-target]").forEach((button) => {
-    button.addEventListener("click", () => sendAction("useExcalibur", { playerId: button.dataset.excaliburTarget }));
+  els.mainPanel.querySelectorAll("[data-excalibur-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      pendingExcaliburChoice = button.dataset.excaliburChoice;
+      renderExcalibur();
+    });
   });
-  els.mainPanel.querySelector("[data-excalibur-skip]")?.addEventListener("click", () => sendAction("useExcalibur", { skip: true }));
+  els.mainPanel.querySelector("[data-confirm-excalibur]")?.addEventListener("click", () => {
+    if (!pendingExcaliburChoice) return;
+    const choice = pendingExcaliburChoice;
+    pendingExcaliburChoice = null;
+    sendAction("useExcalibur", choice === "skip" ? { skip: true } : { playerId: choice });
+  });
+}
+
+function renderExcaliburResult() {
+  const result = snapshot.room.excaliburResult;
+  const resultKey = result ? `${result.targetId}:${result.originalCard}` : null;
+  const isRevealed = resultKey && revealedExcaliburResultKey === resultKey;
+  els.mainPanel.innerHTML = `
+    ${result ? `
+      <div class="identity-overlay">
+        <section class="identity-lightbox lake-lightbox excalibur-lightbox" role="dialog" aria-modal="true" aria-label="王者之劍私密情報">
+          ${isRevealed ? renderRevealedExcaliburResult(result) : `
+            <div class="lake-privacy">
+              ${token("excalibur", "王者之劍")}
+              <p class="eyebrow">私密情報</p>
+              <h2>請確認只有你能看到畫面</h2>
+              <p>你已鎖定 ${escapeHtml(result.targetName)}，現在可查看對方原本提交的任務牌。</p>
+              <button class="primary-button" data-reveal-excalibur type="button">顯示原始牌</button>
+            </div>
+          `}
+        </section>
+      </div>
+    ` : `<div class="notice">等待王者之劍持有者確認原始牌。</div>`}
+  `;
+  els.mainPanel.querySelector("[data-reveal-excalibur]")?.addEventListener("click", () => {
+    revealedExcaliburResultKey = resultKey;
+    renderExcaliburResult();
+  });
+  els.mainPanel.querySelector("[data-confirm-excalibur-result]")?.addEventListener("click", () => {
+    sendAction("confirmExcaliburResult");
+  });
+}
+
+function renderRevealedExcaliburResult(result) {
+  const isSuccess = result.originalCard === "success";
+  return `
+    <div class="lake-result-content">
+      <p class="eyebrow">王者之劍</p>
+      <div class="lake-player">
+        <span>${escapeHtml(result.targetMark || Array.from(result.targetName)[0] || "?")}</span>
+        <strong>${escapeHtml(result.targetName)}</strong>
+      </div>
+      <div class="mission-card-result ${isSuccess ? "success" : "fail"}">
+        原始牌：${isSuccess ? "任務成功" : "任務失敗"}
+      </div>
+      <p>確認後，此任務牌將翻轉並公開結算任務結果。</p>
+      <button class="primary-button" data-confirm-excalibur-result type="button">我已確認，結算任務</button>
+    </div>
+  `;
 }
 
 function renderMissionResult() {
   const last = snapshot.room.missionResults.at(-1);
   const { you } = snapshot;
+  const delay = resultDelayState();
   els.mainPanel.innerHTML = `
     ${phaseHeader(last.result === "success" ? "任務成功" : "任務失敗", `失敗牌 ${last.fails} 張，需要 ${last.failNeed} 張。`)}
     <div class="result-card ${last.result}">
@@ -583,10 +795,29 @@ function renderMissionResult() {
     </div>
     ${renderReactionPanel()}
     ${you.isLeader ? "" : `<div class="notice">等待當前領袖繼續。</div>`}
-    <button class="primary-button" data-action="continueMission" type="button" ${you.isLeader ? "" : "disabled"}>繼續</button>
+    <div class="continue-row">
+      <button class="primary-button" data-action="continueMission" type="button" ${you.isLeader && delay.ready ? "" : "disabled"}>繼續</button>
+      ${delay.ready ? "" : `<span class="result-countdown">${delay.seconds} 秒後可繼續</span>`}
+    </div>
   `;
   els.mainPanel.querySelector("[data-action='continueMission']").addEventListener("click", () => sendAction("continueMission"));
   bindReactionButtons();
+  scheduleResultCountdown(delay);
+}
+
+function resultDelayState() {
+  const elapsedSinceSync = Math.max(0, Date.now() - lastStateAt);
+  const remainingMs = Math.max(0, Number(snapshot.room.resultDelayRemainingMs || 0) - elapsedSinceSync);
+  return {
+    ready: remainingMs <= 0,
+    seconds: Math.max(1, Math.ceil(remainingMs / 1000)),
+    remainingMs
+  };
+}
+
+function scheduleResultCountdown(delay) {
+  if (delay.ready) return;
+  resultCountdownTimer = window.setTimeout(() => renderMain(), Math.min(1000, delay.remainingMs + 20));
 }
 
 function renderLake() {
@@ -597,43 +828,75 @@ function renderLake() {
     ${you.isLadyHolder ? `
       <div class="choice-grid">
         ${room.players.filter((player) => room.lakeCandidateIds.includes(player.id)).map((player) => `
-          <button class="choice-card" data-lake-target="${player.id}" type="button">
+          <button class="choice-card ${pendingLakeTargetId === player.id ? "selected" : ""}" data-lake-target="${player.id}" type="button">
             <strong>${escapeHtml(player.name)}</strong>
             <span>查驗陣營</span>
           </button>
         `).join("")}
       </div>
+      <button class="primary-button confirm-choice-button" data-confirm-lake type="button" ${pendingLakeTargetId ? "" : "disabled"}>確定查驗此玩家</button>
     ` : `<div class="notice">等待湖中女神進行查驗。</div>`}
   `;
   els.mainPanel.querySelectorAll("[data-lake-target]").forEach((button) => {
-    button.addEventListener("click", () => sendAction("inspectWithLady", { playerId: button.dataset.lakeTarget }));
+    button.addEventListener("click", () => {
+      pendingLakeTargetId = button.dataset.lakeTarget;
+      renderLake();
+    });
+  });
+  els.mainPanel.querySelector("[data-confirm-lake]")?.addEventListener("click", () => {
+    if (!pendingLakeTargetId) return;
+    const targetId = pendingLakeTargetId;
+    pendingLakeTargetId = null;
+    sendAction("inspectWithLady", { playerId: targetId });
   });
 }
 
 function renderLakeResult() {
   const { room } = snapshot;
-  const lakeSide = room.lakeResultText?.includes("邪惡方") ? "evil" : "good";
+  const result = room.lakeResult;
+  const resultKey = result ? `${result.targetId}:${result.side}` : null;
+  const isRevealed = resultKey && revealedLakeResultKey === resultKey;
   els.mainPanel.innerHTML = `
-    ${phaseHeader("湖中女神查驗", "查驗結果只會顯示給使用湖中女神的玩家。")}
-    ${room.lakeResultText ? `
-      <div class="role-reveal ${lakeSide}">
-        ${token("lady", "湖中女神")}
-        <div>
-          <p class="eyebrow">查驗結果</p>
-          <h2>${renderLakeResultText(room.lakeResultText)}</h2>
-          <p>您可以自由選擇要不要公開給其他玩家。</p>
-        </div>
+    ${result ? `
+      <div class="identity-overlay lake-overlay">
+        <section class="identity-lightbox lake-lightbox ${isRevealed ? result.side : "private"}" role="dialog" aria-modal="true" aria-label="湖中女神私密情報">
+          ${isRevealed ? renderRevealedLakeResult(result) : `
+            <div class="lake-privacy">
+              ${token("lady", "湖中女神")}
+              <p class="eyebrow">私密情報</p>
+              <h2>請確認只有你能看到畫面</h2>
+              <p>查驗結果只會顯示一次，確認環境後再揭示。</p>
+              <button class="primary-button" data-action="revealLakeResult" type="button">顯示查驗結果</button>
+            </div>
+          `}
+        </section>
       </div>
-      <button class="primary-button" data-action="confirmLakeResult" type="button">繼續</button>
     ` : `<div class="notice">等待湖中女神確認查驗結果。</div>`}
   `;
+  els.mainPanel.querySelector("[data-action='revealLakeResult']")?.addEventListener("click", () => {
+    revealedLakeResultKey = resultKey;
+    renderLakeResult();
+  });
   els.mainPanel.querySelector("[data-action='confirmLakeResult']")?.addEventListener("click", () => sendAction("confirmLakeResult"));
 }
 
-function renderLakeResultText(text) {
-  return escapeHtml(text)
-    .replace("正義方", `<span class="lake-side good">正義方</span>`)
-    .replace("邪惡方", `<span class="lake-side evil">邪惡方</span>`);
+function renderRevealedLakeResult(result) {
+  const sideName = result.side === "good" ? "正義方" : "邪惡方";
+  return `
+    <div class="lake-result-content">
+      <p class="eyebrow">湖中女神查驗</p>
+      <div class="lake-player">
+        <span>${escapeHtml(result.targetMark || Array.from(result.targetName)[0] || "?")}</span>
+        <strong>${escapeHtml(result.targetName)}</strong>
+      </div>
+      <div class="lake-side-result ${result.side}">${sideName}</div>
+      <div class="lake-result-notes">
+        <p>此結果不會保留在遊戲記錄中。</p>
+        <p>你可以選擇要不要公開此情報。</p>
+      </div>
+      <button class="primary-button" data-action="confirmLakeResult" type="button">我已記住</button>
+    </div>
+  `;
 }
 
 function renderAppointLeader() {
@@ -751,7 +1014,7 @@ function phaseProgressText() {
   const room = snapshot.room;
   if (room.phase === "vote") return `${room.voteProgress.done} / ${room.voteProgress.total} 投票`;
   if (room.phase === "mission") return `${room.missionProgress.done} / ${room.missionProgress.total} 任務`;
-  if (room.phase === "excalibur") return "等待持劍者";
+  if (room.phase === "excalibur" || room.phase === "excaliburResult") return "等待持劍者";
   if (room.phase === "lake" || room.phase === "lakeResult") return "湖中女神";
   if (room.phase === "reveal") return `${room.players.filter((player) => player.revealed).length} / ${room.players.length} 身份`;
   if (room.phase === "lobby") return `${room.players.filter((player) => player.ready).length} / ${room.settings.playerCount} 準備`;
@@ -767,6 +1030,7 @@ function phaseLabel(phase) {
     voteResult: "投票結果",
     mission: "任務",
     excalibur: "王者之劍",
+    excaliburResult: "王者之劍",
     missionResult: "任務結果",
     lake: "湖中女神",
     lakeResult: "湖中女神",
@@ -839,7 +1103,7 @@ function startStaleWatcher() {
   staleTimer = window.setInterval(() => {
     if (!snapshot) return;
     if (Date.now() - lastStateAt <= STALE_STATE_MS) return;
-    setConnection("同步中...\n正在重新取得完整狀態");
+    setConnection("同步中...");
     requestFullSync();
   }, 3000);
 }
@@ -877,16 +1141,25 @@ function showToast(message) {
   }, 2200);
 }
 
-function readSession() {
+function readSession(selection = {}) {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    const legacySession = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
+    const store = AvalonClientState.normalizeSessionStore(localStorage.getItem(STORAGE_KEY), legacySession);
+    const query = new URLSearchParams(location.search);
+    return AvalonClientState.selectSession(store, {
+      roomCode: selection.roomCode || query.get("room") || "",
+      playerId: selection.playerId || query.get("player") || "",
+      name: selection.name || ""
+    });
   } catch {
     return null;
   }
 }
 
 function writeSession(nextSession) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
+  const legacySession = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
+  const store = AvalonClientState.normalizeSessionStore(localStorage.getItem(STORAGE_KEY), legacySession);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(AvalonClientState.saveSession(store, nextSession)));
 }
 
 function escapeHtml(value) {
@@ -899,5 +1172,6 @@ function escapeHtml(value) {
 }
 
 els.roomInput.addEventListener("input", updateJoinControls);
+els.nameInput.addEventListener("input", updateJoinControls);
 bindEvents();
 connect();

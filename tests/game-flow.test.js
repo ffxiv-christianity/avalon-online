@@ -76,9 +76,11 @@ function setManualGame(room, players, roles) {
   room.votes = {};
   room.missionCards = {};
   room.missionResults = [];
+  room.resultReadyAt = null;
   room.selectedExcaliburHolderId = null;
   room.activeExcaliburHolderId = null;
   room.excaliburTargetId = null;
+  room.pendingExcaliburResult = null;
   room.usedExcaliburHolderIds = [];
   room.ladyHolderId = null;
   room.ladyUsedIds = [];
@@ -92,10 +94,12 @@ function setManualGame(room, players, roles) {
 
 function voteAll(room, players, vote) {
   players.forEach((player) => action(room, player, "castVote", { vote }));
+  room.resultReadyAt = Date.now() - 1;
 }
 
 function submitSuccessfulMission(room, team) {
   team.forEach((player) => action(room, player, "submitMission", { card: "success" }));
+  if (room.phase === "missionResult") room.resultReadyAt = Date.now() - 1;
 }
 
 function proposeAndApprove(room, players, leader, team) {
@@ -110,18 +114,55 @@ function testRoomJoinAndRejoin() {
   const { room, player: host } = makeRoom("Louis");
   assert.strictEqual(room.players.length, 1);
   assert.strictEqual(room.hostId, host.id);
+  assert.deepStrictEqual(room.playerJoinEvents, [{ serial: 1, playerId: host.id }]);
   assert(joinRoom(room.code, "louis").error.includes("名字"));
 
+  host.ready = true;
   const a = joinRoom(room.code, "A").player;
+  assert.deepStrictEqual(room.playerJoinEvents.at(-1), { serial: 2, playerId: a.id });
+  assert.strictEqual(host.ready, false, "new player joining should clear existing ready states");
   joinRoom(room.code, "B");
   joinRoom(room.code, "C");
   joinRoom(room.code, "D");
   assert(joinRoom(room.code, "E").error.includes("滿"));
+  const joinEventsBeforeRejoin = room.playerJoinEvents.map((event) => ({ ...event }));
   assert.strictEqual(joinRoom(room.code, "", a.id).player.id, a.id);
+  assert.deepStrictEqual(room.playerJoinEvents, joinEventsBeforeRejoin, "rejoining must not create a player join event");
+  assert.deepStrictEqual(makeView(room, host.id).room.playerJoinEvents, joinEventsBeforeRejoin);
 
   room.phase = "team";
   assert(joinRoom(room.code, "Late").error.includes("遊戲已開始"));
   assert.strictEqual(joinRoom(room.code, "", a.id).player.id, a.id);
+  assert.deepStrictEqual(room.playerJoinEvents, joinEventsBeforeRejoin, "game state and reconnect changes must not create join events");
+}
+
+function testUniqueAvatarMarks() {
+  const { room, player: louis } = makeRoom("Louis");
+  const luna = joinRoom(room.code, "Luna").player;
+  const luke = joinRoom(room.code, "Luke").player;
+  assert.strictEqual(louis.avatarMark, "L");
+  assert.strictEqual(luna.avatarMark, "U");
+  assert.strictEqual(luke.avatarMark, "K");
+  const view = makeView(room, louis.id);
+  assert.strictEqual(view.room.players.find((player) => player.id === luna.id).avatarMark, "U");
+}
+
+function testPlayerJoinEventsIgnoreStateChanges() {
+  const { room, players, host } = makePlayers(5);
+  const originalEvents = room.playerJoinEvents.map((event) => ({ ...event }));
+
+  action(room, players[0], "roll");
+  action(room, players[0], "setReady", { ready: true });
+  action(room, host, "transferHost", { playerId: players[1].id });
+  assert.deepStrictEqual(room.playerJoinEvents, originalEvents, "roll, ready and token changes must not create join events");
+
+  setManualGame(room, players, ["merlin", "servant", "servant", "assassin", "morgana"]);
+  const leader = room.players[room.leaderIndex];
+  action(room, leader, "toggleTeam", { playerId: players[0].id });
+  action(room, leader, "toggleTeam", { playerId: players[1].id });
+  action(room, leader, "submitTeam");
+  action(room, players[0], "castVote", { vote: "approve" });
+  assert.deepStrictEqual(room.playerJoinEvents, originalEvents, "voting must not create player join events");
 }
 
 function testTransferHost() {
@@ -192,6 +233,9 @@ function testPrivateStateIsScopedToViewer() {
   room.pendingLakeResult = {
     viewerId: players[0].id,
     targetId: players[3].id,
+    targetName: players[3].name,
+    targetMark: players[3].avatarMark,
+    side: "evil",
     text: `你查驗 ${players[3].name} 是邪惡方。`
   };
 
@@ -205,9 +249,19 @@ function testPrivateStateIsScopedToViewer() {
   assert.strictEqual(assassinView.you.role, "assassin");
   assert(merlinView.you.privateInfo.join("").includes(players[3].name));
   assert(!servantView.you.privateInfo.join("").includes(players[3].name));
+  assert(merlinView.you.identityClues[0].players.some((player) => player.id === players[3].id));
+  assert.strictEqual(servantView.you.identityClues[0].players.length, 0);
   assert.strictEqual(merlinView.room.lakeResultText, `你查驗 ${players[3].name} 是邪惡方。`);
+  assert.deepStrictEqual(merlinView.room.lakeResult, {
+    targetId: players[3].id,
+    targetName: players[3].name,
+    targetMark: players[3].avatarMark,
+    side: "evil"
+  });
   assert.strictEqual(servantView.room.lakeResultText, null);
   assert.strictEqual(assassinView.room.lakeResultText, null);
+  assert.strictEqual(servantView.room.lakeResult, null);
+  assert.strictEqual(assassinView.room.lakeResult, null);
   assert.strictEqual(servantView.room.missionCards, undefined);
   assert.strictEqual(servantView.room.players.find((player) => player.id === players[3].id).roleName, null);
   assert.strictEqual(servantView.room.players.find((player) => player.id === players[3].id).roleMark, null);
@@ -221,8 +275,10 @@ function testLobbySettingsReadyAndStart() {
     roles: room.settings.roles,
     teamSizes: [2, 3, 2, 3, 3],
     leaderMode: "appoint",
+    resultDelaySeconds: 5,
     expansions: { excalibur: false, excaliburUnique: false, ladyOfLake: true }
   });
+  assert.strictEqual(room.settings.resultDelaySeconds, 5);
   expectError(room, host, "startGame", {}, "擲 d100");
 
   players.forEach((player) => {
@@ -310,6 +366,26 @@ function testVoteMissionAndLeaderRules() {
   assert(room.retiredLeaderIds.includes(leader.id), "leader retires only after completed mission");
 }
 
+function testPublicResultDelay() {
+  const { room, players } = makePlayers(5);
+  setManualGame(room, players, ["merlin", "servant", "servant", "assassin", "morgana"]);
+  room.settings.resultDelaySeconds = 3;
+  const leader = players[0];
+  const team = [players[0], players[1]];
+  team.forEach((player) => action(room, leader, "toggleTeam", { playerId: player.id }));
+  action(room, leader, "submitTeam");
+  players.forEach((player) => action(room, player, "castVote", { vote: "approve" }));
+  assert(room.resultReadyAt > Date.now());
+  expectError(room, leader, "continueVote", {}, "倒數");
+  room.resultReadyAt = Date.now() - 1;
+  action(room, leader, "continueVote");
+  submitSuccessfulMission(room, team);
+  room.resultReadyAt = Date.now() + 3000;
+  expectError(room, leader, "continueMission", {}, "倒數");
+  room.resultReadyAt = Date.now() - 1;
+  action(room, leader, "continueMission");
+}
+
 function testFailedVoteRotatesWithoutRetiringLeader() {
   const { room, players } = makePlayers(5);
   setManualGame(room, players, ["merlin", "servant", "servant", "assassin", "morgana"]);
@@ -379,6 +455,8 @@ function testExcaliburExpansion() {
 
   action(room, leader, "toggleTeam", { playerId: leader.id });
   action(room, leader, "toggleTeam", { playerId: evilOnTeam.id });
+  assert(!makeView(room, leader.id).room.excaliburCandidateIds.includes(leader.id), "leader must not be an Excalibur candidate");
+  expectError(room, leader, "setExcaliburHolder", { playerId: leader.id }, "不能將王者之劍交給自己");
   expectError(room, players[1], "setExcaliburHolder", { playerId: evilOnTeam.id }, "領袖");
   action(room, leader, "setExcaliburHolder", { playerId: evilOnTeam.id });
   assert.strictEqual(makeView(room, leader.id).room.players.find((player) => player.id === evilOnTeam.id).excaliburHolder, true);
@@ -392,11 +470,22 @@ function testExcaliburExpansion() {
   action(room, evilOnTeam, "submitMission", { card: "fail" });
   assert.strictEqual(room.phase, "excalibur");
   expectError(room, leader, "useExcalibur", { playerId: evilOnTeam.id }, "王者之劍持有者");
-  action(room, evilOnTeam, "useExcalibur", { playerId: evilOnTeam.id });
+  action(room, evilOnTeam, "useExcalibur", { playerId: leader.id });
+  assert.strictEqual(room.phase, "excaliburResult");
+  assert.deepStrictEqual(makeView(room, evilOnTeam.id).room.excaliburResult, {
+    targetId: leader.id,
+    targetName: leader.name,
+    targetMark: leader.avatarMark,
+    originalCard: "success"
+  });
+  assert.strictEqual(makeView(room, leader.id).room.excaliburResult, null, "original mission card must only be visible to the sword holder");
+  assert.strictEqual(room.missionResults.length, 0, "mission must not resolve before the sword holder confirms the private result");
+  expectError(room, leader, "confirmExcaliburResult", {}, "王者之劍持有者");
+  action(room, evilOnTeam, "confirmExcaliburResult");
   assert.strictEqual(room.phase, "missionResult");
-  assert.strictEqual(room.missionResults.at(-1).result, "success");
-  assert.strictEqual(room.missionResults.at(-1).fails, 0);
-  assert.strictEqual(room.missionResults.at(-1).excalibur.targetId, evilOnTeam.id);
+  assert.strictEqual(room.missionResults.at(-1).result, "fail");
+  assert.strictEqual(room.missionResults.at(-1).fails, 2);
+  assert.strictEqual(room.missionResults.at(-1).excalibur.targetId, leader.id);
   assert.strictEqual(room.missionResults.at(-1).excalibur.used, true);
 
   room.phase = "team";
@@ -468,6 +557,12 @@ function testLadyOfLakeExpansion() {
   action(room, players[4], "inspectWithLady", { playerId: players[2].id });
   assert.strictEqual(room.phase, "lakeResult");
   assert(makeView(room, players[4].id).room.lakeResultText.includes(`你查驗 ${players[2].name} 是正義方`));
+  assert.deepStrictEqual(makeView(room, players[4].id).room.lakeResult, {
+    targetId: players[2].id,
+    targetName: players[2].name,
+    targetMark: players[2].avatarMark,
+    side: "good"
+  });
   assert.strictEqual(makeView(room, players[0].id).room.lakeResultText, null);
   expectError(room, players[0], "confirmLakeResult", {}, "湖中女神");
   action(room, players[4], "confirmLakeResult");
@@ -488,6 +583,8 @@ function testLadyOfLakeExpansion() {
 }
 
 testRoomJoinAndRejoin();
+testUniqueAvatarMarks();
+testPlayerJoinEventsIgnoreStateChanges();
 testTransferHost();
 testAutoTransferHostAfterOfflineGrace();
 testPrivateStateIsScopedToViewer();
@@ -496,6 +593,7 @@ testLobbySettingsReadyAndStart();
 testLadyInitialHolderUsesSecondHighestRoll();
 testIdentityInfo();
 testVoteMissionAndLeaderRules();
+testPublicResultDelay();
 testFailedVoteRotatesWithoutRetiringLeader();
 testFiveRejectedVotesEvilWin();
 testChatReactionsAssassinationAndReset();

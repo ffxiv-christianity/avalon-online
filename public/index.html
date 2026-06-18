@@ -27,20 +27,14 @@
 
     <section id="joinView" class="join-view">
       <div class="hero-panel">
-        <div>
+        <div class="hero-copy">
           <p class="eyebrow">多人即時房間</p>
-          <h2>由系統當主持人 所有玩家一起進場</h2>
-          <p>輸入名字即可建立或加入房間。所有行動都會即時同步，斷線後也可以用同一個ID重新連線房間。</p>
-          <section class="changelog" aria-label="更新日誌">
-            <h3>更新日誌</h3>
-            <ul>
-              <li><strong>2026/06/17 v4</strong> 支援手機PWA (非離線存取)</li>
-              <li><strong>2026/06/17 v3</strong> 新增房主指示物及轉房主功能；優化RWD；增加Favicon。</li>
-              <li><strong>2026/06/17 v2</strong> 新增擴充規則：王者之劍與湖中女神；修改 token 顯示方式。</li>
-              <li><strong>2026/06/17</strong> 修正稱號 hover 對齊、移除房主指示、room.version 增加單位、調整 box 順序、更新四人梅林描述與 README。</li>
-              <li><strong>2026/06/16</strong> 新增稱號系統、表情按鈕與單元測試。</li>
-            </ul>
-          </section>
+          <h2>免主持人，所有玩家一起加入遊戲</h2>
+          <ul class="hero-features">
+            <li>輸入名字即可建立或加入房間</li>
+            <li>所有行動都會即時同步</li>
+            <li>斷線後可用同一個 ID 重新連線</li>
+          </ul>
         </div>
         <form id="joinForm" class="join-form">
           <label class="field">
@@ -57,6 +51,20 @@
             <button class="ghost-button hidden" id="rejoinRoomButton" type="button">重新連線</button>
           </div>
         </form>
+        <details class="changelog" id="changelog" open>
+          <summary>
+            <span>更新日誌</span>
+            <small>最新版本 2026/06/18</small>
+          </summary>
+          <ul>
+            <li><strong>2026/06/18</strong> 新增公知情報延遲；增強視覺效果；優化排版；優化稱號統計文字；新增Scroll-bar樣式；優化手機板RWD</li>
+            <li><strong>2026/06/17 v4</strong> 支援手機PWA (非離線存取)</li>
+            <li><strong>2026/06/17 v3</strong> 新增房主指示物及轉房主功能；優化RWD；增加Favicon。</li>
+            <li><strong>2026/06/17 v2</strong> 新增擴充規則：王者之劍與湖中女神；修改 token 顯示方式。</li>
+            <li><strong>2026/06/17</strong> 修正稱號 hover 對齊、移除房主指示、room.version 增加單位、調整 box 順序、更新四人梅林描述。</li>
+            <li><strong>2026/06/16</strong> 新增稱號系統、表情按鈕。</li>
+          </ul>
+        </details>
       </div>
     </section>
 
@@ -64,7 +72,13 @@
       <section class="status-strip" id="statusStrip"></section>
       <div class="game-layout">
         <aside class="side-panel">
-          <section class="panel chat-panel">
+          <nav class="info-tabs" id="infoTabs" aria-label="房間資訊">
+            <button class="info-tab active" data-info-tab="chat" type="button">聊天 <span class="tab-badge hidden" id="chatUnread">0</span></button>
+            <button class="info-tab" data-info-tab="roster" type="button">玩家 <span class="tab-badge hidden" id="rosterUnread">0</span></button>
+            <button class="info-tab game-only-tab" data-info-tab="mission" type="button">任務</button>
+            <button class="info-tab game-only-tab" data-info-tab="log" type="button">記錄</button>
+          </nav>
+          <section class="panel info-panel chat-panel active" data-info-panel="chat">
             <h2>聊天</h2>
             <div class="chat-list" id="chatList"></div>
             <form class="chat-form" id="chatForm">
@@ -72,33 +86,41 @@
               <button class="primary-button" type="submit">送出</button>
             </form>
           </section>
-          <section class="panel room-panel">
-            <div class="room-code-block">
-              <span>房間代碼</span>
-              <strong id="roomCode">------</strong>
-            </div>
-            <button class="ghost-button" id="copyLinkButton" type="button">複製邀請連結</button>
-          </section>
-          <section class="panel roster-panel">
+          <section class="panel info-panel roster-panel" data-info-panel="roster">
             <h2>玩家順序</h2>
             <div class="roster" id="roster"></div>
           </section>
-          <section class="panel game-only-panel mission-panel">
+          <section class="panel info-panel game-only-panel mission-panel" data-info-panel="mission">
             <h2>任務進度</h2>
             <div class="scoreboard" id="scoreboard"></div>
             <div class="mission-table" id="missionTable"></div>
           </section>
-          <section class="panel game-only-panel log-panel">
+          <section class="panel info-panel game-only-panel log-panel" data-info-panel="log">
             <h2>記錄</h2>
             <ol class="log-list" id="logList"></ol>
+          </section>
+          <section class="panel room-panel desktop-room-panel">
+            <div class="room-code-block">
+              <span>房間代碼</span>
+              <strong class="room-code-value">------</strong>
+            </div>
+            <button class="ghost-button" data-copy-link type="button">複製邀請連結</button>
           </section>
         </aside>
 
         <section class="main-panel" id="mainPanel"></section>
+        <section class="panel room-panel mobile-room-panel">
+          <div class="room-code-block">
+            <span>房間代碼</span>
+            <strong class="room-code-value">------</strong>
+          </div>
+          <button class="ghost-button" data-copy-link type="button">複製邀請連結</button>
+        </section>
       </div>
     </section>
   </main>
 
+  <script src="./client-state.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

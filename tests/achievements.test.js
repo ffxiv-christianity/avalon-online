@@ -73,6 +73,7 @@ function assassinate(room, assassin, target) {
 function approveTeam(room, leader, team) {
   room.phase = "voteResult";
   room.voteResult = { approve: room.players.length, reject: 0, passed: true, votes: {} };
+  room.resultReadyAt = Date.now() - 1;
   room.selectedTeam = team.map((player) => player.id);
   const leaderIndex = room.players.findIndex((player) => player.id === leader.id);
   assert.notStrictEqual(leaderIndex, -1);
@@ -126,15 +127,25 @@ function testDiceAchievementAfterRollAction() {
 
 function testGoodWinAndMerlinThresholds() {
   const { room, merlin, assassin, percival } = setupRoom();
-  assassinate(room, assassin, percival);
-  assertNotHas(room, merlin.id, merlin.id, "good-light");
-  assertNotHas(room, merlin.id, merlin.id, "hidden-mirror");
+  for (let wins = 1; wins <= ACHIEVEMENT_THRESHOLDS.goodWins; wins += 1) {
+    assassinate(room, assassin, percival);
+    if (wins >= ACHIEVEMENT_THRESHOLDS.merlinGoodWins) {
+      assertHas(room, merlin.id, merlin.id, "hidden-mirror");
+    } else {
+      assertNotHas(room, merlin.id, merlin.id, "hidden-mirror");
+    }
+    if (wins >= ACHIEVEMENT_THRESHOLDS.goodWins) {
+      assertHas(room, merlin.id, merlin.id, "good-light");
+    } else {
+      assertNotHas(room, merlin.id, merlin.id, "good-light");
+    }
+  }
 
-  assassinate(room, assassin, percival);
   assertHas(room, merlin.id, merlin.id, "good-light");
+  assert.strictEqual(achievementById(room, merlin.id, merlin.id, "good-light").count, ACHIEVEMENT_THRESHOLDS.goodWins);
+  assert(achievementById(room, merlin.id, merlin.id, "good-light").detail.includes(`${ACHIEVEMENT_THRESHOLDS.goodWins} 次解鎖`));
   assertHas(room, merlin.id, merlin.id, "hidden-mirror");
-  assert.strictEqual(achievementById(room, merlin.id, merlin.id, "good-light").count, 2);
-  assert.strictEqual(achievementById(room, merlin.id, merlin.id, "hidden-mirror").count, 2);
+  assert.strictEqual(achievementById(room, merlin.id, merlin.id, "hidden-mirror").count, ACHIEVEMENT_THRESHOLDS.goodWins);
   assert(
     achievementById(room, merlin.id, merlin.id, "hidden-mirror").priority > achievementById(room, merlin.id, merlin.id, "good-light").priority,
     "role achievements should outrank broad win achievements"
@@ -143,12 +154,21 @@ function testGoodWinAndMerlinThresholds() {
 
 function testAssassinAndEvilThresholds() {
   const { room, merlin, assassin, morgana } = setupRoom();
-  assassinate(room, assassin, merlin);
-  assertNotHas(room, assassin.id, assassin.id, "top-assassin");
-  assertNotHas(room, assassin.id, assassin.id, "evil-king");
-  assertNotHas(room, assassin.id, morgana.id, "puppet-regime");
+  const winsNeeded = Math.max(
+    ACHIEVEMENT_THRESHOLDS.assassinHits,
+    ACHIEVEMENT_THRESHOLDS.evilWins,
+    ACHIEVEMENT_THRESHOLDS.morganaEvilWins
+  );
+  for (let wins = 1; wins <= winsNeeded; wins += 1) {
+    assassinate(room, assassin, merlin);
+    if (wins >= ACHIEVEMENT_THRESHOLDS.assassinHits) assertHas(room, assassin.id, assassin.id, "top-assassin");
+    else assertNotHas(room, assassin.id, assassin.id, "top-assassin");
+    if (wins >= ACHIEVEMENT_THRESHOLDS.evilWins) assertHas(room, assassin.id, assassin.id, "evil-king");
+    else assertNotHas(room, assassin.id, assassin.id, "evil-king");
+    if (wins >= ACHIEVEMENT_THRESHOLDS.morganaEvilWins) assertHas(room, assassin.id, morgana.id, "puppet-regime");
+    else assertNotHas(room, assassin.id, morgana.id, "puppet-regime");
+  }
 
-  assassinate(room, assassin, merlin);
   assertHas(room, assassin.id, assassin.id, "top-assassin");
   assertHas(room, assassin.id, assassin.id, "evil-king");
   assertHas(room, assassin.id, morgana.id, "puppet-regime");
@@ -158,6 +178,7 @@ function testAssassinMissAndTopStaff() {
   const { room, merlin, assassin, percival } = setupRoom();
   assassinate(room, assassin, percival);
   assertHas(room, merlin.id, percival.id, "top-staff");
+  assert(achievementById(room, merlin.id, percival.id, "top-staff").detail.includes("1 次解鎖。目前共 1 次"));
   assertNotHas(room, merlin.id, assassin.id, "slipped-hand");
 
   assassinate(room, assassin, percival);
