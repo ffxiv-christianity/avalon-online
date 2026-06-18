@@ -1,5 +1,6 @@
 const STORAGE_KEY = "avalon-online-sessions";
 const LEGACY_STORAGE_KEY = "avalon-online-session";
+const TAB_PLAYER_KEY = "avalon-online-tab-player";
 const WAKING_TEXT = "伺服器喚醒中...\n預計需要30~60秒\n請稍候";
 const STALE_STATE_MS = 12000;
 
@@ -29,6 +30,8 @@ const els = {
   changelog: document.getElementById("changelog"),
   nameInput: document.getElementById("nameInput"),
   roomInput: document.getElementById("roomInput"),
+  recentSessions: document.getElementById("recentSessions"),
+  recentSessionList: document.getElementById("recentSessionList"),
   createRoomButton: document.getElementById("createRoomButton"),
   rejoinRoomButton: document.getElementById("rejoinRoomButton"),
   statusStrip: document.getElementById("statusStrip"),
@@ -66,10 +69,12 @@ function connect() {
       session = {
         roomCode: message.roomCode,
         playerId: message.playerId,
-        name: els.nameInput.value.trim() || session?.name || ""
+        name: els.nameInput.value.trim() || session?.name || "",
+        lastUsedAt: Date.now()
       };
       writeSession(session);
-      history.replaceState(null, "", `?room=${message.roomCode}&player=${message.playerId}`);
+      writeTabPlayerId(message.playerId);
+      history.replaceState(null, "", AvalonClientState.roomUrlPath(location.pathname, message.roomCode));
       updateJoinControls();
       requestFullSync();
       return;
@@ -86,11 +91,22 @@ function connect() {
       render();
       return;
     }
-    if (message.type === "error") showToast(message.message);
+    if (message.type === "error") {
+      if (isMissingRoomError(message.message)) {
+        const missingRoomCode = parsedRoomCode() || session?.roomCode || "";
+        if (missingRoomCode) removeStoredRoom(missingRoomCode);
+      }
+      showToast(message.message);
+    }
   });
 }
 
 function bindEvents() {
+  els.chatInput.value = "";
+  window.addEventListener("pageshow", () => {
+    els.chatInput.value = "";
+  });
+
   const mobileHomeQuery = window.matchMedia("(max-width: 560px)");
   const syncChangelog = () => {
     if (els.changelog) els.changelog.open = !mobileHomeQuery.matches;
@@ -100,8 +116,13 @@ function bindEvents() {
 
   const queryRoom = new URLSearchParams(location.search).get("room");
   if (queryRoom) els.roomInput.value = queryRoom;
+  if (session?.playerId) writeTabPlayerId(session.playerId);
+  if (queryRoom && new URLSearchParams(location.search).has("player")) {
+    history.replaceState(null, "", AvalonClientState.roomUrlPath(location.pathname, queryRoom));
+  }
   if (session?.name) els.nameInput.value = session.name;
   updateJoinControls();
+  renderRecentSessions();
 
   els.createRoomButton.addEventListener("click", () => {
     const name = els.nameInput.value.trim();
@@ -111,14 +132,31 @@ function bindEvents() {
   els.joinForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const name = els.nameInput.value.trim();
-    const roomCode = els.roomInput.value.trim();
+    const roomCode = parsedRoomCode();
     if (!name) return showToast("請先輸入名字。");
-    if (!roomCode) return showToast("請輸入房間代碼。");
+    if (!roomCode) return showToast("請輸入有效的房間代碼或邀請連結。");
+    els.roomInput.value = roomCode;
     send({ type: "joinRoom", roomCode, name });
   });
   els.rejoinRoomButton.addEventListener("click", () => {
     if (!session?.roomCode || !session?.playerId) return;
     send({ type: "joinRoom", roomCode: session.roomCode, playerId: session.playerId, name: session.name || "" });
+  });
+  els.recentSessionList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-recent-player]");
+    if (!button) return;
+    const recentSession = sessionStore().sessions[button.dataset.recentPlayer];
+    if (!recentSession) return;
+    els.nameInput.value = recentSession.name || "";
+    els.roomInput.value = recentSession.roomCode;
+    session = recentSession;
+    writeTabPlayerId(recentSession.playerId);
+    send({
+      type: "joinRoom",
+      roomCode: recentSession.roomCode,
+      playerId: recentSession.playerId,
+      name: recentSession.name || ""
+    });
   });
   els.copyLinkButtons.forEach((button) => {
     button.addEventListener("click", copyInviteLink);
@@ -142,15 +180,58 @@ function bindEvents() {
 }
 
 function updateJoinControls() {
-  const roomCode = els.roomInput.value.trim() || new URLSearchParams(location.search).get("room") || "";
+  const roomCode = parsedRoomCode() || new URLSearchParams(location.search).get("room") || "";
   session = readSession({
     roomCode,
-    playerId: new URLSearchParams(location.search).get("player") || "",
+    playerId: readTabPlayerId(),
     name: els.nameInput.value.trim()
   });
   const canRejoin = Boolean(session?.roomCode && session?.playerId && session.roomCode.toUpperCase() === roomCode.toUpperCase());
   els.rejoinRoomButton.classList.toggle("hidden", !canRejoin);
   if (canRejoin) els.rejoinRoomButton.textContent = `以 ${session.name || "原玩家"} 重新連線`;
+}
+
+function parsedRoomCode() {
+  return AvalonClientState.parseRoomCode(els.roomInput.value, location.href);
+}
+
+function sessionStore() {
+  let legacySession = null;
+  try {
+    legacySession = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
+  } catch {
+    legacySession = null;
+  }
+  return AvalonClientState.normalizeSessionStore(localStorage.getItem(STORAGE_KEY), legacySession);
+}
+
+function removeStoredRoom(roomCode) {
+  const nextStore = AvalonClientState.removeRoomSessions(sessionStore(), roomCode);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextStore));
+  if (session?.roomCode?.toUpperCase() === roomCode.toUpperCase()) session = null;
+  clearTabPlayerId();
+  els.roomInput.value = "";
+  history.replaceState(null, "", location.pathname);
+  renderRecentSessions();
+  updateJoinControls();
+}
+
+function isMissingRoomError(message) {
+  return message === "找不到這個房間。" || message.includes("自動清除");
+}
+
+function renderRecentSessions() {
+  const recent = AvalonClientState.listSessions(sessionStore()).slice(0, 4);
+  els.recentSessions.classList.toggle("hidden", recent.length === 0);
+  els.recentSessionList.innerHTML = recent.map((item) => `
+    <button class="recent-session-button" data-recent-player="${escapeHtml(item.playerId)}" type="button">
+      <span>
+        <strong>${escapeHtml(item.name || "原玩家")}</strong>
+        <small>房間 ${escapeHtml(item.roomCode)}</small>
+      </span>
+      <span>重新連線</span>
+    </button>
+  `).join("");
 }
 
 function render() {
@@ -1145,10 +1226,9 @@ function readSession(selection = {}) {
   try {
     const legacySession = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
     const store = AvalonClientState.normalizeSessionStore(localStorage.getItem(STORAGE_KEY), legacySession);
-    const query = new URLSearchParams(location.search);
     return AvalonClientState.selectSession(store, {
-      roomCode: selection.roomCode || query.get("room") || "",
-      playerId: selection.playerId || query.get("player") || "",
+      roomCode: selection.roomCode || new URLSearchParams(location.search).get("room") || "",
+      playerId: selection.playerId || readTabPlayerId() || new URLSearchParams(location.search).get("player") || "",
       name: selection.name || ""
     });
   } catch {
@@ -1156,10 +1236,34 @@ function readSession(selection = {}) {
   }
 }
 
+function readTabPlayerId() {
+  try {
+    return sessionStorage.getItem(TAB_PLAYER_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function writeTabPlayerId(playerId) {
+  try {
+    sessionStorage.setItem(TAB_PLAYER_KEY, playerId);
+  } catch {
+    // The page can still use localStorage-based recent sessions.
+  }
+}
+
+function clearTabPlayerId() {
+  try {
+    sessionStorage.removeItem(TAB_PLAYER_KEY);
+  } catch {
+    // Ignore storage restrictions.
+  }
+}
+
 function writeSession(nextSession) {
-  const legacySession = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
-  const store = AvalonClientState.normalizeSessionStore(localStorage.getItem(STORAGE_KEY), legacySession);
+  const store = sessionStore();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(AvalonClientState.saveSession(store, nextSession)));
+  renderRecentSessions();
 }
 
 function escapeHtml(value) {

@@ -42,21 +42,29 @@
             <input id="nameInput" maxlength="16" required autocomplete="name" placeholder="">
           </label>
           <label class="field">
-            <span>房間代碼</span>
-            <input id="roomInput" maxlength="8" autocomplete="off" placeholder="加入房間時輸入">
+            <span>房間代碼或邀請連結</span>
+            <input id="roomInput" maxlength="240" autocomplete="off" autocapitalize="characters" placeholder="貼上代碼或完整連結">
           </label>
           <div class="button-row">
             <button class="primary-button" id="createRoomButton" type="button">建立房間</button>
             <button class="secondary-button" id="joinRoomButton" type="submit">加入房間</button>
             <button class="ghost-button hidden" id="rejoinRoomButton" type="button">重新連線</button>
           </div>
+          <section class="recent-sessions hidden" id="recentSessions" aria-label="最近使用的房間">
+            <div class="recent-sessions-heading">
+              <strong>最近使用</strong>
+              <span>可直接回到原玩家身分</span>
+            </div>
+            <div class="recent-session-list" id="recentSessionList"></div>
+          </section>
         </form>
         <details class="changelog" id="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/06/18</small>
+            <small>最新版本 2026/06/18 v2</small>
           </summary>
           <ul>
+            <li><strong>2026/06/18 v2</strong> 新增最近使用的房間功能；房間代碼可直接貼上完整網址；關閉聊天室的自動輸入</li>            
             <li><strong>2026/06/18</strong> 新增公知情報延遲；增強視覺效果；優化排版；優化稱號統計文字；新增Scroll-bar樣式；優化手機板RWD</li>
             <li><strong>2026/06/17 v4</strong> 支援手機PWA (非離線存取)</li>
             <li><strong>2026/06/17 v3</strong> 新增房主指示物及轉房主功能；優化RWD；增加Favicon。</li>
@@ -81,8 +89,8 @@
           <section class="panel info-panel chat-panel active" data-info-panel="chat">
             <h2>聊天</h2>
             <div class="chat-list" id="chatList"></div>
-            <form class="chat-form" id="chatForm">
-              <input id="chatInput" maxlength="240" placeholder="輸入訊息">
+            <form class="chat-form" id="chatForm" autocomplete="off">
+              <input id="chatInput" name="avalon-chat-message" maxlength="240" autocomplete="off" placeholder="輸入訊息">
               <button class="primary-button" type="submit">送出</button>
             </form>
           </section>

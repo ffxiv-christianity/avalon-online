@@ -1476,12 +1476,21 @@ function serveAdminStats(req, res, requestUrl) {
       phase: room.phase,
       players: room.players.length,
       onlinePlayers,
+      connections: roomConnectionCount(room.code),
+      version: room.version,
       emptyForMs: room.emptySince ? Math.max(0, Date.now() - room.emptySince) : 0,
       expiresAt: room.expiresAt
     };
   });
+  const memoryUsage = process.memoryUsage();
   const payload = {
     generatedAt: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+    memoryUsageMb: {
+      rss: bytesToMb(memoryUsage.rss),
+      heapUsed: bytesToMb(memoryUsage.heapUsed),
+      heapTotal: bytesToMb(memoryUsage.heapTotal)
+    },
     rooms: roomList.length,
     activeRooms: roomList.filter((room) => room.onlinePlayers > 0).length,
     connections: clients.size,
@@ -1491,6 +1500,14 @@ function serveAdminStats(req, res, requestUrl) {
   };
   res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   res.end(JSON.stringify(payload, null, 2));
+}
+
+function roomConnectionCount(roomCode, clientSet = clients) {
+  return [...clientSet].filter((client) => client.roomCode === roomCode && !client.socket.destroyed).length;
+}
+
+function bytesToMb(bytes) {
+  return Number((Number(bytes || 0) / 1024 / 1024).toFixed(2));
 }
 
 function handleUpgrade(req, socket) {
@@ -1623,5 +1640,7 @@ module.exports = {
   makeView,
   validateLobby,
   cleanupRooms,
+  roomConnectionCount,
+  bytesToMb,
   createServer
 };

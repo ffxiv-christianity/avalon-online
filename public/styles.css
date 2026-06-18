@@ -265,9 +265,12 @@ h3 {
 
 .changelog ul {
   display: grid;
+  max-height: 260px;
+  overflow-y: auto;
   gap: 8px;
   margin: 10px 0 0;
   padding-left: 1.2em;
+  padding-right: 6px;
   color: var(--muted);
   line-height: 1.55;
 }
@@ -289,6 +292,61 @@ h3 {
 .join-form {
   grid-area: form;
   align-self: center;
+}
+
+.recent-sessions {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(32, 40, 43, .1);
+  padding-top: 12px;
+}
+
+.recent-sessions-heading,
+.recent-session-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.recent-sessions-heading span,
+.recent-session-button small {
+  color: var(--muted);
+  font-size: .76rem;
+}
+
+.recent-session-list {
+  display: grid;
+  gap: 7px;
+}
+
+.recent-session-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  border-color: var(--line);
+  background: #fff;
+  color: var(--ink);
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.recent-session-button > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.recent-session-button > span:last-child {
+  flex: 0 0 auto;
+  color: var(--blue);
+  font-size: .8rem;
+  font-weight: 900;
+}
+
+.recent-session-button strong {
+  overflow-wrap: anywhere;
 }
 
 .field {

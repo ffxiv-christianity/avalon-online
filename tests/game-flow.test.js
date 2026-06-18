@@ -6,6 +6,8 @@ const {
   makeView,
   validateLobby,
   cleanupRooms,
+  roomConnectionCount,
+  bytesToMb,
   rooms,
   clients
 } = require("../server");
@@ -56,6 +58,19 @@ function testEmptyRoomCleanup() {
   clients.delete(fakeClient);
   assert(rooms.has(activeRoom.code), "room with an online player should not be cleaned");
   rooms.delete(activeRoom.code);
+}
+
+function testAdminServerStatsHelpers() {
+  const fakeClients = new Set([
+    { roomCode: "ROOM1", socket: { destroyed: false } },
+    { roomCode: "ROOM1", socket: { destroyed: false } },
+    { roomCode: "ROOM1", socket: { destroyed: true } },
+    { roomCode: "ROOM2", socket: { destroyed: false } }
+  ]);
+  assert.strictEqual(roomConnectionCount("ROOM1", fakeClients), 2);
+  assert.strictEqual(roomConnectionCount("ROOM2", fakeClients), 1);
+  assert.strictEqual(bytesToMb(1024 * 1024), 1);
+  assert.strictEqual(bytesToMb(1536 * 1024), 1.5);
 }
 
 function setManualGame(room, players, roles) {
@@ -583,6 +598,7 @@ function testLadyOfLakeExpansion() {
 }
 
 testRoomJoinAndRejoin();
+testAdminServerStatsHelpers();
 testUniqueAvatarMarks();
 testPlayerJoinEventsIgnoreStateChanges();
 testTransferHost();
