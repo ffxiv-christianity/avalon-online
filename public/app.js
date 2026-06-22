@@ -1,7 +1,7 @@
 const STORAGE_KEY = "avalon-online-sessions";
 const LEGACY_STORAGE_KEY = "avalon-online-session";
 const TAB_PLAYER_KEY = "avalon-online-tab-player";
-const WAKING_TEXT = "伺服器喚醒中...\n預計需要30~60秒\n請稍候";
+const WAKING_TEXT = "請稍後";
 const STALE_STATE_MS = 12000;
 
 let socket = null;
@@ -14,6 +14,8 @@ let activeInfoTab = "chat";
 let infoRoomCode = null;
 let lastObservedChatId = null;
 let unreadChatCount = 0;
+let renderedChatRoomCode = null;
+let lastRenderedChatId = null;
 let lastPlayerJoinSerial = 0;
 let unreadRosterCount = 0;
 let resultCountdownTimer = null;
@@ -24,6 +26,9 @@ let pendingLakeTargetId = null;
 
 const els = {
   connectionChip: document.getElementById("connectionChip"),
+  openRulesButton: document.getElementById("openRulesButton"),
+  closeRulesButton: document.getElementById("closeRulesButton"),
+  rulesOverlay: document.getElementById("rulesOverlay"),
   joinView: document.getElementById("joinView"),
   roomView: document.getElementById("roomView"),
   joinForm: document.getElementById("joinForm"),
@@ -95,6 +100,8 @@ function connect() {
       if (isMissingRoomError(message.message)) {
         const missingRoomCode = parsedRoomCode() || session?.roomCode || "";
         if (missingRoomCode) removeStoredRoom(missingRoomCode);
+      } else if (isMissingPlayerError(message.message) && session?.playerId) {
+        removeStoredSession(session.playerId);
       }
       showToast(message.message);
     }
@@ -113,6 +120,14 @@ function bindEvents() {
   };
   syncChangelog();
   mobileHomeQuery.addEventListener("change", syncChangelog);
+  els.openRulesButton.addEventListener("click", openRules);
+  els.closeRulesButton.addEventListener("click", closeRules);
+  els.rulesOverlay.addEventListener("click", (event) => {
+    if (event.target === els.rulesOverlay) closeRules();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !els.rulesOverlay.classList.contains("hidden")) closeRules();
+  });
 
   const queryRoom = new URLSearchParams(location.search).get("room");
   if (queryRoom) els.roomInput.value = queryRoom;
@@ -179,6 +194,18 @@ function bindEvents() {
   });
 }
 
+function openRules() {
+  els.rulesOverlay.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  els.closeRulesButton.focus();
+}
+
+function closeRules() {
+  els.rulesOverlay.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+  els.openRulesButton.focus();
+}
+
 function updateJoinControls() {
   const roomCode = parsedRoomCode() || new URLSearchParams(location.search).get("room") || "";
   session = readSession({
@@ -202,7 +229,24 @@ function sessionStore() {
   } catch {
     legacySession = null;
   }
-  return AvalonClientState.normalizeSessionStore(localStorage.getItem(STORAGE_KEY), legacySession);
+  const rawStore = localStorage.getItem(STORAGE_KEY);
+  const store = AvalonClientState.normalizeSessionStore(rawStore, legacySession);
+  if (legacySession?.playerId && legacySession?.roomCode) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  }
+  return store;
+}
+
+function removeStoredSession(playerId) {
+  const currentSession = sessionStore().sessions[playerId];
+  const nextStore = AvalonClientState.removeSession(sessionStore(), playerId);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextStore));
+  if (session?.playerId === playerId) session = null;
+  if (readTabPlayerId() === playerId) clearTabPlayerId();
+  if (currentSession?.roomCode) els.roomInput.value = currentSession.roomCode;
+  renderRecentSessions();
+  updateJoinControls();
 }
 
 function removeStoredRoom(roomCode) {
@@ -218,6 +262,10 @@ function removeStoredRoom(roomCode) {
 
 function isMissingRoomError(message) {
   return message === "找不到這個房間。" || message.includes("自動清除");
+}
+
+function isMissingPlayerError(message) {
+  return message.includes("找不到你的玩家 ID");
 }
 
 function renderRecentSessions() {
@@ -236,6 +284,7 @@ function renderRecentSessions() {
 
 function render() {
   if (!snapshot) return;
+  document.body.classList.add("room-active");
   els.joinView.classList.add("hidden");
   els.roomView.classList.remove("hidden");
   els.roomView.classList.toggle("lobby-mode", snapshot.room.phase === "lobby");
@@ -331,6 +380,7 @@ function renderRoster() {
   els.roster.innerHTML = room.players.map((player) => {
     const role = player.role ? snapshot.roles[player.role] : null;
     const canTransferHost = snapshot.you.isHost && player.id !== snapshot.room.hostId;
+    const canKick = room.phase === "lobby" && snapshot.you.isHost && player.id !== snapshot.you.id && !player.online;
     return `
       <article class="player-card ${player.isLeader ? "leader" : ""} ${player.retiredLeader ? "retired" : ""} ${player.online ? "" : "offline"}">
         <div class="seat">${player.index + 1}</div>
@@ -343,6 +393,7 @@ function renderRoster() {
             ${player.roll ? `d100: ${player.roll}` : "未擲骰"}${player.ready ? " · 已準備" : ""} · ${player.online ? "在線" : "離線"}
           </div>
           ${canTransferHost ? `<button class="mini-action" data-transfer-host="${player.id}" type="button">轉房主</button>` : ""}
+          ${canKick ? `<button class="mini-action danger-mini-action" data-kick-player="${player.id}" data-player-name="${escapeHtml(player.name)}" type="button">踢出玩家</button>` : ""}
         </div>
         <div class="token-stack">
           ${room.phase === "lobby" && player.isHost ? token("host", "房主") : ""}
@@ -356,6 +407,34 @@ function renderRoster() {
   }).join("");
   els.roster.querySelectorAll("[data-transfer-host]").forEach((button) => {
     button.addEventListener("click", () => sendAction("transferHost", { playerId: button.dataset.transferHost }));
+  });
+  els.roster.querySelectorAll("[data-kick-player]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const playerName = button.dataset.playerName || "這位玩家";
+      if (!window.confirm(`確定要將離線玩家「${playerName}」移出房間嗎？\n玩家的稱號與累積次數不會被刪除。`)) return;
+      sendAction("kickOfflinePlayer", { playerId: button.dataset.kickPlayer });
+    });
+  });
+  bindAchievementPopovers();
+}
+
+function bindAchievementPopovers() {
+  els.roster.querySelectorAll(".achievement-badge").forEach((badge) => {
+    const popover = badge.nextElementSibling;
+    if (!popover?.classList.contains("achievement-popover")) return;
+    const updateDirection = () => {
+      const card = badge.closest(".player-card");
+      const panel = badge.closest(".info-panel");
+      const cardRect = card.getBoundingClientRect();
+      const panelRect = panel?.getBoundingClientRect();
+      const visibleBottom = Math.min(window.innerHeight, panelRect?.bottom || window.innerHeight);
+      const visibleTop = Math.max(0, panelRect?.top || 0);
+      const below = visibleBottom - cardRect.bottom;
+      const above = cardRect.top - visibleTop;
+      popover.classList.toggle("opens-up", below < 240 && above > below);
+    };
+    badge.addEventListener("pointerenter", updateDirection);
+    badge.addEventListener("focus", updateDirection);
   });
 }
 
@@ -410,11 +489,15 @@ function renderLog() {
 
 function renderChat() {
   const chat = snapshot.room.chat || [];
+  const newestId = chat.at(-1)?.id || null;
+  if (renderedChatRoomCode === snapshot.room.code && newestId === lastRenderedChatId) return;
   els.chatList.innerHTML = chat.length ? chat.map((entry) => `
     <div class="chat-message ${entry.playerId === snapshot.you.id ? "mine" : ""}">
       <span class="chat-line"><strong>${escapeHtml(entry.name)}:</strong> ${escapeHtml(entry.text)}</span>
     </div>
   `).join("") : `<div class="chat-empty">尚無聊天訊息</div>`;
+  renderedChatRoomCode = snapshot.room.code;
+  lastRenderedChatId = newestId;
   els.chatList.scrollTop = els.chatList.scrollHeight;
 }
 
@@ -946,13 +1029,15 @@ function renderLakeResult() {
               ${token("lady", "湖中女神")}
               <p class="eyebrow">私密情報</p>
               <h2>請確認只有你能看到畫面</h2>
-              <p>查驗結果只會顯示一次，確認環境後再揭示。</p>
+              <p>查驗結果只會顯示一次。</p>
               <button class="primary-button" data-action="revealLakeResult" type="button">顯示查驗結果</button>
             </div>
           `}
         </section>
       </div>
-    ` : `<div class="notice">等待湖中女神確認查驗結果。</div>`}
+    ` : `<div class="notice">${room.lakePublicResult
+      ? `湖中女神查驗了 ${escapeHtml(room.lakePublicResult.targetName)}。${escapeHtml(room.lakePublicResult.nextHolderName)} 現在持有湖中女神指示物。`
+      : "等待湖中女神確認查驗結果。"}</div>`}
   `;
   els.mainPanel.querySelector("[data-action='revealLakeResult']")?.addEventListener("click", () => {
     revealedLakeResultKey = resultKey;
@@ -972,7 +1057,6 @@ function renderRevealedLakeResult(result) {
       </div>
       <div class="lake-side-result ${result.side}">${sideName}</div>
       <div class="lake-result-notes">
-        <p>此結果不會保留在遊戲記錄中。</p>
         <p>你可以選擇要不要公開此情報。</p>
       </div>
       <button class="primary-button" data-action="confirmLakeResult" type="button">我已記住</button>
@@ -1224,8 +1308,7 @@ function showToast(message) {
 
 function readSession(selection = {}) {
   try {
-    const legacySession = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
-    const store = AvalonClientState.normalizeSessionStore(localStorage.getItem(STORAGE_KEY), legacySession);
+    const store = sessionStore();
     return AvalonClientState.selectSession(store, {
       roomCode: selection.roomCode || new URLSearchParams(location.search).get("room") || "",
       playerId: selection.playerId || readTabPlayerId() || new URLSearchParams(location.search).get("player") || "",

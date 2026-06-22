@@ -20,9 +20,10 @@
         <p class="eyebrow">Avalon Online Host</p>
         <h1>阿瓦隆線上版</h1>
       </div>
-      <div class="room-chip" id="connectionChip">伺服器喚醒中...
-預計需要30~60秒
-請稍候</div>
+      <div class="topbar-actions">
+        <div class="room-chip" id="connectionChip">請稍後</div>
+        <button class="ghost-button rules-button" id="openRulesButton" type="button">遊戲規則</button>
+      </div>
     </header>
 
     <section id="joinView" class="join-view">
@@ -61,9 +62,11 @@
         <details class="changelog" id="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/06/18 v2</small>
+            <small>最新版本 2026/06/22</small>
           </summary>
           <ul>
+            <li><strong>2026/06/22</strong> 優化聊天室、玩家列表、記錄；房主可踢出離線玩家；新增可隨時查看規則；優化湖中女神、王者之劍的UI；
+            修正快速重連的BUG；優化洗牌演算法</li>               
             <li><strong>2026/06/18 v2</strong> 新增最近使用的房間功能；房間代碼可直接貼上完整網址；關閉聊天室的自動輸入</li>            
             <li><strong>2026/06/18</strong> 新增公知情報延遲；增強視覺效果；優化排版；優化稱號統計文字；新增Scroll-bar樣式；優化手機板RWD</li>
             <li><strong>2026/06/17 v4</strong> 支援手機PWA (非離線存取)</li>
@@ -127,6 +130,65 @@
       </div>
     </section>
   </main>
+
+  <div class="rules-overlay hidden" id="rulesOverlay" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <article class="rules-dialog">
+      <header class="rules-header">
+        <div>
+          <p class="eyebrow">Avalon Rules</p>
+          <h2 id="rulesTitle">阿瓦隆遊戲規則</h2>
+        </div>
+        <button class="ghost-button" id="closeRulesButton" type="button" aria-label="關閉規則">關閉</button>
+      </header>
+      <div class="rules-content">
+        <section>
+          <h3>遊戲目標與流程</h3>
+          <ol>
+            <li>玩家秘密取得<span class="side-text good">正義方</span>或<span class="side-text evil">邪惡方</span>角色。</li>
+            <li>領袖選擇任務隊伍，全員公開投票同意或反對。</li>
+            <li>提案通過後，任務成員秘密提交成功或失敗牌；<span class="side-text good">正義方</span>只能提交成功。</li>
+            <li>任務人數及所需失敗牌數會依總玩家人數與任務輪次改變。</li>
+            <li><span class="side-text good">正義方</span>先完成三個成功任務後，刺客可刺殺梅林；刺中則<span class="side-text evil">邪惡方</span>反勝。</li>
+            <li><span class="side-text evil">邪惡方</span>先造成三個任務失敗，或連續五次提案未通過，立即獲勝。</li>
+          </ol>
+        </section>
+        <section>
+          <h3>角色能力</h3>
+          <dl class="rules-role-list">
+            <div class="good"><dt>梅林 <span>正義方</span></dt><dd>知道邪惡方，但看不到莫德雷德；必須避免被刺客認出。</dd></div>
+            <div class="good"><dt>派西維爾 <span>正義方</span></dt><dd>看見梅林；莫甘娜在場時，會同時看到梅林與莫甘娜但不知道誰是誰。</dd></div>
+            <div class="good"><dt>亞瑟的忠臣 <span>正義方</span></dt><dd>沒有特殊情報的正義方角色。</dd></div>
+            <div class="evil"><dt>刺客 <span>邪惡方</span></dt><dd>正義方完成三個任務後，可指定一人刺殺。</dd></div>
+            <div class="evil"><dt>莫甘娜 <span>邪惡方</span></dt><dd>會在派西維爾眼中偽裝成梅林。</dd></div>
+            <div class="evil"><dt>莫德雷德 <span>邪惡方</span></dt><dd>邪惡方角色，但不會被梅林看見。</dd></div>
+            <div class="evil"><dt>奧伯倫 <span>邪惡方</span></dt><dd>不認識其他邪惡方，也不會被其他邪惡方認出。</dd></div>
+            <div class="evil"><dt>莫德雷德的爪牙 <span>邪惡方</span></dt><dd>沒有特殊能力的邪惡方角色。</dd></div>
+          </dl>
+        </section>
+        <section>
+          <h3>領袖模式</h3>
+          <p><strong>標準順時針：</strong>提案或任務結束後，領袖依玩家順序輪替。</p>
+          <p><strong>指定領袖：</strong>完成任務輪的領袖指定下一位未持有退役領袖徽章的玩家。</p>
+        </section>
+        <section>
+          <h3>王者之劍</h3>
+          <p>領袖可不給劍，或交給參與任務的其他玩家，不能交給自己。所有任務牌提交後，持劍者可選擇不發動，或鎖定一名任務成員；持劍者私下看見該玩家原本的任務牌，再將成功與失敗翻轉後結算。持劍者、是否發動及目標皆為公開情報。</p>
+        </section>
+        <section>
+          <h3>湖中女神</h3>
+          <p>開局由擲骰第二高的玩家持有。指定輪次任務結束後，持有者查驗一名玩家的陣營，結果只有查驗者能看見；查驗對象與新的指示物持有者為公開情報。查驗結果不會寫入遊戲記錄。</p>
+        </section>
+        <section>
+          <h3>四人特殊規則</h3>
+          <p>四人局固定為三名<span class="side-text good">正義方</span>與一名<span class="side-text evil">邪惡方</span>。梅林只能看見一名正義隊友，不會直接看見對手；若最後被刺客刺殺，邪惡方獲勝。</p>
+        </section>
+        <section>
+          <h3>公開與私密資訊</h3>
+          <p>投票為公開明票；任務牌為匿名，只公開最終成功／失敗與失敗牌數。角色、湖中女神結果及王者之劍目標原始牌只會顯示在對應玩家自己的裝置。</p>
+        </section>
+      </div>
+    </article>
+  </div>
 
   <script src="./client-state.js"></script>
   <script src="./app.js"></script>

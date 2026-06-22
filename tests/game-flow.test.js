@@ -8,6 +8,9 @@ const {
   cleanupRooms,
   roomConnectionCount,
   bytesToMb,
+  randomInt,
+  randomTieBreak,
+  shuffle,
   rooms,
   clients
 } = require("../server");
@@ -71,6 +74,19 @@ function testAdminServerStatsHelpers() {
   assert.strictEqual(roomConnectionCount("ROOM2", fakeClients), 1);
   assert.strictEqual(bytesToMb(1024 * 1024), 1);
   assert.strictEqual(bytesToMb(1536 * 1024), 1.5);
+}
+
+function testCryptoRandomHelpers() {
+  for (let index = 0; index < 200; index += 1) {
+    const roll = randomInt(1, 100);
+    assert(Number.isInteger(roll) && roll >= 1 && roll <= 100);
+    const tieBreak = randomTieBreak();
+    assert(Number.isInteger(tieBreak) && tieBreak >= 0 && tieBreak < 0x100000000);
+  }
+
+  const original = ["merlin", "servant", "assassin", "morgana", "percival"];
+  const shuffled = shuffle([...original]);
+  assert.deepStrictEqual([...shuffled].sort(), [...original].sort(), "shuffle must preserve every role card exactly once");
 }
 
 function setManualGame(room, players, roles) {
@@ -142,6 +158,9 @@ function testRoomJoinAndRejoin() {
   assert(joinRoom(room.code, "E").error.includes("滿"));
   const joinEventsBeforeRejoin = room.playerJoinEvents.map((event) => ({ ...event }));
   assert.strictEqual(joinRoom(room.code, "", a.id).player.id, a.id);
+  assert.strictEqual(room.players.length, room.settings.playerCount, "test room should be full before reconnect");
+  assert.strictEqual(joinRoom(room.code, "", a.id).player.id, a.id, "a valid player ID must reconnect even when the room is full");
+  assert(joinRoom(room.code, "", "missing-player-id").error.includes("玩家 ID"), "an invalid reconnect ID must not be reported as a full room");
   assert.deepStrictEqual(room.playerJoinEvents, joinEventsBeforeRejoin, "rejoining must not create a player join event");
   assert.deepStrictEqual(makeView(room, host.id).room.playerJoinEvents, joinEventsBeforeRejoin);
 
@@ -149,6 +168,17 @@ function testRoomJoinAndRejoin() {
   assert(joinRoom(room.code, "Late").error.includes("遊戲已開始"));
   assert.strictEqual(joinRoom(room.code, "", a.id).player.id, a.id);
   assert.deepStrictEqual(room.playerJoinEvents, joinEventsBeforeRejoin, "game state and reconnect changes must not create join events");
+}
+
+function testCannotReducePlayerCountBelowCurrentPlayers() {
+  const { room, players, host } = makePlayers(5);
+  const originalIds = room.players.map((player) => player.id);
+  expectError(room, host, "setSettings", {
+    ...room.settings,
+    playerCount: 4
+  }, "不能將人數調低");
+  assert.deepStrictEqual(room.players.map((player) => player.id), originalIds, "changing settings must never silently remove players");
+  assert.strictEqual(room.settings.playerCount, 5);
 }
 
 function testUniqueAvatarMarks() {
@@ -189,6 +219,50 @@ function testTransferHost() {
   assert.strictEqual(makeView(room, host.id).room.players.find((player) => player.id === players[1].id).isHost, true);
   expectError(room, host, "setSettings", { playerCount: 4 }, "房主");
   action(room, players[1], "setSettings", { ...room.settings, playerCount: 5 });
+}
+
+function testHostCanKickOfflineLobbyPlayer() {
+  const { room, players, host } = makePlayers(5);
+  const target = players[4];
+  const statsKey = target.name.toLocaleLowerCase();
+  room.playerStats[statsKey].goodWins = 2;
+
+  expectError(room, players[1], "kickOfflinePlayer", { playerId: target.id }, "房主");
+  const onlineClient = {
+    roomCode: room.code,
+    playerId: target.id,
+    lastSeen: Date.now(),
+    socket: { destroyed: false, write() {} }
+  };
+  clients.add(onlineClient);
+  expectError(room, host, "kickOfflinePlayer", { playerId: target.id }, "離線");
+  clients.delete(onlineClient);
+
+  action(room, host, "kickOfflinePlayer", { playerId: target.id });
+  assert.strictEqual(room.players.length, 4);
+  assert(!room.players.some((player) => player.id === target.id));
+  assert.strictEqual(room.playerStats[statsKey].goodWins, 2, "kicking must preserve achievement counters");
+  assert.strictEqual(room.settings.playerCount, 5, "kicking must not recreate or reset the room");
+
+  const replacement = joinRoom(room.code, target.name).player;
+  assert(replacement, "a replacement player should be able to join the same room");
+  assert.strictEqual(room.playerStats[statsKey].goodWins, 2);
+
+  room.phase = "team";
+  expectError(room, host, "kickOfflinePlayer", { playerId: replacement.id }, "準備房間");
+}
+
+function testFullChatAndLogAreExposedForCurrentGame() {
+  const { room, players } = makePlayers(5);
+  for (let index = 0; index < 100; index += 1) {
+    action(room, players[index % players.length], "sendChat", { text: `訊息 ${index}` });
+    room.log.push(`記錄 ${index}`);
+  }
+  const view = makeView(room, players[0].id);
+  assert.strictEqual(view.room.chat.length, 100);
+  assert(view.room.log.length >= 100);
+  assert.strictEqual(view.room.chat[0].text, "訊息 0");
+  assert(view.room.log.includes("記錄 0"));
 }
 
 function testAutoTransferHostAfterOfflineGrace() {
@@ -578,6 +652,10 @@ function testLadyOfLakeExpansion() {
     targetMark: players[2].avatarMark,
     side: "good"
   });
+  assert.deepStrictEqual(makeView(room, players[0].id).room.lakePublicResult, {
+    targetName: players[2].name,
+    nextHolderName: players[2].name
+  });
   assert.strictEqual(makeView(room, players[0].id).room.lakeResultText, null);
   expectError(room, players[0], "confirmLakeResult", {}, "湖中女神");
   action(room, players[4], "confirmLakeResult");
@@ -598,10 +676,14 @@ function testLadyOfLakeExpansion() {
 }
 
 testRoomJoinAndRejoin();
+testCannotReducePlayerCountBelowCurrentPlayers();
 testAdminServerStatsHelpers();
+testCryptoRandomHelpers();
 testUniqueAvatarMarks();
 testPlayerJoinEventsIgnoreStateChanges();
 testTransferHost();
+testHostCanKickOfflineLobbyPlayer();
+testFullChatAndLogAreExposedForCurrentGame();
 testAutoTransferHostAfterOfflineGrace();
 testPrivateStateIsScopedToViewer();
 testEmptyRoomCleanup();

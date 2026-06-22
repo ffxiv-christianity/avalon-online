@@ -88,14 +88,14 @@
     const sessions = Object.values(store?.sessions || {});
     const normalizedRoom = String(roomCode).toUpperCase();
     const roomSessions = sessions.filter((item) => item.roomCode.toUpperCase() === normalizedRoom);
+    if (playerId) {
+      const exact = store?.sessions?.[playerId];
+      if (exact && (!normalizedRoom || exact.roomCode.toUpperCase() === normalizedRoom)) return exact;
+    }
     if (name) {
       const normalizedName = String(name).trim().toLocaleLowerCase();
       const named = roomSessions.find((item) => String(item.name || "").toLocaleLowerCase() === normalizedName);
       if (named) return named;
-    }
-    if (playerId) {
-      const exact = store?.sessions?.[playerId];
-      if (exact && (!normalizedRoom || exact.roomCode.toUpperCase() === normalizedRoom)) return exact;
     }
     return roomSessions.at(-1) || null;
   }

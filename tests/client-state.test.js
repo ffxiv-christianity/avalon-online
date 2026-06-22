@@ -43,8 +43,8 @@ function testMultipleSessionsInOneBrowser() {
   assert.strictEqual(selectSession(store, { roomCode: "ABC123", name: "L2" }).playerId, "L2-ID");
   assert.strictEqual(
     selectSession(store, { roomCode: "ABC123", playerId: "L2-ID", name: "L1" }).playerId,
-    "L1-ID",
-    "typing a stored player name should switch the rejoin identity"
+    "L2-ID",
+    "the current tab player ID must take priority over autofilled or edited names"
   );
 
   const migrated = normalizeSessionStore(null, { roomCode: "OLD123", playerId: "OLD-ID", name: "Old" });
