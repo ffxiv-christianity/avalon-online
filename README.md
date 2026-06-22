@@ -1,6 +1,37 @@
 # 線上桌遊專案
 
-- `Avalon/`：目前上線中的阿瓦隆網站
-- `Onenightwolf/`：預留給一夜終極狼人 FF14 版，目前尚未實作
+https://avalon-online-lhem.onrender.com/
 
-根目錄的啟動指令會轉交給 `Avalon/`，因此既有 Render service 可以維持原本的建置與啟動設定。
+- `Avalon/`：阿瓦隆
+- `Onenightwolf/`：一夜終極狼人
+
+公開網址：
+
+- `/`、`/?room=XXXXXX`：阿瓦隆
+- `/Onenightwolf/`、`/Onenightwolf/?room=XXXXXX`：一夜終極狼人
+
+根目錄的 `server.js` 負責共用 Render service 的 HTTP 與 WebSocket 路由。阿瓦隆首頁可以在不重新整理、也不立即改變網址的情況下切換到一夜狼人大廳；成功建立或加入房間後，才會更新為一夜狼人的房間網址。
+
+
+遊戲規則、房間資料與 WebSocket 訊息不共用，避免修改其中一款遊戲時影響另一款。
+
+跨遊戲必須沿用的房間能力與 UI 定義於 [`COMMON_ROOM_FRAMEWORK.md`](./COMMON_ROOM_FRAMEWORK.md)，共用執行模組說明位於 [`Shared/README.md`](./Shared/README.md)。這兩份文件是新增遊戲與修改共用框架時的必要參考。
+
+
+## 管理統計
+
+設定環境變數 `ADMIN_TOKEN` 後，可以用以下網址查看目前房間與在線人數：
+
+```text
+https://你的網域/admin/stats?token=你的ADMIN_TOKEN
+```
+
+統計頁不顯示玩家名稱，會分別列出阿瓦隆與一夜終極狼人的房間數、連線數、玩家數、在線玩家數，以及各房間的在線人數。
+
+也可開啟後台頁面：
+
+```text
+https://你的網域/admin?token=你的ADMIN_TOKEN
+```
+
+後台可手動更新，或選擇每 5 分鐘自動更新。自動更新會持續產生 HTTP 請求，因此在分頁保持運作時會延後 Render 免費服務休眠，並持續消耗免費執行時數。

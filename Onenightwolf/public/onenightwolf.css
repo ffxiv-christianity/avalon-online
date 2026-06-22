@@ -1,0 +1,404 @@
+#gameModeSelect,
+.wolf-select {
+  width: 100%;
+  border: 1px solid rgba(32, 40, 43, .18);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .92);
+  color: var(--ink);
+  padding: 11px 12px;
+  font: inherit;
+}
+
+.wolf-phase-stack,
+.wolf-choice-grid,
+.wolf-role-list {
+  display: grid;
+  gap: 10px;
+}
+
+.wolf-phase-heading,
+.wolf-result-row,
+.wolf-role-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wolf-phase-heading {
+  margin-bottom: 14px;
+}
+
+.wolf-phase-heading h2 {
+  margin: 0;
+}
+
+.wolf-choice-grid {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  margin: 14px 0;
+}
+
+.wolf-choice {
+  min-height: 46px;
+  border: 1px solid rgba(32, 40, 43, .18);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .82);
+  color: var(--ink);
+  padding: 10px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.wolf-choice.selected {
+  border-color: var(--gold);
+  background: rgba(213, 173, 91, .18);
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+
+.wolf-vote-guide {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 14px;
+  margin: 14px 0;
+  border: 1px solid rgba(213, 173, 91, .42);
+  border-left: 5px solid var(--gold);
+  border-radius: 8px;
+  background: rgba(213, 173, 91, .11);
+  padding: 13px 14px;
+}
+
+.wolf-vote-guide strong {
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--gold-strong);
+}
+
+.wolf-vote-guide span,
+.wolf-vote-locked span {
+  color: var(--muted);
+}
+
+.wolf-vote-locked {
+  display: grid;
+  gap: 4px;
+}
+
+.wolf-identity {
+  border-left: 4px solid var(--gold);
+}
+
+.wolf-role-name {
+  margin: 4px 0 8px;
+  color: var(--gold-strong);
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: 1.8rem;
+}
+
+.wolf-private-info {
+  margin-top: 12px;
+  border-radius: 7px;
+  background: rgba(213, 173, 91, .13);
+  padding: 11px 12px;
+}
+
+.wolf-private-info p {
+  margin: 0;
+}
+
+.wolf-progress {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(32, 40, 43, .12);
+}
+
+.wolf-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold), var(--gold-strong));
+}
+
+.wolf-timer {
+  color: var(--gold-strong);
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.wolf-role-pill {
+  border-bottom: 1px solid rgba(32, 40, 43, .09);
+  padding: 7px 0;
+}
+
+.wolf-role-pill.werewolf strong {
+  color: var(--evil);
+}
+
+.wolf-enabled-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--muted);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+}
+
+.wolf-enabled-card > div {
+  display: grid;
+  gap: 2px;
+}
+
+.wolf-enabled-card span {
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 800;
+}
+
+.wolf-enabled-card output {
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.wolf-enabled-card.werewolf {
+  border-left-color: var(--evil);
+  background: var(--evil-soft);
+}
+
+.wolf-enabled-card.werewolf strong {
+  color: var(--evil);
+}
+
+.wolf-enabled-card.village {
+  border-left-color: var(--good);
+  background: var(--good-soft);
+}
+
+.wolf-enabled-card.village strong {
+  color: var(--good);
+}
+
+.wolf-enabled-card.tanner,
+.wolf-enabled-card.neutral {
+  border-left-color: #8a6b9c;
+  background: #f5eff7;
+}
+
+.wolf-enabled-card.tanner strong,
+.wolf-enabled-card.neutral strong {
+  color: #684778;
+}
+
+.role-row.neutral {
+  border-left-color: #8a6b9c;
+}
+
+.role-row.neutral .role-icon {
+  border-color: #8a6b9c;
+  background: #f2eaf6;
+  color: #684778;
+}
+
+.role-icon.neutral {
+  border-color: #8a6b9c;
+  background: #f2eaf6;
+  color: #684778;
+}
+
+.identity-lightbox.neutral {
+  border-top-color: #8a6b9c;
+}
+
+.identity-clue.neutral {
+  border-left-color: #8a6b9c;
+}
+
+.team-werewolf,
+.wolf-rules-role-grid .werewolf strong,
+.wolf-result-title.werewolf {
+  color: var(--evil);
+}
+
+.team-village,
+.wolf-rules-role-grid .village strong,
+.wolf-result-title.village {
+  color: var(--good);
+}
+
+.team-tanner,
+.wolf-rules-role-grid .tanner strong,
+.wolf-result-title.tanner {
+  color: #76508a;
+}
+
+.team-neutral,
+.wolf-rules-role-grid .neutral strong {
+  color: #6e6174;
+}
+
+.wolf-rules-role-grid > div {
+  border-left-width: 5px;
+}
+
+.wolf-rules-role-grid > div.werewolf {
+  border-left-color: var(--evil);
+  background: var(--evil-soft);
+}
+
+.wolf-rules-role-grid > div.village {
+  border-left-color: var(--good);
+  background: var(--good-soft);
+}
+
+.wolf-rules-role-grid > div.tanner,
+.wolf-rules-role-grid > div.neutral {
+  border-left-color: #8a6b9c;
+  background: #f5eff7;
+}
+
+.wolf-rules-role-grid > div > span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.wolf-result-row {
+  border-bottom: 1px solid rgba(32, 40, 43, .1);
+  padding: 11px 0;
+}
+
+.wolf-result-row.eliminated {
+  color: var(--evil);
+}
+
+.wolf-center-result {
+  color: var(--muted);
+}
+
+.wolf-rules-role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.wolf-rules-role-grid > div {
+  border: 1px solid rgba(32, 40, 43, .12);
+  border-radius: 7px;
+  padding: 11px;
+}
+
+body.wolf-mode .topbar .eyebrow {
+  color: var(--evil);
+}
+
+body.wolf-mode #recentSessions {
+  display: none !important;
+}
+
+@media (min-width: 1500px) {
+  .wolf-rules-role-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 930px) {
+  .wolf-phase-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .wolf-rules-role-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .wolf-vote-guide {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding: 11px 12px;
+  }
+
+  .wolf-vote-guide strong {
+    grid-row: auto;
+  }
+
+  .wolf-choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 10px 0;
+  }
+
+  .wolf-choice {
+    min-width: 0;
+    min-height: 44px;
+    padding: 9px 7px;
+    overflow-wrap: anywhere;
+  }
+
+  .wolf-phase-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .wolf-phase-heading h2 {
+    font-size: 1.35rem;
+    line-height: 1.2;
+  }
+
+  .wolf-timer {
+    font-size: 1rem;
+  }
+
+  .wolf-role-name {
+    font-size: 1.45rem;
+  }
+
+  .wolf-private-info {
+    padding: 9px 10px;
+  }
+
+  .wolf-result-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 6px 10px;
+  }
+
+  .wolf-result-row strong {
+    text-align: right;
+  }
+
+  .wolf-rules-role-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .wolf-enabled-card {
+    padding: 9px;
+  }
+}
+
+@media (max-width: 380px) {
+  .wolf-phase-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .wolf-phase-heading > strong {
+    justify-self: start;
+  }
+
+  .wolf-result-row {
+    grid-template-columns: 1fr;
+  }
+
+  .wolf-result-row strong {
+    text-align: left;
+  }
+}

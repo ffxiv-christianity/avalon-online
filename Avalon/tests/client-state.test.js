@@ -10,7 +10,7 @@ const {
   parseRoomCode,
   roomUrlPath,
   selectSession
-} = require("../public/client-state");
+} = require("../../Shared/public/client-state");
 
 function testPlayerUnreadOnlyTracksJoinEvents() {
   const initialEvents = [

@@ -11,14 +11,15 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=2">
   <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="/shared/styles.css">
+  <link rel="stylesheet" href="/Onenightwolf/onenightwolf.css">
 </head>
 <body>
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">Avalon Online Host</p>
-        <h1>阿瓦隆線上版</h1>
+        <p class="eyebrow">The Resistance: Avalon</p>
+        <h1>阿瓦隆</h1>
       </div>
       <div class="topbar-actions">
         <div class="room-chip" id="connectionChip">請稍後</div>
@@ -29,7 +30,7 @@
     <section id="joinView" class="join-view">
       <div class="hero-panel">
         <div class="hero-copy">
-          <p class="eyebrow">多人即時房間</p>
+          <p class="eyebrow">4~10人即時房間</p>
           <h2>阿瓦隆 The Resistance: Avalon </h2>
           <ul class="hero-features">
             <li>輸入名字即可建立或加入房間</li>
@@ -38,6 +39,13 @@
           </ul>
         </div>
         <form id="joinForm" class="join-form">
+          <label class="field">
+            <span>遊戲模式</span>
+            <select id="gameModeSelect">
+              <option value="avalon">阿瓦隆</option>
+              <option value="onenightwolf">一夜終極狼人</option>
+            </select>
+          </label>
           <label class="field">
             <span>你的名字</span>
             <input id="nameInput" maxlength="16" required autocomplete="name" placeholder="">
@@ -190,7 +198,10 @@
     </article>
   </div>
 
-  <script src="./client-state.js"></script>
+  <section id="wolfRoomView" class="room-view hidden"></section>
+  <script src="/shared/client-state.js"></script>
+  <script src="/shared/room-ui.js"></script>
   <script src="./app.js"></script>
+  <script src="/Onenightwolf/onenightwolf.js"></script>
 </body>
 </html>

@@ -283,6 +283,7 @@ function renderRecentSessions() {
 }
 
 function render() {
+  if (document.body.classList.contains("wolf-mode")) return;
   if (!snapshot) return;
   document.body.classList.add("room-active");
   els.joinView.classList.add("hidden");
@@ -330,7 +331,7 @@ function syncInfoUnread() {
     const previousIndex = chat.findIndex((entry) => entry.id === lastObservedChatId);
     const newEntries = previousIndex >= 0 ? chat.slice(previousIndex + 1) : chat.slice(-1);
     if (activeInfoTab !== "chat") {
-      unreadChatCount += newEntries.filter((entry) => entry.playerId !== snapshot.you.id).length;
+      unreadChatCount += newEntries.filter((entry) => entry.playerId !== snapshot.you.id && entry.playerId !== "system").length;
     }
     lastObservedChatId = newestId;
   }
@@ -379,8 +380,6 @@ function renderRoster() {
   const room = snapshot.room;
   els.roster.innerHTML = room.players.map((player) => {
     const role = player.role ? snapshot.roles[player.role] : null;
-    const canTransferHost = snapshot.you.isHost && player.id !== snapshot.room.hostId;
-    const canKick = room.phase === "lobby" && snapshot.you.isHost && player.id !== snapshot.you.id && !player.online;
     return `
       <article class="player-card ${player.isLeader ? "leader" : ""} ${player.retiredLeader ? "retired" : ""} ${player.online ? "" : "offline"}">
         <div class="seat">${player.index + 1}</div>
@@ -392,8 +391,12 @@ function renderRoster() {
           <div class="player-meta">
             ${player.roll ? `d100: ${player.roll}` : "未擲骰"}${player.ready ? " · 已準備" : ""} · ${player.online ? "在線" : "離線"}
           </div>
-          ${canTransferHost ? `<button class="mini-action" data-transfer-host="${player.id}" type="button">轉房主</button>` : ""}
-          ${canKick ? `<button class="mini-action danger-mini-action" data-kick-player="${player.id}" data-player-name="${escapeHtml(player.name)}" type="button">踢出玩家</button>` : ""}
+          ${SharedRoomUI.hostControls({
+            viewerIsHost: snapshot.you.isHost,
+            player,
+            hostId: snapshot.room.hostId,
+            phase: room.phase
+          })}
         </div>
         <div class="token-stack">
           ${room.phase === "lobby" && player.isHost ? token("host", "房主") : ""}
@@ -405,16 +408,7 @@ function renderRoster() {
       </article>
     `;
   }).join("");
-  els.roster.querySelectorAll("[data-transfer-host]").forEach((button) => {
-    button.addEventListener("click", () => sendAction("transferHost", { playerId: button.dataset.transferHost }));
-  });
-  els.roster.querySelectorAll("[data-kick-player]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const playerName = button.dataset.playerName || "這位玩家";
-      if (!window.confirm(`確定要將離線玩家「${playerName}」移出房間嗎？\n玩家的稱號與累積次數不會被刪除。`)) return;
-      sendAction("kickOfflinePlayer", { playerId: button.dataset.kickPlayer });
-    });
-  });
+  SharedRoomUI.bindHostControls(els.roster, sendAction);
   bindAchievementPopovers();
 }
 
@@ -491,11 +485,11 @@ function renderChat() {
   const chat = snapshot.room.chat || [];
   const newestId = chat.at(-1)?.id || null;
   if (renderedChatRoomCode === snapshot.room.code && newestId === lastRenderedChatId) return;
-  els.chatList.innerHTML = chat.length ? chat.map((entry) => `
-    <div class="chat-message ${entry.playerId === snapshot.you.id ? "mine" : ""}">
-      <span class="chat-line"><strong>${escapeHtml(entry.name)}:</strong> ${escapeHtml(entry.text)}</span>
-    </div>
-  `).join("") : `<div class="chat-empty">尚無聊天訊息</div>`;
+  els.chatList.innerHTML = chat.length ? chat.map((entry) => entry.playerId === "system"
+    ? `<div class="chat-message system">${escapeHtml(entry.text)}</div>`
+    : `<div class="chat-message ${entry.playerId === snapshot.you.id ? "mine" : ""}">
+        <span class="chat-line"><strong>${escapeHtml(entry.name)}:</strong> ${escapeHtml(entry.text)}</span>
+      </div>`).join("") : `<div class="chat-empty">尚無聊天訊息</div>`;
   renderedChatRoomCode = snapshot.room.code;
   lastRenderedChatId = newestId;
   els.chatList.scrollTop = els.chatList.scrollHeight;
@@ -1228,7 +1222,7 @@ function excaliburResultText(excalibur) {
 }
 
 function token(kind, label) {
-  return `<span class="token ${kind}" title="${label}" aria-label="${label}"></span>`;
+  return SharedRoomUI.token(kind, label);
 }
 
 function roleIcon(role, side, mark) {
@@ -1280,6 +1274,7 @@ function stopStaleWatcher() {
 }
 
 function setConnection(text) {
+  if (document.body.classList.contains("wolf-mode")) return;
   els.connectionChip.textContent = text;
 }
 

@@ -1,7 +1,10 @@
 (function exposeClientState(root, factory) {
   const api = factory();
   if (typeof module === "object" && module.exports) module.exports = api;
-  if (root) root.AvalonClientState = api;
+  if (root) {
+    root.SharedRoomClient = api;
+    root.AvalonClientState = api;
+  }
 }(typeof globalThis !== "undefined" ? globalThis : this, function createClientState() {
   function latestJoinSerial(events) {
     return events.reduce((latest, event) => Math.max(latest, Number(event.serial || 0)), 0);

@@ -985,6 +985,12 @@ h3 {
   color: var(--blue);
 }
 
+.chat-message.system {
+  color: var(--gold-strong);
+  font-size: .86rem;
+  font-weight: 800;
+}
+
 .chat-message strong {
   font-size: .92rem;
   color: var(--ink);

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#20282b">
+  <title>一夜終極狼人</title>
+  <link rel="stylesheet" href="/shared/styles.css">
+  <link rel="stylesheet" href="/Onenightwolf/onenightwolf.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow" id="siteEyebrow">One Night Ultimate Werewolf</p>
+        <h1 id="siteTitle">一夜終極狼人</h1>
+      </div>
+      <div class="topbar-actions">
+        <div class="room-chip" id="connectionChip">請稍後</div>
+        <button class="ghost-button rules-button" id="openRulesButton" type="button">遊戲規則</button>
+      </div>
+    </header>
+
+    <section id="joinView" class="join-view">
+      <div class="hero-panel">
+        <div class="hero-copy">
+          <p class="eyebrow" id="heroEyebrow">3～10 人即時房間</p>
+          <h2 id="heroTitle">一夜終極狼人</h2>
+          <ul class="hero-features" id="heroFeatures">
+            <li>輸入名字即可建立或加入房間</li>
+            <li>每位玩家使用自己的裝置查看身分</li>
+            <li>一個夜晚、一次討論、一次表決</li>
+          </ul>
+        </div>
+        <form id="joinForm" class="join-form">
+          <label class="field">
+            <span>遊戲模式</span>
+            <select id="gameModeSelect">
+              <option value="avalon">阿瓦隆</option>
+              <option value="onenightwolf" selected>一夜終極狼人</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>你的名字</span>
+            <input id="nameInput" maxlength="16" required autocomplete="name">
+          </label>
+          <label class="field">
+            <span>房間代碼或邀請連結</span>
+            <input id="roomInput" maxlength="240" autocomplete="off" autocapitalize="characters" placeholder="貼上代碼或完整連結">
+          </label>
+          <div class="button-row">
+            <button class="primary-button" id="createRoomButton" type="button">建立房間</button>
+            <button class="secondary-button" id="joinRoomButton" type="submit">加入房間</button>
+            <button class="ghost-button hidden" id="rejoinRoomButton" type="button">重新連線</button>
+          </div>
+        </form>
+        <details class="changelog" id="changelog" open>
+          <summary><span>更新日誌</span><small>最新版本 2026/06/22 v3</small></summary>
+          <ul>
+            <li><strong>2026/06/22 v3</strong> First release：完成一夜終極狼人遊戲流程、房主指示物與轉房主、踢出離線玩家、隨時查看規則、快速斷線重連、加密洗牌、跨遊戲後台統計與手機版 RWD。</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section id="wolfRoomView" class="room-view hidden"></section>
+  </main>
+
+  <div class="rules-overlay hidden" id="wolfRulesOverlay" role="dialog" aria-modal="true" aria-labelledby="wolfRulesTitle">
+    <article class="rules-dialog">
+      <header class="rules-header">
+        <div>
+          <p class="eyebrow">One Night Ultimate Werewolf</p>
+          <h2 id="wolfRulesTitle">一夜終極狼人規則</h2>
+        </div>
+        <button class="ghost-button" id="closeWolfRulesButton" type="button">關閉</button>
+      </header>
+      <div class="rules-content" id="wolfRulesContent"></div>
+    </article>
+  </div>
+
+  <script src="/shared/client-state.js"></script>
+  <script src="/shared/room-ui.js"></script>
+  <script src="/Onenightwolf/onenightwolf.js"></script>
+</body>
+</html>

@@ -2,10 +2,21 @@ const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const {
+  randomIntInclusive: randomInt,
+  randomTieBreak,
+  shuffle,
+  roomCode: sharedRoomCode
+} = require("../Shared/server/random");
+const {
+  transferHost: sharedTransferHost,
+  kickOfflinePlayer: sharedKickOfflinePlayer
+} = require("../Shared/server/room-actions");
+const { serveSharedStatic } = require("../Shared/server/static");
+const { bytesToMb, roomConnectionCount } = require("../Shared/server/admin");
 
 const PORT = Number(process.env.PORT || 4173);
 const PUBLIC_DIR = path.join(__dirname, "public");
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
 const ROOM_EMPTY_TTL_MS = 30 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 const HEARTBEAT_INTERVAL_MS = 8000;
@@ -152,6 +163,7 @@ function makeRoom(hostName) {
   ensurePlayerStats(room, player);
   rooms.set(room.code, room);
   addLog(room, `${player.name} 建立房間。`);
+  addSystemChat(room, `${player.name} 建立了房間。`);
   return { room, player };
 }
 
@@ -184,9 +196,20 @@ function joinRoom(roomCode, name, requestedPlayerId = null) {
   recordPlayerJoin(room, player);
   ensurePlayerStats(room, player);
   addLog(room, `${player.name} 加入房間。`);
+  addSystemChat(room, `${player.name} 加入了房間。`);
   markEveryoneUnready(room);
   touchRoom(room);
   return { room, player };
+}
+
+function addSystemChat(room, text) {
+  room.chat.push({
+    id: crypto.randomUUID(),
+    playerId: "system",
+    name: "",
+    text,
+    at: Date.now()
+  });
 }
 
 function makePlayer(name, existingPlayers = []) {
@@ -269,28 +292,25 @@ function applyAction(client, message) {
 
 function applyRoomAction(room, actor, action, payload) {
   if (action === "transferHost") {
-    if (!isHost(room, actor)) return "只有房主可以轉移房主。";
-    const target = room.players.find((player) => player.id === payload.playerId);
-    if (!target) return "找不到這位玩家。";
-    if (target.id === actor.id) return "你已經是房主。";
-    room.hostId = target.id;
-    room.hostOfflineSince = null;
-    addLog(room, `${actor.name} 將房主轉移給 ${target.name}。`);
-    return null;
+    return sharedTransferHost({
+      room,
+      actor,
+      playerId: payload.playerId,
+      addLog: (message) => addLog(room, message),
+      addSystemMessage: (message) => addSystemChat(room, message)
+    });
   }
   if (action === "kickOfflinePlayer") {
-    if (!isHost(room, actor)) return "只有房主可以踢出玩家。";
-    if (room.phase !== "lobby") return "只能在準備房間踢出玩家。";
-    const target = room.players.find((player) => player.id === payload.playerId);
-    if (!target) return "找不到這位玩家。";
-    if (target.id === actor.id) return "房主不能踢出自己。";
-    refreshOnlineStatus(room);
-    if (target.online) return "只能踢出離線玩家。";
-    room.players = room.players.filter((player) => player.id !== target.id);
-    detachPlayerClients(room.code, target.id, "你已被房主移出房間。");
-    markEveryoneUnready(room);
-    addLog(room, `${actor.name} 將離線玩家 ${target.name} 移出房間。`);
-    return null;
+    return sharedKickOfflinePlayer({
+      room,
+      actor,
+      playerId: payload.playerId,
+      refreshOnline: () => refreshOnlineStatus(room),
+      markEveryoneUnready: () => markEveryoneUnready(room),
+      addLog: (message) => addLog(room, message),
+      addSystemMessage: (message) => addSystemChat(room, message),
+      afterKick: (target) => detachPlayerClients(room.code, target.id, "你已被房主移出房間。")
+    });
   }
   if (action === "setSettings") {
     if (!isHost(room, actor)) return "只有房主可以更改設定。";
@@ -1409,31 +1429,11 @@ function normalizeRoomCode(code) {
 }
 
 function makeRoomCode() {
-  let code = "";
-  do {
-    code = crypto.randomBytes(3).toString("hex").toUpperCase();
-  } while (rooms.has(code));
-  return code;
-}
-
-function randomInt(min, max) {
-  return crypto.randomInt(min, max + 1);
-}
-
-function randomTieBreak() {
-  return crypto.randomInt(0, 0x100000000);
+  return sharedRoomCode(rooms);
 }
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
-}
-
-function shuffle(array) {
-  for (let index = array.length - 1; index > 0; index -= 1) {
-    const swapIndex = crypto.randomInt(0, index + 1);
-    [array[index], array[swapIndex]] = [array[swapIndex], array[index]];
-  }
-  return array;
 }
 
 function attachClient(client, roomCode, playerId) {
@@ -1456,14 +1456,7 @@ function send(client, payload) {
 
 function serveStatic(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
-  if (requestUrl.pathname === "/admin") {
-    serveAdminDashboard(req, res, requestUrl);
-    return;
-  }
-  if (requestUrl.pathname === "/admin/stats") {
-    serveAdminStats(req, res, requestUrl);
-    return;
-  }
+  if (serveSharedStatic(req, res, requestUrl)) return;
   const urlPath = decodeURIComponent(requestUrl.pathname);
   const safePath = urlPath === "/" ? "index.html" : path.normalize(urlPath).replace(/^[/\\]+/, "").replace(/^(\.\.[/\\])+/, "");
   const publicRoot = path.resolve(PUBLIC_DIR);
@@ -1484,83 +1477,6 @@ function serveStatic(req, res) {
   });
 }
 
-function adminToken(req, requestUrl) {
-  const authHeader = req.headers.authorization || "";
-  const bearerToken = authHeader.replace(/^Bearer\s+/i, "");
-  return requestUrl.searchParams.get("token") || bearerToken;
-}
-
-function adminAuthorized(req, requestUrl) {
-  return Boolean(ADMIN_TOKEN && adminToken(req, requestUrl) === ADMIN_TOKEN);
-}
-
-function serveAdminDashboard(req, res, requestUrl) {
-  if (!adminAuthorized(req, requestUrl)) {
-    res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
-    res.end("Admin dashboard disabled or token incorrect");
-    return;
-  }
-  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
-  res.end(`<!doctype html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>阿瓦隆後台狀態</title>
-  <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
-    body { max-width: 1100px; margin: 0 auto; padding: 24px; background: #171c1e; color: #f7f3eb; }
-    header, .controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    h1 { margin: 0; font-size: clamp(1.5rem, 4vw, 2.4rem); }
-    button, label { border: 1px solid #596467; border-radius: 8px; background: #273033; color: inherit; padding: 9px 12px; }
-    button { cursor: pointer; font-weight: 800; }
-    label { display: inline-flex; align-items: center; gap: 8px; }
-    #status { color: #d8b46d; }
-    pre { overflow: auto; min-height: 280px; border: 1px solid #3d494c; border-radius: 10px; background: #20282b; padding: 16px; line-height: 1.45; }
-  </style>
-</head>
-<body>
-  <header>
-    <div>
-      <h1>阿瓦隆後台狀態</h1>
-      <p id="status">準備讀取資料…</p>
-    </div>
-    <div class="controls">
-      <button id="refreshButton" type="button">立即更新</button>
-      <label><input id="autoUpdate" type="checkbox"> 每 5 分鐘自動更新</label>
-    </div>
-  </header>
-  <pre id="output"></pre>
-  <script>
-    const token = new URLSearchParams(location.search).get("token") || "";
-    const output = document.getElementById("output");
-    const status = document.getElementById("status");
-    const autoUpdate = document.getElementById("autoUpdate");
-    let timer = null;
-    async function refreshStats() {
-      status.textContent = "更新中…";
-      try {
-        const response = await fetch("/admin/stats?token=" + encodeURIComponent(token), { cache: "no-store" });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "讀取失敗");
-        output.textContent = JSON.stringify(data, null, 2);
-        status.textContent = "最後更新：" + new Date().toLocaleString();
-      } catch (error) {
-        status.textContent = "更新失敗：" + error.message;
-      }
-    }
-    function syncAutoUpdate() {
-      if (timer) clearInterval(timer);
-      timer = autoUpdate.checked ? setInterval(refreshStats, 5 * 60 * 1000) : null;
-    }
-    document.getElementById("refreshButton").addEventListener("click", refreshStats);
-    autoUpdate.addEventListener("change", syncAutoUpdate);
-    refreshStats();
-  </script>
-</body>
-</html>`);
-}
-
 function contentType(filePath) {
   if (filePath.endsWith(".html")) return "text/html; charset=utf-8";
   if (filePath.endsWith(".css")) return "text/css; charset=utf-8";
@@ -1571,55 +1487,6 @@ function contentType(filePath) {
   if (filePath.endsWith(".png")) return "image/png";
   if (filePath.endsWith(".ico")) return "image/x-icon";
   return "application/octet-stream";
-}
-
-function serveAdminStats(req, res, requestUrl) {
-  if (!adminAuthorized(req, requestUrl)) {
-    res.writeHead(403, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
-    res.end(JSON.stringify({ error: "admin stats disabled or token incorrect" }));
-    return;
-  }
-
-  rooms.forEach((room) => refreshOnlineStatus(room));
-  const roomList = [...rooms.values()].map((room) => {
-    const onlinePlayers = room.players.filter((player) => player.online).length;
-    return {
-      code: room.code,
-      phase: room.phase,
-      players: room.players.length,
-      onlinePlayers,
-      connections: roomConnectionCount(room.code),
-      version: room.version,
-      emptyForMs: room.emptySince ? Math.max(0, Date.now() - room.emptySince) : 0,
-      expiresAt: room.expiresAt
-    };
-  });
-  const memoryUsage = process.memoryUsage();
-  const payload = {
-    generatedAt: new Date().toISOString(),
-    uptimeSeconds: Math.floor(process.uptime()),
-    memoryUsageMb: {
-      rss: bytesToMb(memoryUsage.rss),
-      heapUsed: bytesToMb(memoryUsage.heapUsed),
-      heapTotal: bytesToMb(memoryUsage.heapTotal)
-    },
-    rooms: roomList.length,
-    activeRooms: roomList.filter((room) => room.onlinePlayers > 0).length,
-    connections: clients.size,
-    players: roomList.reduce((sum, room) => sum + room.players, 0),
-    onlinePlayers: roomList.reduce((sum, room) => sum + room.onlinePlayers, 0),
-    roomList
-  };
-  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
-  res.end(JSON.stringify(payload, null, 2));
-}
-
-function roomConnectionCount(roomCode, clientSet = clients) {
-  return [...clientSet].filter((client) => client.roomCode === roomCode && !client.socket.destroyed).length;
-}
-
-function bytesToMb(bytes) {
-  return Number((Number(bytes || 0) / 1024 / 1024).toFixed(2));
 }
 
 function handleUpgrade(req, socket) {
@@ -1721,6 +1588,11 @@ function encodeFrame(text) {
 function createServer() {
   const server = http.createServer(serveStatic);
   server.on("upgrade", handleUpgrade);
+  attachMaintenance(server);
+  return server;
+}
+
+function attachMaintenance(server) {
   const cleanupTimer = setInterval(cleanupRooms, CLEANUP_INTERVAL_MS);
   const heartbeatTimer = setInterval(heartbeatClients, HEARTBEAT_INTERVAL_MS);
   cleanupTimer.unref?.();
@@ -1729,7 +1601,6 @@ function createServer() {
     clearInterval(cleanupTimer);
     clearInterval(heartbeatTimer);
   });
-  return server;
 }
 
 if (require.main === module) {
@@ -1757,5 +1628,8 @@ module.exports = {
   randomInt,
   randomTieBreak,
   shuffle,
-  createServer
+  createServer,
+  serveStatic,
+  handleUpgrade,
+  attachMaintenance
 };

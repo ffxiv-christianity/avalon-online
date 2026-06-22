@@ -1,0 +1,11 @@
+{
+  "name": "onenightwolf-online",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node tests/game.test.js && node tests/ui.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

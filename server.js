@@ -1,9 +1,48 @@
 "use strict";
 
-const { createServer } = require("./Avalon/server");
+const http = require("http");
+const avalon = require("./Avalon/server");
+const onenightwolf = require("./Onenightwolf/server");
+const { createAdminRouter, combinedStats: collectCombinedStats, gameStats } = require("./Shared/server/admin");
+const { serveSharedStatic } = require("./Shared/server/static");
 
 const PORT = Number(process.env.PORT || 4173);
+const games = { avalon, onenightwolf };
+const handleAdmin = createAdminRouter(games);
 
-createServer().listen(PORT, () => {
-  console.log(`Avalon online host running at http://localhost:${PORT}`);
-});
+function createServer() {
+  const server = http.createServer((req, res) => {
+    const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+    if (handleAdmin(req, res, requestUrl)) return;
+    if (serveSharedStatic(req, res, requestUrl)) return;
+    if (requestUrl.pathname === "/Onenightwolf" || requestUrl.pathname.startsWith("/Onenightwolf/")) {
+      onenightwolf.serveStatic(req, res);
+      return;
+    }
+    avalon.serveStatic(req, res);
+  });
+
+  server.on("upgrade", (req, socket, head) => {
+    if (req.url === "/ws/onenightwolf") {
+      onenightwolf.handleUpgrade(req, socket, head);
+      return;
+    }
+    avalon.handleUpgrade(req, socket, head);
+  });
+
+  avalon.attachMaintenance(server);
+  onenightwolf.attachMaintenance(server);
+  return server;
+}
+
+function combinedStats() {
+  return collectCombinedStats(games);
+}
+
+if (require.main === module) {
+  createServer().listen(PORT, () => {
+    console.log(`Online tabletop host running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { createServer, combinedStats, gameStats };

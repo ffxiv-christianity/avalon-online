@@ -146,22 +146,27 @@ function testRoomJoinAndRejoin() {
   assert.strictEqual(room.players.length, 1);
   assert.strictEqual(room.hostId, host.id);
   assert.deepStrictEqual(room.playerJoinEvents, [{ serial: 1, playerId: host.id }]);
+  assert.strictEqual(room.chat[0].playerId, "system");
+  assert(room.chat[0].text.includes("Louis 建立了房間"));
   assert(joinRoom(room.code, "louis").error.includes("名字"));
 
   host.ready = true;
   const a = joinRoom(room.code, "A").player;
   assert.deepStrictEqual(room.playerJoinEvents.at(-1), { serial: 2, playerId: a.id });
+  assert(room.chat.at(-1).text.includes("A 加入了房間"));
   assert.strictEqual(host.ready, false, "new player joining should clear existing ready states");
   joinRoom(room.code, "B");
   joinRoom(room.code, "C");
   joinRoom(room.code, "D");
   assert(joinRoom(room.code, "E").error.includes("滿"));
   const joinEventsBeforeRejoin = room.playerJoinEvents.map((event) => ({ ...event }));
+  const chatBeforeRejoin = room.chat.map((entry) => ({ ...entry }));
   assert.strictEqual(joinRoom(room.code, "", a.id).player.id, a.id);
   assert.strictEqual(room.players.length, room.settings.playerCount, "test room should be full before reconnect");
   assert.strictEqual(joinRoom(room.code, "", a.id).player.id, a.id, "a valid player ID must reconnect even when the room is full");
   assert(joinRoom(room.code, "", "missing-player-id").error.includes("玩家 ID"), "an invalid reconnect ID must not be reported as a full room");
   assert.deepStrictEqual(room.playerJoinEvents, joinEventsBeforeRejoin, "rejoining must not create a player join event");
+  assert.deepStrictEqual(room.chat, chatBeforeRejoin, "rejoining must not create a player join chat message");
   assert.deepStrictEqual(makeView(room, host.id).room.playerJoinEvents, joinEventsBeforeRejoin);
 
   room.phase = "team";
@@ -259,9 +264,13 @@ function testFullChatAndLogAreExposedForCurrentGame() {
     room.log.push(`記錄 ${index}`);
   }
   const view = makeView(room, players[0].id);
-  assert.strictEqual(view.room.chat.length, 100);
+  const playerMessages = view.room.chat.filter((entry) => entry.playerId !== "system");
+  const systemMessages = view.room.chat.filter((entry) => entry.playerId === "system");
+  assert.strictEqual(playerMessages.length, 100);
+  assert.strictEqual(systemMessages.length, 5);
   assert(view.room.log.length >= 100);
-  assert.strictEqual(view.room.chat[0].text, "訊息 0");
+  assert.strictEqual(playerMessages[0].text, "訊息 0");
+  assert(systemMessages.every((entry) => entry.text.includes("房間")));
   assert(view.room.log.includes("記錄 0"));
 }
 

@@ -1,0 +1,324 @@
+"use strict";
+
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+const { roomCode } = require("../Shared/server/random");
+const { serveSharedStatic } = require("../Shared/server/static");
+const {
+  makeRoom,
+  joinRoom,
+  applyRoomAction,
+  makeView,
+  advanceTimedNight
+} = require("./game");
+
+const PUBLIC_DIR = path.join(__dirname, "public");
+const ROOM_EMPTY_TTL_MS = 30 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const HOST_AUTO_TRANSFER_MS = 2 * 60 * 1000;
+const rooms = new Map();
+const clients = new Set();
+
+function serveStatic(req, res) {
+  const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+  if (serveSharedStatic(req, res, requestUrl)) return;
+  const relativePath = requestUrl.pathname.replace(/^\/Onenightwolf\/?/, "");
+  const safePath = relativePath ? path.normalize(relativePath).replace(/^[/\\]+/, "").replace(/^(\.\.[/\\])+/, "") : "index.html";
+  const publicRoot = path.resolve(PUBLIC_DIR);
+  const filePath = path.resolve(PUBLIC_DIR, safePath);
+  if (filePath !== publicRoot && !filePath.startsWith(`${publicRoot}${path.sep}`)) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
+  }
+  fs.readFile(filePath, (error, data) => {
+    if (error) {
+      res.writeHead(404);
+      res.end("Not found");
+      return;
+    }
+    res.writeHead(200, { "Content-Type": contentType(filePath) });
+    res.end(data);
+  });
+}
+
+function handleUpgrade(req, socket) {
+  if (req.url !== "/ws/onenightwolf") {
+    socket.destroy();
+    return;
+  }
+  const key = req.headers["sec-websocket-key"];
+  if (!key) {
+    socket.destroy();
+    return;
+  }
+  const accept = crypto.createHash("sha1").update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest("base64");
+  socket.write([
+    "HTTP/1.1 101 Switching Protocols",
+    "Upgrade: websocket",
+    "Connection: Upgrade",
+    `Sec-WebSocket-Accept: ${accept}`,
+    "",
+    ""
+  ].join("\r\n"));
+  const client = { socket, buffer: Buffer.alloc(0), roomCode: null, playerId: null };
+  clients.add(client);
+  socket.on("data", (chunk) => readFrames(client, chunk));
+  socket.on("close", () => removeClient(client));
+  socket.on("error", () => removeClient(client));
+}
+
+function readFrames(client, chunk) {
+  client.buffer = Buffer.concat([client.buffer, chunk]);
+  while (client.buffer.length >= 2) {
+    const frame = decodeFrame(client.buffer);
+    if (!frame) return;
+    client.buffer = client.buffer.slice(frame.bytes);
+    if (frame.opcode === 8) {
+      client.socket.end();
+      return;
+    }
+    if (frame.opcode !== 1) continue;
+    try {
+      onMessage(client, JSON.parse(frame.payload));
+    } catch {
+      send(client, { type: "error", message: "訊息格式錯誤" });
+    }
+  }
+}
+
+function onMessage(client, message) {
+  if (message.type === "createRoom") {
+    const created = makeRoom(message.name, uniqueRoomCode());
+    rooms.set(created.room.code, created.room);
+    attach(client, created.room.code, created.player.id);
+    send(client, { type: "joined", roomCode: created.room.code, playerId: created.player.id });
+    broadcast(created.room);
+    return;
+  }
+  if (message.type === "joinRoom") {
+    const room = rooms.get(normalizeCode(message.roomCode));
+    if (!room) return send(client, { type: "error", message: "找不到房間，可能已經過期" });
+    const joined = joinRoom(room, message.name, message.playerId);
+    if (joined.error) return send(client, { type: "error", message: joined.error });
+    attach(client, room.code, joined.player.id);
+    send(client, { type: "joined", roomCode: room.code, playerId: joined.player.id });
+    broadcast(room);
+    return;
+  }
+  if (message.type === "sync") {
+    const room = rooms.get(client.roomCode);
+    if (room) send(client, makeView(room, client.playerId));
+    return;
+  }
+  if (message.type === "action") {
+    const room = rooms.get(client.roomCode);
+    const actor = room?.players.find((player) => player.id === client.playerId);
+    const error = applyRoomAction(room, actor, message.action, message.payload || {});
+    if (error) return send(client, { type: "error", message: error });
+    if (message.action === "kickOfflinePlayer") {
+      detachPlayerClients(room.code, message.payload?.playerId, "你已被房主移出房間");
+    }
+    broadcast(room);
+  }
+}
+
+function attach(client, roomCode, playerId) {
+  client.roomCode = roomCode;
+  client.playerId = playerId;
+  const room = rooms.get(roomCode);
+  const player = room?.players.find((item) => item.id === playerId);
+  if (player) player.online = true;
+  if (room?.hostId === playerId) room.hostOfflineSince = null;
+}
+
+function removeClient(client) {
+  clients.delete(client);
+  if (!client.roomCode) return;
+  const room = rooms.get(client.roomCode);
+  if (!room) return;
+  const player = room.players.find((item) => item.id === client.playerId);
+  if (player) player.online = hasLiveClient(room.code, player.id);
+  refreshEmptyState(room);
+  broadcast(room);
+}
+
+function hasLiveClient(roomCode, playerId) {
+  return [...clients].some((client) => client.roomCode === roomCode && client.playerId === playerId && !client.socket.destroyed);
+}
+
+function detachPlayerClients(roomCode, playerId, message) {
+  clients.forEach((client) => {
+    if (client.roomCode !== roomCode || client.playerId !== playerId) return;
+    send(client, { type: "error", message });
+    client.socket.end();
+    clients.delete(client);
+  });
+}
+
+function broadcast(room) {
+  refreshEmptyState(room);
+  clients.forEach((client) => {
+    if (client.roomCode === room.code) send(client, makeView(room, client.playerId));
+  });
+}
+
+function refreshEmptyState(room) {
+  const connected = [...clients].some((client) => client.roomCode === room.code && !client.socket.destroyed);
+  room.emptySince = connected ? null : (room.emptySince || Date.now());
+}
+
+function cleanupRooms(now = Date.now()) {
+  rooms.forEach((room, roomCode) => {
+    refreshEmptyState(room);
+    if (room.emptySince && now - room.emptySince >= ROOM_EMPTY_TTL_MS) rooms.delete(roomCode);
+  });
+}
+
+function statsSnapshot() {
+  const roomList = [...rooms.values()].map((room) => {
+    const onlinePlayers = room.players.filter((player) => player.online).length;
+    const connections = [...clients].filter((client) => client.roomCode === room.code && !client.socket.destroyed).length;
+    return {
+      code: room.code,
+      phase: room.phase,
+      players: room.players.length,
+      onlinePlayers,
+      connections,
+      version: room.version,
+      emptyForMs: room.emptySince ? Math.max(0, Date.now() - room.emptySince) : 0
+    };
+  });
+  return {
+    rooms: roomList.length,
+    activeRooms: roomList.filter((room) => room.onlinePlayers > 0).length,
+    connections: [...clients].filter((client) => !client.socket.destroyed).length,
+    players: roomList.reduce((sum, room) => sum + room.players, 0),
+    onlinePlayers: roomList.reduce((sum, room) => sum + room.onlinePlayers, 0),
+    roomList
+  };
+}
+
+function updateHostTransfer(room, now = Date.now()) {
+  const host = room.players.find((player) => player.id === room.hostId);
+  if (!host || host.online) {
+    const changed = Boolean(room.hostOfflineSince);
+    room.hostOfflineSince = null;
+    return changed;
+  }
+  const nextHost = room.players.find((player) => player.online && player.id !== host.id);
+  if (!nextHost) return false;
+  if (!room.hostOfflineSince) {
+    room.hostOfflineSince = now;
+    return true;
+  }
+  if (now - room.hostOfflineSince < HOST_AUTO_TRANSFER_MS) return false;
+  room.hostId = nextHost.id;
+  room.hostOfflineSince = null;
+  room.log.push(`${host.name} 離線超過 2 分鐘，房主自動轉移給 ${nextHost.name}。`);
+  room.chat.push({
+    id: room.nextChatId++,
+    playerId: "system",
+    name: "",
+    message: `${nextHost.name} 現在是房主`,
+    at: now
+  });
+  room.version += 1;
+  room.updatedAt = now;
+  return true;
+}
+
+function attachMaintenance(server) {
+  const cleanupTimer = setInterval(cleanupRooms, CLEANUP_INTERVAL_MS);
+  const nightTimer = setInterval(() => {
+    rooms.forEach((room) => {
+      const nightAdvanced = advanceTimedNight(room);
+      const hostChanged = updateHostTransfer(room);
+      if (nightAdvanced || hostChanged) broadcast(room);
+    });
+  }, 250);
+  cleanupTimer.unref?.();
+  nightTimer.unref?.();
+  server.on("close", () => {
+    clearInterval(cleanupTimer);
+    clearInterval(nightTimer);
+  });
+}
+
+function uniqueRoomCode() {
+  return roomCode(rooms);
+}
+
+function normalizeCode(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function send(client, payload) {
+  if (!client?.socket || client.socket.destroyed) return;
+  client.socket.write(encodeFrame(JSON.stringify(payload)));
+}
+
+function contentType(filePath) {
+  if (filePath.endsWith(".html")) return "text/html; charset=utf-8";
+  if (filePath.endsWith(".css")) return "text/css; charset=utf-8";
+  if (filePath.endsWith(".js")) return "text/javascript; charset=utf-8";
+  if (filePath.endsWith(".svg")) return "image/svg+xml; charset=utf-8";
+  if (filePath.endsWith(".png")) return "image/png";
+  return "application/octet-stream";
+}
+
+function decodeFrame(buffer) {
+  const first = buffer[0];
+  const second = buffer[1];
+  const opcode = first & 0x0f;
+  const masked = Boolean(second & 0x80);
+  let length = second & 0x7f;
+  let offset = 2;
+  if (length === 126) {
+    if (buffer.length < offset + 2) return null;
+    length = buffer.readUInt16BE(offset);
+    offset += 2;
+  } else if (length === 127) {
+    if (buffer.length < offset + 8) return null;
+    length = Number(buffer.readBigUInt64BE(offset));
+    offset += 8;
+  }
+  const maskOffset = offset;
+  if (masked) offset += 4;
+  if (buffer.length < offset + length) return null;
+  const payload = Buffer.from(buffer.slice(offset, offset + length));
+  if (masked) {
+    const mask = buffer.slice(maskOffset, maskOffset + 4);
+    for (let index = 0; index < payload.length; index += 1) payload[index] ^= mask[index % 4];
+  }
+  return { opcode, payload: payload.toString("utf8"), bytes: offset + length };
+}
+
+function encodeFrame(text) {
+  const payload = Buffer.from(text);
+  if (payload.length < 126) return Buffer.concat([Buffer.from([0x81, payload.length]), payload]);
+  if (payload.length < 65536) {
+    const header = Buffer.alloc(4);
+    header[0] = 0x81;
+    header[1] = 126;
+    header.writeUInt16BE(payload.length, 2);
+    return Buffer.concat([header, payload]);
+  }
+  const header = Buffer.alloc(10);
+  header[0] = 0x81;
+  header[1] = 127;
+  header.writeBigUInt64BE(BigInt(payload.length), 2);
+  return Buffer.concat([header, payload]);
+}
+
+module.exports = {
+  rooms,
+  clients,
+  serveStatic,
+  handleUpgrade,
+  cleanupRooms,
+  attachMaintenance,
+  statsSnapshot,
+  updateHostTransfer
+};

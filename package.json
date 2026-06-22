@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "npm --prefix Avalon test"
+    "test": "node tests/shared.test.js && node tests/architecture.test.js && npm --prefix Avalon test && npm --prefix Onenightwolf test && node tests/ui-contract.test.js && node tests/server-stats.test.js"
   },
   "engines": {
     "node": ">=18"
