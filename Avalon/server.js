@@ -14,6 +14,13 @@ const {
 } = require("../Shared/server/room-actions");
 const { serveSharedStatic } = require("../Shared/server/static");
 const { bytesToMb, roomConnectionCount } = require("../Shared/server/admin");
+const {
+  ERROR_CODES,
+  errorMessage,
+  claimPlayerControl,
+  validateActionRequest,
+  rememberAction
+} = require("../Shared/server/realtime-contract");
 
 const PORT = Number(process.env.PORT || 4173);
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -249,7 +256,17 @@ function applyAction(client, message) {
   if (message.type === "joinRoom") {
     const result = joinRoom(message.roomCode, message.name || "玩家", message.playerId);
     if (result.error) {
-      send(client, { type: "error", message: result.error });
+      const targetRoom = rooms.get(normalizeRoomCode(message.roomCode));
+      const errorCode = !targetRoom
+        ? ERROR_CODES.roomNotFound
+        : message.playerId
+          ? ERROR_CODES.playerNotFound
+          : targetRoom.phase !== "lobby"
+            ? ERROR_CODES.gameAlreadyStarted
+            : targetRoom.players.length >= targetRoom.settings.playerCount
+              ? ERROR_CODES.roomFull
+              : ERROR_CODES.invalidAction;
+      send(client, { type: "error", message: result.error, code: errorCode });
       return;
     }
     attachClient(client, result.room.code, result.player.id);
@@ -283,10 +300,21 @@ function applyAction(client, message) {
     detachRoomClients(room.code, "房間已無人在線超過 30 分鐘並自動清除。");
     return;
   }
+  const guardError = validateActionRequest(room, client, message, {
+    allowStale: ["sendChat", "react"].includes(message.action)
+  });
+  if (guardError) {
+    send(client, { type: "error", ...guardError });
+    send(client, makeView(room, client.playerId));
+    return;
+  }
   const payload = message.payload || {};
   const error = applyRoomAction(room, actor, message.action, payload);
-  if (error) send(client, { type: "error", message: error });
-  if (!error) touchRoom(room);
+  if (error) send(client, { type: "error", code: ERROR_CODES.invalidAction, message: error });
+  if (!error) {
+    rememberAction(room, message.actionId);
+    touchRoom(room);
+  }
   broadcast(room);
 }
 
@@ -1439,6 +1467,7 @@ function clamp(value, min, max) {
 function attachClient(client, roomCode, playerId) {
   client.roomCode = roomCode;
   client.playerId = playerId;
+  claimPlayerControl({ clients, client, roomCode, playerId, send });
   markClientSeen(client);
 }
 
@@ -1451,6 +1480,8 @@ function broadcast(room) {
 
 function send(client, payload) {
   if (client.socket.destroyed) return;
+  if (payload.type === "error" && !payload.code) payload.code = ERROR_CODES.invalidAction;
+  if (payload.type === "error") payload.message = errorMessage(payload.code, payload.message);
   client.socket.write(encodeFrame(JSON.stringify(payload)));
 }
 

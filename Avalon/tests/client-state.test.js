@@ -7,6 +7,9 @@ const {
   listSessions,
   removeSession,
   removeRoomSessions,
+  clearInvalidSession,
+  gameLabel,
+  SESSION_ERROR_CODES,
   parseRoomCode,
   inviteGame,
   roomUrlPath,
@@ -74,7 +77,35 @@ function testRoomCodeParsing() {
   assert(!roomUrlPath("/", "ROOM7").includes("player"));
 }
 
+function testInvalidSessionCleanupAndGameLabels() {
+  let store = normalizeSessionStore(null);
+  store = saveSession(store, { roomCode: "STALE1", playerId: "P1", name: "One", game: "avalon" });
+  store = saveSession(store, { roomCode: "STALE1", playerId: "P2", name: "Two", game: "avalon" });
+  store = saveSession(store, { roomCode: "LIVE22", playerId: "P3", name: "Three", game: "avalon" });
+
+  const missingPlayer = clearInvalidSession(store, {
+    errorCode: SESSION_ERROR_CODES.playerNotFound,
+    roomCode: "STALE1",
+    playerId: "P1"
+  });
+  assert(!missingPlayer.sessions.P1);
+  assert(missingPlayer.sessions.P2);
+
+  const missingRoom = clearInvalidSession(store, {
+    errorCode: SESSION_ERROR_CODES.roomNotFound,
+    roomCode: "STALE1",
+    playerId: "P1"
+  });
+  assert(!missingRoom.sessions.P1);
+  assert(!missingRoom.sessions.P2);
+  assert(missingRoom.sessions.P3);
+
+  assert.strictEqual(gameLabel("avalon"), "阿瓦隆");
+  assert.strictEqual(gameLabel("onenightwolf"), "一夜終極狼人");
+}
+
 testPlayerUnreadOnlyTracksJoinEvents();
 testMultipleSessionsInOneBrowser();
 testRoomCodeParsing();
+testInvalidSessionCleanupAndGameLabels();
 console.log("client state unit tests passed");

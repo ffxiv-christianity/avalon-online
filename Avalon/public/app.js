@@ -3,9 +3,12 @@ const LEGACY_STORAGE_KEY = "avalon-online-session";
 const TAB_PLAYER_KEY = "avalon-online-tab-player";
 const WAKING_TEXT = "請稍後";
 const STALE_STATE_MS = 12000;
+const CLIENT_INSTANCE_ID = crypto.randomUUID();
 
 let socket = null;
 let snapshot = null;
+let hasControl = true;
+let actionSequence = 0;
 let session = readSession();
 let lastStateAt = 0;
 let lastVersion = 0;
@@ -71,10 +74,13 @@ function connect() {
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (message.type === "joined") {
+      hasControl = true;
+      SharedRoomUI.clearControlLock();
       session = {
         roomCode: message.roomCode,
         playerId: message.playerId,
         name: els.nameInput.value.trim() || session?.name || "",
+        game: "avalon",
         lastUsedAt: Date.now()
       };
       writeSession(session);
@@ -97,10 +103,23 @@ function connect() {
       return;
     }
     if (message.type === "error") {
-      if (isMissingRoomError(message.message)) {
+      if (message.code === AvalonClientState.SESSION_ERROR_CODES.sessionReplaced) {
+        hasControl = false;
+        SharedRoomUI.showControlLock(takeAvalonControl);
+        showToast(message.message);
+        return;
+      }
+      if ([
+        AvalonClientState.SESSION_ERROR_CODES.staleRoomVersion,
+        AvalonClientState.SESSION_ERROR_CODES.actionAlreadyConfirmed
+      ].includes(message.code)) requestFullSync();
+      if (message.code === AvalonClientState.SESSION_ERROR_CODES.roomNotFound || isMissingRoomError(message.message)) {
         const missingRoomCode = parsedRoomCode() || session?.roomCode || "";
         if (missingRoomCode) removeStoredRoom(missingRoomCode);
-      } else if (isMissingPlayerError(message.message) && session?.playerId) {
+      } else if (
+        (message.code === AvalonClientState.SESSION_ERROR_CODES.playerNotFound || isMissingPlayerError(message.message))
+        && session?.playerId
+      ) {
         removeStoredSession(session.playerId);
       }
       showToast(message.message);
@@ -245,7 +264,10 @@ function sessionStore() {
 
 function removeStoredSession(playerId) {
   const currentSession = sessionStore().sessions[playerId];
-  const nextStore = AvalonClientState.removeSession(sessionStore(), playerId);
+  const nextStore = AvalonClientState.clearInvalidSession(sessionStore(), {
+    errorCode: AvalonClientState.SESSION_ERROR_CODES.playerNotFound,
+    playerId
+  });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(nextStore));
   if (session?.playerId === playerId) session = null;
   if (readTabPlayerId() === playerId) clearTabPlayerId();
@@ -255,7 +277,10 @@ function removeStoredSession(playerId) {
 }
 
 function removeStoredRoom(roomCode) {
-  const nextStore = AvalonClientState.removeRoomSessions(sessionStore(), roomCode);
+  const nextStore = AvalonClientState.clearInvalidSession(sessionStore(), {
+    errorCode: AvalonClientState.SESSION_ERROR_CODES.roomNotFound,
+    roomCode
+  });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(nextStore));
   if (session?.roomCode?.toUpperCase() === roomCode.toUpperCase()) session = null;
   clearTabPlayerId();
@@ -278,7 +303,8 @@ function renderRecentSessions() {
   els.recentSessions.classList.toggle("hidden", recent.length === 0);
   els.recentSessionList.innerHTML = recent.map((item) => `
     <button class="recent-session-button" data-recent-player="${escapeHtml(item.playerId)}" type="button">
-      <span>
+      <span class="recent-session-game">${escapeHtml(AvalonClientState.gameLabel(item.game || "avalon"))}</span>
+      <span class="recent-session-details">
         <strong>${escapeHtml(item.name || "原玩家")}</strong>
         <small>房間 ${escapeHtml(item.roomCode)}</small>
       </span>
@@ -372,11 +398,15 @@ function renderInfoTabs() {
 
 function renderStatus() {
   const room = snapshot.room;
+  const host = room.players.find((player) => player.id === room.hostId);
   const leader = room.players.find((player) => player.id === room.leaderId);
+  const authority = room.phase === "lobby"
+    ? { label: "房主", name: host?.name || "未指定" }
+    : { label: "領袖", name: leader?.name || "未開始" };
   els.statusStrip.innerHTML = [
     statusCard("階段", phaseLabel(room.phase)),
     statusCard("任務", room.phase === "lobby" ? "設定中" : `${room.round + 1} / 5`),
-    statusCard("領袖", leader ? leader.name : "未開始"),
+    statusCard(authority.label, authority.name),
     statusCard("進度", phaseProgressText())
   ].join("");
 }
@@ -386,7 +416,12 @@ function renderRoster() {
   els.roster.innerHTML = room.players.map((player) => {
     const role = player.role ? snapshot.roles[player.role] : null;
     return `
-      <article class="player-card ${player.isLeader ? "leader" : ""} ${player.retiredLeader ? "retired" : ""} ${player.online ? "" : "offline"}">
+      <article class="player-card ${SharedRoomUI.playerCardClasses({
+        playerId: player.id,
+        viewerId: snapshot.you.id,
+        online: player.online,
+        retired: player.retiredLeader
+      })}" ${player.id === snapshot.you.id ? 'aria-current="true"' : ""}>
         <div class="seat">${player.index + 1}</div>
         <div>
           <div class="player-name-line">
@@ -1242,7 +1277,29 @@ function roleNote(roleKey, role, settings) {
 }
 
 function sendAction(action, payload = {}) {
-  send({ type: "action", action, payload });
+  if (!hasControl) {
+    SharedRoomUI.showControlLock(takeAvalonControl);
+    return;
+  }
+  actionSequence += 1;
+  send(AvalonClientState.createActionRequest({
+    action,
+    payload,
+    roomVersion: snapshot?.room?.version || lastVersion,
+    clientId: CLIENT_INSTANCE_ID,
+    sequence: actionSequence
+  }));
+}
+
+function takeAvalonControl() {
+  const target = session || readSession();
+  if (!target?.roomCode || !target?.playerId) return;
+  send({
+    type: "joinRoom",
+    roomCode: target.roomCode,
+    playerId: target.playerId,
+    name: target.name || ""
+  });
 }
 
 function send(payload) {
@@ -1288,10 +1345,7 @@ function syncStatusText() {
 }
 
 function showToast(message) {
-  els.connectionChip.textContent = message;
-  window.setTimeout(() => {
-    if (socket?.readyState === WebSocket.OPEN) setConnection(syncStatusText());
-  }, 2200);
+  SharedRoomUI.showToast(message);
 }
 
 function readSession(selection = {}) {

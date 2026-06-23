@@ -3,8 +3,18 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SharedRoomUI = api;
 }(typeof globalThis !== "undefined" ? globalThis : this, function createSharedRoomUi() {
+  let toastTimer = null;
+
   function token(kind, label) {
     return `<span class="token ${kind}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}"></span>`;
+  }
+
+  function playerCardClasses({ playerId, viewerId, online = true, retired = false } = {}) {
+    return [
+      playerId && playerId === viewerId ? "is-self" : "",
+      online ? "" : "offline",
+      retired ? "retired" : ""
+    ].filter(Boolean).join(" ");
   }
 
   function hostControls({ viewerIsHost, player, hostId, phase }) {
@@ -42,6 +52,43 @@
     return `${count} 次`;
   }
 
+  function showControlLock(onTakeover) {
+    clearControlLock();
+    document.body.classList.add("shared-readonly");
+    const overlay = document.createElement("div");
+    overlay.className = "shared-control-lock";
+    overlay.dataset.sharedControlLock = "";
+    overlay.innerHTML = `
+      <section class="shared-control-lock-card" role="status">
+        <strong>此分頁目前為唯讀</strong>
+        <p>同一位玩家已在另一個分頁接管。你仍可查看房間狀態，或在這個分頁取回控制權。</p>
+        <button class="primary-button" data-shared-take-control type="button">在此分頁接管</button>
+      </section>`;
+    overlay.querySelector("[data-shared-take-control]").addEventListener("click", onTakeover);
+    document.body.appendChild(overlay);
+  }
+
+  function clearControlLock() {
+    document.querySelector("[data-shared-control-lock]")?.remove();
+    document.body.classList.remove("shared-readonly");
+  }
+
+  function showToast(message, duration = 2800) {
+    let toast = document.querySelector("[data-shared-toast]");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.className = "shared-toast hidden";
+      toast.dataset.sharedToast = "";
+      toast.setAttribute("role", "status");
+      toast.setAttribute("aria-live", "polite");
+      document.body.appendChild(toast);
+    }
+    toast.textContent = String(message || "");
+    toast.classList.remove("hidden");
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => toast.classList.add("hidden"), duration);
+  }
+
   function trimUnit(value) {
     return Number(value.toFixed(value >= 10 ? 0 : 1)).toString();
   }
@@ -56,9 +103,13 @@
 
   return {
     token,
+    playerCardClasses,
     hostControls,
     bindHostControls,
     connectionStatusText,
-    formatCountUnit
+    formatCountUnit,
+    showControlLock,
+    clearControlLock,
+    showToast
   };
 }));

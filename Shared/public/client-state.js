@@ -6,6 +6,20 @@
     root.AvalonClientState = api;
   }
 }(typeof globalThis !== "undefined" ? globalThis : this, function createClientState() {
+  const SESSION_ERROR_CODES = Object.freeze({
+    roomNotFound: "ROOM_NOT_FOUND",
+    playerNotFound: "PLAYER_NOT_FOUND",
+    roomExpired: "ROOM_EXPIRED",
+    roomFull: "ROOM_FULL",
+    gameAlreadyStarted: "GAME_ALREADY_STARTED",
+    notHost: "NOT_HOST",
+    notYourTurn: "NOT_YOUR_TURN",
+    sessionReplaced: "SESSION_REPLACED",
+    staleRoomVersion: "STALE_ROOM_VERSION",
+    actionAlreadyConfirmed: "ACTION_ALREADY_CONFIRMED",
+    invalidAction: "INVALID_ACTION"
+  });
+
   function latestJoinSerial(events) {
     return events.reduce((latest, event) => Math.max(latest, Number(event.serial || 0)), 0);
   }
@@ -62,6 +76,32 @@
       Object.entries(store.sessions).filter(([, item]) => item.roomCode.toUpperCase() !== normalizedRoom)
     );
     return { sessions };
+  }
+
+  function clearInvalidSession(store, { errorCode = "", roomCode = "", playerId = "" } = {}) {
+    if (errorCode === SESSION_ERROR_CODES.roomNotFound && roomCode) {
+      return removeRoomSessions(store, roomCode);
+    }
+    if (errorCode === SESSION_ERROR_CODES.playerNotFound && playerId) {
+      return removeSession(store, playerId);
+    }
+    return store;
+  }
+
+  function gameLabel(game) {
+    if (game === "onenightwolf") return "一夜終極狼人";
+    if (game === "avalon") return "阿瓦隆";
+    return "";
+  }
+
+  function createActionRequest({ action, payload = {}, roomVersion, clientId, sequence }) {
+    return {
+      type: "action",
+      action,
+      payload,
+      roomVersion: Number(roomVersion || 0),
+      actionId: `${String(clientId || "client")}:${Number(sequence || 0)}`
+    };
   }
 
   function parseRoomCode(value, baseUrl = "https://avalon.invalid/") {
@@ -123,6 +163,10 @@
     listSessions,
     removeSession,
     removeRoomSessions,
+    clearInvalidSession,
+    gameLabel,
+    createActionRequest,
+    SESSION_ERROR_CODES,
     parseRoomCode,
     inviteGame,
     roomUrlPath,

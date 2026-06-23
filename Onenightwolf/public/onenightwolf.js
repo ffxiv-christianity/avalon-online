@@ -5,15 +5,17 @@
   const TAB_KEY = "onenightwolf-tab-player";
   const AVALON_PAGE_TITLE = "阿瓦隆線上版";
   const WOLF_PAGE_TITLE = "一夜終極狼人";
+  const CLIENT_INSTANCE_ID = crypto.randomUUID();
   const isDirectPage = location.pathname.toLowerCase().startsWith("/onenightwolf");
 
   let socket = null;
   let snapshot = null;
   let lastVersion = 0;
+  let hasControl = true;
+  let actionSequence = 0;
   let selectedSession = readSelectedSession();
   let reconnectTimer = null;
   let discussionTimer = null;
-  let toastTimer = null;
   let activeInfoTab = "chat";
   let infoRoomCode = null;
   let lastObservedChatId = null;
@@ -348,11 +350,14 @@
       if (socket !== connection) return;
       const message = JSON.parse(event.data);
       if (message.type === "joined") {
+        hasControl = true;
+        SharedRoomUI.clearControlLock();
         hadRoomConnection = true;
         selectedSession = {
           roomCode: message.roomCode,
           playerId: message.playerId,
           name: page.nameInput.value.trim() || selectedSession?.name || "",
+          game: "onenightwolf",
           lastUsedAt: Date.now()
         };
         saveSession(selectedSession);
@@ -370,7 +375,21 @@
         renderRoom();
         return;
       }
-      if (message.type === "error") showToast(message.message);
+      if (message.type === "error") {
+        if (message.code === SharedRoomClient.SESSION_ERROR_CODES.sessionReplaced) {
+          hasControl = false;
+          hadRoomConnection = false;
+          SharedRoomUI.showControlLock(takeWolfControl);
+          showToast(message.message);
+          return;
+        }
+        if ([
+          SharedRoomClient.SESSION_ERROR_CODES.staleRoomVersion,
+          SharedRoomClient.SESSION_ERROR_CODES.actionAlreadyConfirmed
+        ].includes(message.code)) send({ type: "sync" });
+        clearInvalidWolfSession(message);
+        showToast(message.message);
+      }
     });
   }
 
@@ -510,7 +529,11 @@
 
   function rosterCards() {
     return snapshot.room.players.map((player, index) => `
-      <div class="player-card ${player.online ? "" : "offline"} ${player.id === snapshot.room.hostId ? "leader" : ""}">
+      <div class="player-card ${SharedRoomUI.playerCardClasses({
+        playerId: player.id,
+        viewerId: snapshot.you.id,
+        online: player.online
+      })}" ${player.id === snapshot.you.id ? 'aria-current="true"' : ""}>
         <span class="seat">${index + 1}</span>
         <div>
           <div class="player-name-line"><strong>${escapeHtml(player.name)}</strong></div>
@@ -1064,7 +1087,8 @@
     page.recentSessions.classList.toggle("hidden", recent.length === 0);
     page.recentSessionList.innerHTML = recent.map((item) => `
       <button class="recent-session-button" data-wolf-recent-player="${escapeHtml(item.playerId)}" type="button">
-        <span>
+        <span class="recent-session-game">${escapeHtml(SharedRoomClient.gameLabel(item.game || "onenightwolf"))}</span>
+        <span class="recent-session-details">
           <strong>${escapeHtml(item.name || "原玩家")}</strong>
           <small>房間 ${escapeHtml(item.roomCode)}</small>
         </span>
@@ -1085,7 +1109,29 @@
   }
 
   function sendAction(action, payload = {}) {
-    send({ type: "action", action, payload });
+    if (!hasControl) {
+      SharedRoomUI.showControlLock(takeWolfControl);
+      return;
+    }
+    actionSequence += 1;
+    send(SharedRoomClient.createActionRequest({
+      action,
+      payload,
+      roomVersion: snapshot?.room?.version || lastVersion,
+      clientId: CLIENT_INSTANCE_ID,
+      sequence: actionSequence
+    }));
+  }
+
+  function takeWolfControl() {
+    const target = selectedSession || findRoomSession(roomFromUrl());
+    if (!target?.roomCode || !target?.playerId) return;
+    connectAndSend({
+      type: "joinRoom",
+      roomCode: target.roomCode,
+      playerId: target.playerId,
+      name: target.name || ""
+    });
   }
 
   function send(payload) {
@@ -1111,6 +1157,34 @@
     renderWolfRecentSessions();
   }
 
+  function clearInvalidWolfSession(message) {
+    const errorCode = message.code || "";
+    if (![
+      SharedRoomClient.SESSION_ERROR_CODES.roomNotFound,
+      SharedRoomClient.SESSION_ERROR_CODES.playerNotFound
+    ].includes(errorCode)) return;
+
+    const roomCode = parseRoomCode(page.roomInput.value) || selectedSession?.roomCode || roomFromUrl();
+    const playerId = selectedSession?.playerId || sessionStorage.getItem(TAB_KEY) || "";
+    const nextStore = SharedRoomClient.clearInvalidSession(sessionStore(), {
+      errorCode,
+      roomCode,
+      playerId
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextStore));
+
+    if (errorCode === SharedRoomClient.SESSION_ERROR_CODES.roomNotFound) {
+      page.roomInput.value = "";
+      const lobbyPath = isDirectPage ? "/Onenightwolf/" : location.pathname;
+      history.replaceState({ game: "onenightwolf" }, "", lobbyPath);
+    }
+    selectedSession = null;
+    hadRoomConnection = false;
+    sessionStorage.removeItem(TAB_KEY);
+    renderWolfRecentSessions();
+    syncWolfRejoin();
+  }
+
   function findRoomSession(roomCode) {
     if (!roomCode) return null;
     const tabPlayerId = sessionStorage.getItem(TAB_KEY);
@@ -1128,17 +1202,7 @@
   }
 
   function showToast(message) {
-    let toast = document.getElementById("toast") || document.querySelector("[data-wolf-toast]");
-    if (!toast) {
-      toast = document.createElement("div");
-      toast.className = "toast hidden";
-      toast.dataset.wolfToast = "";
-      document.body.appendChild(toast);
-    }
-    toast.textContent = message;
-    toast.classList.remove("hidden");
-    window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toast.classList.add("hidden"), 2800);
+    SharedRoomUI.showToast(message);
   }
 
   function roleCatalog() {

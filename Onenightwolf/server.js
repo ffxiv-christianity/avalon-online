@@ -6,6 +6,13 @@ const path = require("path");
 const { roomCode } = require("../Shared/server/random");
 const { serveSharedStatic } = require("../Shared/server/static");
 const {
+  ERROR_CODES,
+  errorMessage,
+  claimPlayerControl,
+  validateActionRequest,
+  rememberAction
+} = require("../Shared/server/realtime-contract");
+const {
   makeRoom,
   joinRoom,
   applyRoomAction,
@@ -89,6 +96,12 @@ function readFrames(client, chunk) {
 }
 
 function onMessage(client, message) {
+  if (message.type === "joinRoom") {
+    client.pendingJoin = {
+      roomCode: normalizeCode(message.roomCode),
+      playerId: message.playerId || ""
+    };
+  }
   if (message.type === "createRoom") {
     const created = makeRoom(message.name, uniqueRoomCode());
     rooms.set(created.room.code, created.room);
@@ -115,8 +128,24 @@ function onMessage(client, message) {
   if (message.type === "action") {
     const room = rooms.get(client.roomCode);
     const actor = room?.players.find((player) => player.id === client.playerId);
+    if (!room || !actor) {
+      return send(client, {
+        type: "error",
+        code: room ? ERROR_CODES.playerNotFound : ERROR_CODES.roomNotFound,
+        message: "找不到目前的房間或玩家身分。"
+      });
+    }
+    const guardError = validateActionRequest(room, client, message, {
+      allowStale: message.action === "chat"
+    });
+    if (guardError) {
+      send(client, { type: "error", ...guardError });
+      send(client, makeView(room, client.playerId));
+      return;
+    }
     const error = applyRoomAction(room, actor, message.action, message.payload || {});
-    if (error) return send(client, { type: "error", message: error });
+    if (error) return send(client, { type: "error", code: ERROR_CODES.invalidAction, message: error });
+    rememberAction(room, message.actionId);
     if (message.action === "kickOfflinePlayer") {
       detachPlayerClients(room.code, message.payload?.playerId, "你已被房主移出房間");
     }
@@ -127,6 +156,7 @@ function onMessage(client, message) {
 function attach(client, roomCode, playerId) {
   client.roomCode = roomCode;
   client.playerId = playerId;
+  claimPlayerControl({ clients, client, roomCode, playerId, send });
   const room = rooms.get(roomCode);
   const player = room?.players.find((item) => item.id === playerId);
   if (player) player.online = true;
@@ -256,6 +286,22 @@ function normalizeCode(value) {
 
 function send(client, payload) {
   if (!client?.socket || client.socket.destroyed) return;
+  if (payload.type === "error" && !payload.code && client.pendingJoin) {
+    const pendingRoom = rooms.get(client.pendingJoin.roomCode);
+    payload.code = !pendingRoom
+      ? ERROR_CODES.roomNotFound
+      : client.pendingJoin.playerId
+        ? ERROR_CODES.playerNotFound
+        : pendingRoom.phase !== "lobby"
+          ? ERROR_CODES.gameAlreadyStarted
+          : pendingRoom.players.length >= pendingRoom.settings.playerCount
+            ? ERROR_CODES.roomFull
+            : ERROR_CODES.invalidAction;
+    client.pendingJoin = null;
+  }
+  if (payload.type === "error" && !payload.code) payload.code = ERROR_CODES.invalidAction;
+  if (payload.type === "error") payload.message = errorMessage(payload.code, payload.message);
+  if (payload.type === "joined") client.pendingJoin = null;
   client.socket.write(encodeFrame(JSON.stringify(payload)));
 }
 
