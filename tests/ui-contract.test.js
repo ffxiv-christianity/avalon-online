@@ -45,6 +45,16 @@ assert(embeddedWolfRoom > avalonMainStart && embeddedWolfRoom < avalonMainEnd, "
   assert(avalonPage.includes(className), `Avalon room framework is missing: ${className}`);
   assert(wolfScript.includes(className), `One Night Wolf room framework is missing: ${className}`);
 });
+assert(avalonPage.includes('id="mobileStatusSummary"'), "Avalon mobile status summary mount is missing");
+assert(wolfScript.includes("mobileStatusSummary()"), "One Night Wolf mobile status summary is missing");
+assert(sharedRoomUi.includes("mobileStatusSummary"), "Shared mobile status summary template is missing");
+assert(avalonScript.includes("SharedRoomUI.mobileStatusSummary"), "Avalon must use the shared mobile status summary");
+assert(wolfScript.includes("SharedRoomUI.mobileStatusSummary"), "One Night Wolf must use the shared mobile status summary");
+assert(sharedStyles.includes(".room-view > .status-strip"), "Shared mobile status cards must be hidden");
+assert(sharedStyles.includes(".room-view:not(.lobby-mode) > .mobile-status-summary"), "Shared in-game mobile summary rule is missing");
+assert(sharedStyles.includes("grid-template-columns: repeat(3, minmax(0, 1fr))"), "Shared mobile status summary must use the compact three-column layout");
+assert(!sharedStyles.includes(".mobile-status-summary-item + .mobile-status-summary-item::before"), "Mobile status summary must not use inline dot separators");
+assert(sharedStyles.includes("height: clamp(360px, 60dvh, 520px)"), "Shared mobile side panel must reuse the removed status-card space");
 
 ["聊天", "玩家", "記錄", "玩家順序", "複製邀請連結"].forEach((text) => {
   assert(avalonPage.includes(text), `Avalon common room text is missing: ${text}`);
@@ -79,6 +89,21 @@ assert(sharedClient.includes("SESSION_ERROR_CODES"), "Shared session error contr
 assert(sharedClient.includes("createActionRequest"), "Shared action request contract is missing");
 assert(sharedRoomUi.includes("showControlLock"), "Shared multi-tab control UI is missing");
 assert(sharedRoomUi.includes("showToast"), "Shared toast UI is missing");
+assert(sharedRoomUi.includes("captureScroll"), "Shared scroll preservation is missing");
+assert(sharedRoomUi.includes("restoreScroll"), "Shared scroll restoration is missing");
+assert(sharedRoomUi.includes("updateChatUnread"), "Shared chat unread policy is missing");
+assert(sharedRoomUi.includes("bindChatReadState"), "Shared chat read-state binding is missing");
+assert(sharedRoomUi.includes("readLatestChat"), "Shared open-chat behavior is missing");
+assert(sharedStyles.includes("overscroll-behavior: contain"), "Shared nested scroll containment is missing");
+assert(avalonScript.includes("SharedRoomUI.captureScroll"), "Avalon must preserve chat reading position");
+assert(wolfScript.includes("SharedRoomUI.captureScroll"), "One Night Wolf must preserve chat reading position");
+assert(avalonScript.includes("SharedRoomUI.updateChatUnread"), "Avalon must use shared chat unread policy");
+assert(wolfScript.includes("SharedRoomUI.updateChatUnread"), "One Night Wolf must use shared chat unread policy");
+assert(avalonScript.includes("SharedRoomUI.bindChatReadState"), "Avalon must clear unread at chat bottom");
+assert(wolfScript.includes("SharedRoomUI.bindChatReadState"), "One Night Wolf must clear unread at chat bottom");
+assert(avalonScript.includes("SharedRoomUI.readLatestChat"), "Avalon must use shared open-chat behavior");
+assert(wolfScript.includes("SharedRoomUI.readLatestChat"), "One Night Wolf must use shared open-chat behavior");
+assert(!avalonScript.includes("els.chatList.scrollTop = els.chatList.scrollHeight"), "Avalon tab switching must not discard chat reading position");
 assert(sharedStyles.includes(".shared-toast"), "Shared toast positioning is missing");
 assert(avalonScript.includes("SharedRoomUI.showToast(message)"), "Avalon must use the shared toast");
 assert(wolfScript.includes("SharedRoomUI.showToast(message)"), "One Night Wolf must use the shared toast");
@@ -87,6 +112,7 @@ assert(sharedStyles.includes(".player-card.is-self"), "Shared self player highli
 assert(!sharedStyles.includes(".player-card.leader {"), "Leader identity must not control player-card highlighting");
 assert(avalonScript.includes("SharedRoomUI.playerCardClasses"), "Avalon must use shared self highlighting");
 assert(wolfScript.includes("SharedRoomUI.playerCardClasses"), "One Night Wolf must use shared self highlighting");
+assert(!wolfScript.includes("slice(-200)"), "One Night Wolf UI must not truncate room history");
 assert(avalonScript.includes('room.phase === "lobby"'));
 assert(avalonScript.includes('{ label: "房主", name: host?.name || "未指定" }'));
 assert(avalonScript.includes('{ label: "領袖", name: leader?.name || "未開始" }'));

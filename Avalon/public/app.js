@@ -43,6 +43,7 @@ const els = {
   createRoomButton: document.getElementById("createRoomButton"),
   rejoinRoomButton: document.getElementById("rejoinRoomButton"),
   statusStrip: document.getElementById("statusStrip"),
+  mobileStatusSummary: document.getElementById("mobileStatusSummary"),
   roomCodes: document.querySelectorAll(".room-code-value"),
   copyLinkButtons: document.querySelectorAll("[data-copy-link]"),
   roster: document.getElementById("roster"),
@@ -87,6 +88,12 @@ function connect() {
       writeTabPlayerId(message.playerId);
       history.replaceState(null, "", AvalonClientState.roomUrlPath(location.pathname, message.roomCode));
       updateJoinControls();
+      requestFullSync();
+      return;
+    }
+    if (message.type === "controlGranted") {
+      hasControl = true;
+      SharedRoomUI.clearControlLock();
       requestFullSync();
       return;
     }
@@ -214,7 +221,17 @@ function bindEvents() {
     if (activeInfoTab === "chat") unreadChatCount = 0;
     if (activeInfoTab === "roster") unreadRosterCount = 0;
     renderInfoTabs();
-    if (activeInfoTab === "chat") els.chatList.scrollTop = els.chatList.scrollHeight;
+    if (activeInfoTab === "chat") {
+      SharedRoomUI.readLatestChat(els.chatList, () => {
+        unreadChatCount = 0;
+        renderInfoTabs();
+      });
+    }
+  });
+  SharedRoomUI.bindChatReadState(els.chatList, () => {
+    if (!unreadChatCount) return;
+    unreadChatCount = 0;
+    renderInfoTabs();
   });
 }
 
@@ -323,14 +340,15 @@ function render() {
   els.roomCodes.forEach((element) => {
     element.textContent = snapshot.room.code;
   });
-  syncInfoUnread();
+  const chatScrollState = SharedRoomUI.captureScroll(els.chatList);
+  syncInfoUnread(chatScrollState);
   renderInfoTabs();
   renderStatus();
   renderRoster();
   renderScoreboard();
   renderMissionTable();
   renderLog();
-  renderChat();
+  renderChat(chatScrollState);
   renderMain();
 }
 
@@ -345,7 +363,7 @@ async function copyInviteLink() {
   }
 }
 
-function syncInfoUnread() {
+function syncInfoUnread(chatScrollState) {
   const room = snapshot.room;
   const chat = room.chat || [];
   if (infoRoomCode !== room.code) {
@@ -357,16 +375,16 @@ function syncInfoUnread() {
     activeInfoTab = "chat";
     return;
   }
-  const newestId = chat.at(-1)?.id || null;
-  if (newestId && newestId !== lastObservedChatId) {
-    const previousIndex = chat.findIndex((entry) => entry.id === lastObservedChatId);
-    const newEntries = previousIndex >= 0 ? chat.slice(previousIndex + 1) : chat.slice(-1);
-    if (activeInfoTab !== "chat") {
-      unreadChatCount += newEntries.filter((entry) => entry.playerId !== snapshot.you.id && entry.playerId !== "system").length;
-    }
-    lastObservedChatId = newestId;
-  }
-  if (activeInfoTab === "chat") unreadChatCount = 0;
+  const chatUpdate = SharedRoomUI.updateChatUnread({
+    entries: chat,
+    lastObservedId: lastObservedChatId,
+    viewerId: snapshot.you.id,
+    chatActive: activeInfoTab === "chat",
+    chatAtBottom: chatScrollState?.atBottom ?? true,
+    currentCount: unreadChatCount
+  });
+  unreadChatCount = chatUpdate.count;
+  lastObservedChatId = chatUpdate.lastObservedId;
 
   const joinUpdate = AvalonClientState.unreadPlayerJoins(
     room.playerJoinEvents || [],
@@ -409,6 +427,16 @@ function renderStatus() {
     statusCard(authority.label, authority.name),
     statusCard("進度", phaseProgressText())
   ].join("");
+  els.mobileStatusSummary.innerHTML = SharedRoomUI.mobileStatusSummary([
+    {
+      label: "階段",
+      value: room.round >= 0 && room.phase !== "gameOver"
+        ? `${phaseLabel(room.phase)} ${room.round + 1}/5`
+        : phaseLabel(room.phase)
+    },
+    { label: "領袖", value: leader?.name || "未開始" },
+    { label: "進度", value: phaseProgressText() }
+  ]);
 }
 
 function renderRoster() {
@@ -521,7 +549,7 @@ function renderLog() {
   els.logList.innerHTML = snapshot.room.log.slice().reverse().map((entry) => `<li>${escapeHtml(entry)}</li>`).join("");
 }
 
-function renderChat() {
+function renderChat(scrollState) {
   const chat = snapshot.room.chat || [];
   const newestId = chat.at(-1)?.id || null;
   if (renderedChatRoomCode === snapshot.room.code && newestId === lastRenderedChatId) return;
@@ -532,7 +560,7 @@ function renderChat() {
       </div>`).join("") : `<div class="chat-empty">尚無聊天訊息</div>`;
   renderedChatRoomCode = snapshot.room.code;
   lastRenderedChatId = newestId;
-  els.chatList.scrollTop = els.chatList.scrollHeight;
+  SharedRoomUI.restoreScroll(els.chatList, scrollState);
 }
 
 function renderMain() {
@@ -1295,10 +1323,9 @@ function takeAvalonControl() {
   const target = session || readSession();
   if (!target?.roomCode || !target?.playerId) return;
   send({
-    type: "joinRoom",
+    type: "takeControl",
     roomCode: target.roomCode,
-    playerId: target.playerId,
-    name: target.name || ""
+    playerId: target.playerId
   });
 }
 

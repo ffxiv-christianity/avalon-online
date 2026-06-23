@@ -17,7 +17,8 @@ const {
   joinRoom,
   applyRoomAction,
   makeView,
-  advanceTimedNight
+  advanceTimedNight,
+  advanceTimedDiscussion
 } = require("./game");
 
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -108,6 +109,28 @@ function onMessage(client, message) {
     attach(client, created.room.code, created.player.id);
     send(client, { type: "joined", roomCode: created.room.code, playerId: created.player.id });
     broadcast(created.room);
+    return;
+  }
+  if (message.type === "takeControl") {
+    const room = rooms.get(normalizeCode(message.roomCode));
+    if (!room) {
+      return send(client, {
+        type: "error",
+        code: ERROR_CODES.roomNotFound,
+        message: errorMessage(ERROR_CODES.roomNotFound)
+      });
+    }
+    const player = room.players.find((item) => item.id === message.playerId);
+    if (!player) {
+      return send(client, {
+        type: "error",
+        code: ERROR_CODES.playerNotFound,
+        message: errorMessage(ERROR_CODES.playerNotFound)
+      });
+    }
+    attach(client, room.code, player.id);
+    send(client, { type: "controlGranted", roomCode: room.code, playerId: player.id });
+    broadcast(room);
     return;
   }
   if (message.type === "joinRoom") {
@@ -264,8 +287,9 @@ function attachMaintenance(server) {
   const nightTimer = setInterval(() => {
     rooms.forEach((room) => {
       const nightAdvanced = advanceTimedNight(room);
+      const discussionAdvanced = advanceTimedDiscussion(room);
       const hostChanged = updateHostTransfer(room);
-      if (nightAdvanced || hostChanged) broadcast(room);
+      if (nightAdvanced || discussionAdvanced || hostChanged) broadcast(room);
     });
   }, 250);
   cleanupTimer.unref?.();

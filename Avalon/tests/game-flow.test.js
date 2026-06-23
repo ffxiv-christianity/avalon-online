@@ -541,6 +541,7 @@ function testChatReactionsAssassinationAndReset() {
   action(room, host, "resetRoom");
   assert.strictEqual(room.phase, "lobby");
   assert.strictEqual(room.chat.length, 0);
+  assert.strictEqual(room.log.length, 0);
   assert(room.players.every((player) => player.roll === null && player.role === null));
 }
 

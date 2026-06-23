@@ -131,6 +131,41 @@ function closeSocket(socket) {
     );
     assert.strictEqual(readonly.find((message) => message.type === "error").code, "SESSION_REPLACED");
 
+    const secondReplaced = waitForMessage(
+      second,
+      (message) => message.type === "error" && message.code === "SESSION_REPLACED"
+    );
+    const takeover = await sendAndCollect(
+      first,
+      {
+        type: "takeControl",
+        roomCode: joined.roomCode,
+        playerId: joined.playerId
+      },
+      (messages) => messages.some((message) => message.type === "controlGranted")
+        && messages.some((message) => message.type === "state")
+    );
+    assert(takeover.some((message) => message.type === "controlGranted"));
+    assert.strictEqual((await secondReplaced).code, "SESSION_REPLACED");
+    assert.strictEqual(
+      takeover.filter((message) => message.type === "state").at(-1).room.code,
+      joined.roomCode,
+      "taking control must keep the original room"
+    );
+
+    const secondReadonly = await sendAndCollect(
+      second,
+      {
+        type: "action",
+        action: "setReady",
+        payload: { ready: true },
+        roomVersion: takeover.filter((message) => message.type === "state").at(-1).room.version,
+        actionId: "avalon-second:2"
+      },
+      (messages) => messages.some((message) => message.type === "error")
+    );
+    assert.strictEqual(secondReadonly.find((message) => message.type === "error").code, "SESSION_REPLACED");
+
     await closeSocket(first);
     await closeSocket(second);
 
@@ -144,6 +179,18 @@ function closeSocket(socket) {
     assert.strictEqual(missingError.code, "ROOM_NOT_FOUND");
     assert.strictEqual(missingError.message, "找不到這個房間，可能已經過期。");
     await closeSocket(missing);
+
+    const missingTakeover = await openSocket(`ws://127.0.0.1:${port}/ws`);
+    const missingTakeoverMessages = await sendAndCollect(
+      missingTakeover,
+      { type: "takeControl", roomCode: "FFFFFF", playerId: joined.playerId },
+      (messages) => messages.some((message) => message.type === "error")
+    );
+    assert.strictEqual(
+      missingTakeoverMessages.find((message) => message.type === "error").code,
+      "ROOM_NOT_FOUND"
+    );
+    await closeSocket(missingTakeover);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

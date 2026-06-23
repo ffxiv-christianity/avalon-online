@@ -289,8 +289,9 @@
           <ol>
             <li>每名玩家取得一張角色牌，另有三張牌留在中央。</li>
             <li>依角色順序完成夜間能力；部分能力會交換角色牌。</li>
-            <li>天亮後自由討論。你只能確定自己的初始角色，不一定知道現在的角色。</li>
-            <li>所有玩家投票；最高票且至少兩票者遭到處決。平票可能同時處決多人。</li>
+            <li>天亮後在房主設定的時間內自由討論並投票；所有人提早投完會立即結算。</li>
+            <li>討論時間結束後直接結算，尚未投票的玩家視為廢票。</li>
+            <li>最高票且至少兩票者遭到處決；平票可能同時處決多人。結算時會公開所有玩家的投票。</li>
             <li>處決至少一名狼人，好人陣營獲勝；否則狼人陣營獲勝。</li>
           </ol>
         </section>
@@ -309,6 +310,10 @@
             <li>每局所有玩家先擲 d100 決定順時鐘座位與玩家列表順序；夜間仍依固定角色順序進行。</li>
             <li>夜晚行動順序：化身幽靈➜狼人➜爪牙➜守夜人➜預言家➜強盜➜搗蛋鬼➜酒鬼➜失眠者。</li>
             <li>村民、皮匠與獵人沒有夜間操作。</li>
+            <li><strong>化身幽靈複製預言家、強盜、搗蛋鬼或酒鬼：</strong>在化身幽靈階段立即執行能力，之後不會在正牌角色階段再次行動。</li>
+            <li><strong>化身幽靈複製狼人或守夜人：</strong>等到該角色階段，與其他狼人或守夜人一同行動。</li>
+            <li><strong>化身幽靈複製爪牙：</strong>在化身幽靈階段立即確認狼人；複製失眠者則在正版失眠者結束後查看自己目前的牌。</li>
+            <li>若化身幽靈牌在夜間被換給其他玩家，該玩家的最終角色是化身幽靈最初複製的角色，但不會補發該角色的夜間能力。</li>
           </ul>
         </section>
         <section>
@@ -318,7 +323,7 @@
             <li><strong class="team-village">沒有狼人或爪牙：</strong>無人遭處決時所有玩家獲勝；若有人遭處決則無人獲勝。</li>
             <li><strong class="team-werewolf">沒有狼人但有爪牙：</strong>爪牙死亡時好人陣營獲勝；其他玩家死亡時狼人陣營獲勝。</li>
             <li><strong class="team-tanner">皮匠：</strong>皮匠死亡即可獲勝；若同時有狼人死亡，好人陣營也獲勝。</li>
-            <li><strong class="team-village">獵人：</strong>獵人遭處決後，由獵人玩家在網頁上選擇一名反擊目標，該玩家也會出局。</li>
+            <li><strong class="team-village">獵人：</strong>獵人死亡後選擇一名反擊目標，該玩家也會死亡。多名獵人需要反擊時依 d100 座位順序行動，不分正牌或化身幽靈；被獵人射殺的獵人也會繼續觸發反擊。</li>
           </ol>
         </section>`;
     }
@@ -368,6 +373,13 @@
         send({ type: "sync" });
         return;
       }
+      if (message.type === "controlGranted") {
+        hasControl = true;
+        SharedRoomUI.clearControlLock();
+        hadRoomConnection = true;
+        send({ type: "sync" });
+        return;
+      }
       if (message.type === "state") {
         lastVersion = message.room.version || lastVersion;
         snapshot = message;
@@ -404,8 +416,11 @@
 
   function renderRoom() {
     window.clearInterval(discussionTimer);
+    const chatScrollState = SharedRoomUI.captureScroll(
+      page.roomView.querySelector("[data-wolf-chat-list]")
+    );
     if (snapshot.room.phase === "lobby" && activeInfoTab === "log") activeInfoTab = "chat";
-    syncInfoUnread();
+    syncInfoUnread(chatScrollState);
     document.title = WOLF_PAGE_TITLE;
     document.body.classList.add("room-active", "wolf-mode");
     page.joinView.classList.add("hidden");
@@ -417,6 +432,7 @@
 
     page.roomView.innerHTML = `
       <section class="status-strip">${statusCards()}</section>
+      <section class="mobile-status-summary" aria-label="遊戲狀態摘要">${mobileStatusSummary()}</section>
       <div class="game-layout">
         <aside class="side-panel">
           <nav class="info-tabs" data-wolf-tabs aria-label="房間資訊">
@@ -453,14 +469,14 @@
 
     bindRoomEvents();
     const chatList = page.roomView.querySelector("[data-wolf-chat-list]");
-    if (chatList) chatList.scrollTop = chatList.scrollHeight;
+    SharedRoomUI.restoreScroll(chatList, chatScrollState);
     if (snapshot.room.phase === "discussion") {
       updateDiscussionTimer();
       discussionTimer = window.setInterval(updateDiscussionTimer, 1000);
     }
   }
 
-  function syncInfoUnread() {
+  function syncInfoUnread(chatScrollState) {
     const room = snapshot.room;
     const chat = room.chat || [];
     if (infoRoomCode !== room.code) {
@@ -472,16 +488,16 @@
       activeInfoTab = "chat";
       return;
     }
-    const newestId = chat.at(-1)?.id || null;
-    if (newestId && newestId !== lastObservedChatId) {
-      const previousIndex = chat.findIndex((entry) => entry.id === lastObservedChatId);
-      const newEntries = previousIndex >= 0 ? chat.slice(previousIndex + 1) : chat.slice(-1);
-      if (activeInfoTab !== "chat") {
-        unreadChatCount += newEntries.filter((entry) => entry.playerId !== snapshot.you.id && entry.playerId !== "system").length;
-      }
-      lastObservedChatId = newestId;
-    }
-    if (activeInfoTab === "chat") unreadChatCount = 0;
+    const chatUpdate = SharedRoomUI.updateChatUnread({
+      entries: chat,
+      lastObservedId: lastObservedChatId,
+      viewerId: snapshot.you.id,
+      chatActive: activeInfoTab === "chat",
+      chatAtBottom: chatScrollState?.atBottom ?? true,
+      currentCount: unreadChatCount
+    });
+    unreadChatCount = chatUpdate.count;
+    lastObservedChatId = chatUpdate.lastObservedId;
 
     const unseenJoins = (room.playerJoinEvents || []).filter((event) => Number(event.serial) > Number(lastPlayerJoinSerial));
     if (activeInfoTab !== "roster") {
@@ -518,6 +534,39 @@
       <div class="status-card"><span>牌庫</span><strong>${room.phase === "lobby" ? "設定中" : `${room.settings.deck.length} 張`}</strong></div>
       <div class="status-card"><span>房主</span><strong>${escapeHtml(host?.name || "未設定")}</strong></div>
       <div class="status-card"><span>進度</span><strong>${progress}</strong></div>`;
+  }
+
+  function mobileStatusSummary() {
+    const room = snapshot.room;
+    const phaseLabels = {
+      lobby: "準備房間",
+      reveal: "查看角色",
+      night: "夜間行動",
+      discussion: "討論投票",
+      hunter: "獵人反擊",
+      result: "遊戲結果"
+    };
+    const context = room.phase === "night"
+      ? room.night.roleName
+      : room.phase === "result"
+        ? "已結算"
+        : `${room.settings.deck.length} 張牌`;
+    const progress = room.phase === "reveal"
+      ? `${room.revealedCount}/${room.players.length} 確認`
+      : room.phase === "night"
+        ? `${room.night.completedCount}/${Math.max(1, room.night.actorCount)} 行動`
+        : room.phase === "discussion"
+          ? `${room.votesCast}/${room.players.length} 投票`
+          : room.phase === "hunter"
+            ? `${room.hunter.pending} 名待行動`
+            : room.phase === "result"
+              ? "完成"
+              : "";
+    return SharedRoomUI.mobileStatusSummary([
+      { label: "階段", value: phaseLabels[room.phase] },
+      { label: room.phase === "night" ? "目前" : "資訊", value: context },
+      { label: "進度", value: progress }
+    ]);
   }
 
   function roomPanel(extraClass) {
@@ -837,13 +886,13 @@
         <div class="notice">所有玩家禁止再查看初始角色牌。<br>請根據夜間情報進行討論。</div>
         <div class="wolf-vote-guide">
           <strong>投票規則</strong>
-          <span>所有玩家完成投票後立即結算。</span>
-          <span>若最高票只有一票，則無人被處決。</span>
+          <span>所有玩家完成投票，或討論時間結束時立即結算。</span>
+          <span>未投票視為廢票；若最高票只有一票，則無人被處決。</span>
         </div>
         ${hasVoted ? `
           <div class="notice wolf-vote-locked">
             <strong>你已投給 ${escapeHtml(votedPlayer?.name || "該玩家")}</strong>
-            <span>投票已鎖定，等待其他玩家完成投票。</span>
+            <span>投票已鎖定，等待其他玩家完成投票或討論時間結束。</span>
           </div>` : `
           <div class="wolf-choice-grid">
             ${snapshot.room.players.filter((player) => player.id !== snapshot.you.id).map((player) => `
@@ -884,6 +933,19 @@
               <span>${escapeHtml(player.name)}${result.eliminatedIds.includes(player.id) ? " · 遭到處決" : ""}${result.winningPlayerIds.includes(player.id) ? " · 獲勝" : ""}</span>
               <strong class="team-${snapshot.roles[cards[player.id]].team}">${escapeHtml(snapshot.roles[cards[player.id]].name)}</strong>
             </div>`).join("")}
+        <section class="wolf-vote-result">
+          <h3>投票結果</h3>
+          <div class="wolf-vote-result-list">
+            ${result.votes.map((vote) => {
+              const voter = snapshot.room.players.find((player) => player.id === vote.voterId);
+              const target = snapshot.room.players.find((player) => player.id === vote.targetId);
+              return `<div class="wolf-vote-result-row ${vote.targetId ? "" : "abstained"}">
+                <span>${escapeHtml(voter?.name || "未知玩家")}</span>
+                <strong>${target ? `投給 ${escapeHtml(target.name)}` : "未投票／廢票"}</strong>
+              </div>`;
+            }).join("")}
+          </div>
+        </section>
         <p class="wolf-center-result">中央牌：${result.centerCards.map((role) => escapeHtml(snapshot.roles[role].name)).join("、")}</p>
         ${snapshot.you.isHost ? `<button class="primary-button" data-wolf-return type="button">返回準備房</button>` : `<p>等待房主開啟下一局。</p>`}
       </div>`;
@@ -895,7 +957,7 @@
       <h2>獵人反擊</h2>
       ${identityCard()}
       ${snapshot.room.hunter.yourTurn ? `
-        <p>你已遭到處決。選擇一名其他玩家開槍，該玩家也會出局。</p>
+        <p>你已遭到處決。選擇一名其他玩家開槍，該玩家也會死亡。</p>
         <div class="wolf-choice-grid">
           ${snapshot.room.players.filter((player) => player.id !== snapshot.you.id).map((player) => `
             <button class="wolf-choice" data-wolf-hunter-target="${player.id}" type="button">${escapeHtml(player.name)}</button>`).join("")}
@@ -922,8 +984,31 @@
           rosterBadge.textContent = String(unreadRosterCount);
           rosterBadge.classList.toggle("hidden", unreadRosterCount === 0);
         }
+        if (activeInfoTab === "chat") {
+          const chatList = page.roomView.querySelector("[data-wolf-chat-list]");
+          SharedRoomUI.readLatestChat(chatList, () => {
+            unreadChatCount = 0;
+            const badge = page.roomView.querySelector("[data-wolf-chat-badge]");
+            if (badge) {
+              badge.textContent = "0";
+              badge.classList.add("hidden");
+            }
+          });
+        }
       });
     });
+    SharedRoomUI.bindChatReadState(
+      page.roomView.querySelector("[data-wolf-chat-list]"),
+      () => {
+        if (!unreadChatCount) return;
+        unreadChatCount = 0;
+        const badge = page.roomView.querySelector("[data-wolf-chat-badge]");
+        if (badge) {
+          badge.textContent = "0";
+          badge.classList.add("hidden");
+        }
+      }
+    );
     page.roomView.querySelectorAll("[data-wolf-copy]").forEach((button) => button.addEventListener("click", copyInvite));
     SharedRoomUI.bindHostControls(page.roomView, sendAction);
     page.roomView.querySelector("[data-wolf-chat-form]")?.addEventListener("submit", (event) => {
@@ -1127,10 +1212,9 @@
     const target = selectedSession || findRoomSession(roomFromUrl());
     if (!target?.roomCode || !target?.playerId) return;
     connectAndSend({
-      type: "joinRoom",
+      type: "takeControl",
       roomCode: target.roomCode,
-      playerId: target.playerId,
-      name: target.name || ""
+      playerId: target.playerId
     });
   }
 
@@ -1207,7 +1291,7 @@
 
   function roleCatalog() {
     return {
-      doppelganger: { name: "化身幽靈", team: "neutral", description: "最早行動，查看一名玩家的初始角色並複製其能力與陣營。系統會自動把後續能力排入正確順序。" },
+      doppelganger: { name: "化身幽靈", team: "neutral", description: "最早行動並複製一名玩家的初始角色。預言家、強盜、搗蛋鬼、酒鬼與爪牙立即行動；狼人、守夜人於其階段同行；失眠者最後複查。" },
       werewolf: { name: "狼人", team: "werewolf", description: "查看其他狼人；如果是唯一狼人，可以查看一張中央牌。" },
       minion: { name: "爪牙", team: "werewolf", description: "查看所有狼人。狼人不會知道誰是爪牙；場上沒有狼人時，爪牙要設法讓其他玩家出局。" },
       mason: { name: "守夜人", team: "village", description: "查看另一名守夜人。牌庫必須同時放入兩張守夜人。" },

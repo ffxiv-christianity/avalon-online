@@ -253,6 +253,30 @@ function applyAction(client, message) {
     broadcast(room);
     return;
   }
+  if (message.type === "takeControl") {
+    const room = rooms.get(normalizeRoomCode(message.roomCode));
+    if (!room) {
+      send(client, {
+        type: "error",
+        code: ERROR_CODES.roomNotFound,
+        message: errorMessage(ERROR_CODES.roomNotFound)
+      });
+      return;
+    }
+    const player = room.players.find((item) => item.id === message.playerId);
+    if (!player) {
+      send(client, {
+        type: "error",
+        code: ERROR_CODES.playerNotFound,
+        message: errorMessage(ERROR_CODES.playerNotFound)
+      });
+      return;
+    }
+    attachClient(client, room.code, player.id);
+    send(client, { type: "controlGranted", roomCode: room.code, playerId: player.id });
+    broadcast(room);
+    return;
+  }
   if (message.type === "joinRoom") {
     const result = joinRoom(message.roomCode, message.name || "玩家", message.playerId);
     if (result.error) {
@@ -789,7 +813,6 @@ function resetRoom(room) {
   room.chat = [];
   room.reactions = {};
   room.log = [];
-  addLog(room, "房間已重置。");
 }
 
 function makeView(room, playerId) {

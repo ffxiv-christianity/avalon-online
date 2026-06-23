@@ -10,6 +10,7 @@ const {
   makeView,
   validateLobby,
   advanceTimedNight,
+  advanceTimedDiscussion,
   NIGHT_ORDER,
   finishVote
 } = require("../game");
@@ -157,6 +158,187 @@ function testDoppelgangerMinionAndInsomniacOrder() {
   assert.strictEqual(applyRoomAction(room, players[0], "nightAction", { targetId: players[3].id }), null);
   assert.strictEqual(room.doppelCopiedRole, "insomniac");
   assert(NIGHT_ORDER.indexOf("doppelInsomniac") > NIGHT_ORDER.indexOf("insomniac"));
+}
+
+function makeDoppelScenario(copiedRole, otherRoles = ["werewolf", "villager"]) {
+  const { room, players } = setup(4);
+  room.phase = "night";
+  room.initialCards = {
+    [players[0].id]: "doppelganger",
+    [players[1].id]: copiedRole,
+    [players[2].id]: otherRoles[0],
+    [players[3].id]: otherRoles[1]
+  };
+  room.cards = { ...room.initialCards };
+  room.centerCards = ["seer", "robber", "drunk"];
+  room.privateInfo = Object.fromEntries(players.map((player) => [player.id, []]));
+  room.effectiveRoles = { ...room.initialCards };
+  room.settings.deck = [
+    "doppelganger",
+    copiedRole,
+    otherRoles[0],
+    otherRoles[1],
+    ...room.centerCards
+  ];
+  room.nightRoleIndex = NIGHT_ORDER.indexOf("doppelganger");
+  setNightStage(room, "doppelganger", [players[0].id]);
+  return { room, players };
+}
+
+function copyWithDoppel(room, players) {
+  assert.strictEqual(
+    applyRoomAction(room, players[0], "nightAction", { targetId: players[1].id }),
+    null
+  );
+}
+
+function testDoppelgangerCopiesEveryRoleAbility() {
+  ["villager", "tanner", "hunter"].forEach((role) => {
+    const { room, players } = makeDoppelScenario(role);
+    copyWithDoppel(room, players);
+    assert.strictEqual(room.doppelCopiedRole, role);
+    assert.strictEqual(room.effectiveRoles[players[0].id], role);
+    assert.strictEqual(room.doppelPendingRole, null);
+    assert.strictEqual(room.nightStage.completedIds.includes(players[0].id), false);
+    room.phase = "discussion";
+    assert.strictEqual(makeView(room, players[0].id).you.initialRole, "doppelganger");
+  });
+
+  {
+    const { room, players } = makeDoppelScenario("werewolf", ["werewolf", "villager"]);
+    copyWithDoppel(room, players);
+    assert.strictEqual(room.nightStage.role, "werewolf");
+    assert.deepStrictEqual(new Set(room.nightStage.actorIds), new Set([players[0].id, players[1].id, players[2].id]));
+    assert.strictEqual(applyRoomAction(room, players[0], "nightAction"), null);
+    assert(room.privateInfo[players[0].id].some((message) => message.includes(players[1].name)));
+    assert(room.privateInfo[players[0].id].some((message) => message.includes(players[2].name)));
+  }
+
+  {
+    const { room, players } = makeDoppelScenario("minion", ["werewolf", "villager"]);
+    copyWithDoppel(room, players);
+    assert(room.privateInfo[players[0].id].some((message) => message.includes(players[2].name)));
+    assert.strictEqual(room.doppelPendingRole, null);
+  }
+
+  {
+    const { room, players } = makeDoppelScenario("mason", ["mason", "villager"]);
+    copyWithDoppel(room, players);
+    assert.strictEqual(room.nightStage.role, "mason");
+    assert.deepStrictEqual(new Set(room.nightStage.actorIds), new Set([players[0].id, players[1].id, players[2].id]));
+    assert.strictEqual(applyRoomAction(room, players[0], "nightAction"), null);
+    assert(room.privateInfo[players[0].id].some((message) => message.includes(players[1].name)));
+    assert(room.privateInfo[players[0].id].some((message) => message.includes(players[2].name)));
+  }
+
+  {
+    const { room, players } = makeDoppelScenario("seer");
+    copyWithDoppel(room, players);
+    assert.strictEqual(room.doppelPendingRole, players[0].id);
+    assert.strictEqual(
+      applyRoomAction(room, players[0], "nightAction", { mode: "center", centerIndexes: [0, 1] }),
+      null
+    );
+    assert(room.privateInfo[players[0].id].some((message) => message.includes("中央第 1 張")));
+  }
+
+  {
+    const { room, players } = makeDoppelScenario("robber", ["werewolf", "villager"]);
+    copyWithDoppel(room, players);
+    assert.strictEqual(
+      applyRoomAction(room, players[0], "nightAction", { targetId: players[2].id }),
+      null
+    );
+    assert.strictEqual(room.cards[players[0].id], "werewolf");
+    assert.strictEqual(room.cards[players[2].id], "doppelganger");
+    room.phase = "discussion";
+    room.votes = {};
+    finishVote(room);
+    assert.strictEqual(room.result.rolesByPlayer[players[0].id], "werewolf");
+    assert.strictEqual(room.result.rolesByPlayer[players[2].id], "robber");
+  }
+
+  {
+    const { room, players } = makeDoppelScenario("troublemaker", ["werewolf", "villager"]);
+    copyWithDoppel(room, players);
+    assert.strictEqual(
+      applyRoomAction(room, players[0], "nightAction", { targetIds: [players[2].id, players[3].id] }),
+      null
+    );
+    assert.strictEqual(room.cards[players[2].id], "villager");
+    assert.strictEqual(room.cards[players[3].id], "werewolf");
+  }
+
+  {
+    const { room, players } = makeDoppelScenario("drunk", ["werewolf", "villager"]);
+    copyWithDoppel(room, players);
+    const centerBefore = room.centerCards[1];
+    assert.strictEqual(
+      applyRoomAction(room, players[0], "nightAction", { centerIndex: 1 }),
+      null
+    );
+    assert.strictEqual(room.cards[players[0].id], centerBefore);
+    assert.strictEqual(room.centerCards[1], "doppelganger");
+  }
+
+  {
+    const { room, players } = makeDoppelScenario("insomniac", ["werewolf", "villager"]);
+    copyWithDoppel(room, players);
+    while (room.phase === "night" && room.nightStage.role !== "doppelInsomniac") {
+      if (room.nightStage.delayUntil) {
+        advanceTimedNight(room, room.nightStage.delayUntil + 1);
+      } else {
+        room.nightStage.actorIds.forEach((playerId) => {
+          if (room.nightStage.completedIds.includes(playerId)) return;
+          const actor = room.players.find((player) => player.id === playerId);
+          const payload = room.nightStage.role === "werewolf" ? { centerIndex: 0 } : {};
+          assert.strictEqual(applyRoomAction(room, actor, "nightAction", payload), null);
+        });
+      }
+    }
+    assert.strictEqual(room.nightStage.role, "doppelInsomniac");
+    assert.strictEqual(applyRoomAction(room, players[0], "nightAction"), null);
+    assert(room.privateInfo[players[0].id].some((message) => message.includes("夜晚結束時")));
+  }
+}
+
+function testDoppelgangerPassiveRolesAtResolution() {
+  {
+    const { room, players } = makeDoppelScenario("tanner", ["werewolf", "villager"]);
+    copyWithDoppel(room, players);
+    room.phase = "discussion";
+    room.votes = Object.fromEntries(players.map((player) => [player.id, players[0].id]));
+    finishVote(room);
+    assert.deepStrictEqual(room.result.winnerTeams, ["tanner"]);
+    assert.deepStrictEqual(room.result.winningPlayerIds, [players[0].id]);
+  }
+
+  {
+    const { room, players } = makeDoppelScenario("hunter", ["werewolf", "villager"]);
+    copyWithDoppel(room, players);
+    room.phase = "discussion";
+    room.votes = Object.fromEntries(players.map((player) => [player.id, players[0].id]));
+    finishVote(room);
+    assert.strictEqual(room.phase, "hunter");
+    assert.strictEqual(room.pendingHunterIds[0], players[0].id);
+    assert.strictEqual(
+      applyRoomAction(room, players[0], "hunterShot", { targetId: players[2].id }),
+      null
+    );
+    assert.deepStrictEqual(room.result.winnerTeams, ["village"]);
+    assert(room.result.eliminatedIds.includes(players[0].id));
+    assert(room.result.eliminatedIds.includes(players[2].id));
+  }
+
+  {
+    const { room, players } = makeDoppelScenario("villager", ["werewolf", "seer"]);
+    copyWithDoppel(room, players);
+    room.phase = "discussion";
+    room.votes = Object.fromEntries(players.map((player) => [player.id, players[2].id]));
+    finishVote(room);
+    assert.deepStrictEqual(room.result.winnerTeams, ["village"]);
+    assert(room.result.winningPlayerIds.includes(players[0].id));
+  }
 }
 
 function testMasonRecognition() {
@@ -515,6 +697,122 @@ function testVoteResolution() {
   assert.strictEqual(room.result.winner, "village");
 }
 
+function testDiscussionTimeoutCountsVotesAndPublishesAbstentions() {
+  const { room, players } = setup(4);
+  room.phase = "discussion";
+  room.discussionEndsAt = 5000;
+  room.cards = {
+    [players[0].id]: "werewolf",
+    [players[1].id]: "seer",
+    [players[2].id]: "robber",
+    [players[3].id]: "villager"
+  };
+  room.votes = {
+    [players[0].id]: players[1].id,
+    [players[2].id]: players[1].id
+  };
+
+  assert.strictEqual(advanceTimedDiscussion(room, 4999), false);
+  assert.strictEqual(room.phase, "discussion");
+  assert.strictEqual(advanceTimedDiscussion(room, 5000), true);
+  assert.strictEqual(room.phase, "result");
+  assert.deepStrictEqual(room.result.votedOutIds, [players[1].id]);
+  assert.strictEqual(room.result.counts[players[1].id], 2);
+  assert.deepStrictEqual(room.result.votes, [
+    { voterId: players[0].id, targetId: players[1].id },
+    { voterId: players[1].id, targetId: null },
+    { voterId: players[2].id, targetId: players[1].id },
+    { voterId: players[3].id, targetId: null }
+  ]);
+  assert(room.log.some((entry) => entry.includes("未投票者視為廢票")));
+  assert.strictEqual(room.discussionEndsAt, null);
+}
+
+function testDiscussionTimeoutWithoutVotesExecutesNobody() {
+  const { room, players } = setup(4);
+  room.phase = "discussion";
+  room.discussionEndsAt = 100;
+  room.cards = Object.fromEntries(players.map((player, index) => [
+    player.id,
+    ["seer", "robber", "troublemaker", "villager"][index]
+  ]));
+  room.votes = {};
+
+  assert.strictEqual(advanceTimedDiscussion(room, 101), true);
+  assert.strictEqual(room.phase, "result");
+  assert.deepStrictEqual(room.result.votedOutIds, []);
+  assert.deepStrictEqual(room.result.winnerTeams, ["everyone"]);
+  assert(room.result.votes.every((vote) => vote.targetId === null));
+}
+
+function testHighestVoteOfOneExecutesNobody() {
+  const { room, players } = setup(4);
+  room.phase = "discussion";
+  room.cards = {
+    [players[0].id]: "werewolf",
+    [players[1].id]: "seer",
+    [players[2].id]: "robber",
+    [players[3].id]: "villager"
+  };
+  room.votes = Object.fromEntries(players.map((player, index) => [
+    player.id,
+    players[(index + 1) % players.length].id
+  ]));
+
+  finishVote(room);
+
+  assert.deepStrictEqual(room.result.votedOutIds, []);
+  assert.deepStrictEqual(room.result.eliminatedIds, []);
+  assert.deepStrictEqual(room.result.winnerTeams, ["werewolf"]);
+  assert(Object.values(room.result.counts).every((count) => count === 1));
+}
+
+function testVoteArrivingAfterDeadlineBecomesAbstention() {
+  const { room, players } = setup(4);
+  room.phase = "discussion";
+  room.discussionEndsAt = Date.now() - 1;
+  room.cards = Object.fromEntries(players.map((player, index) => [
+    player.id,
+    ["werewolf", "seer", "robber", "villager"][index]
+  ]));
+  room.votes = {
+    [players[1].id]: players[0].id
+  };
+
+  const error = applyRoomAction(room, players[0], "vote", { targetId: players[1].id });
+  assert(error.includes("討論時間已結束"));
+  assert.strictEqual(room.phase, "result");
+  assert.strictEqual(room.result.votes.find((vote) => vote.voterId === players[0].id).targetId, null);
+  assert.strictEqual(room.result.votes.find((vote) => vote.voterId === players[1].id).targetId, players[0].id);
+}
+
+function testDiscussionTimeoutPreservesVotesThroughHunterPhase() {
+  const { room, players } = setup(4);
+  room.phase = "discussion";
+  room.discussionEndsAt = 200;
+  room.cards = {
+    [players[0].id]: "hunter",
+    [players[1].id]: "werewolf",
+    [players[2].id]: "seer",
+    [players[3].id]: "villager"
+  };
+  room.votes = {
+    [players[1].id]: players[0].id,
+    [players[2].id]: players[0].id
+  };
+
+  assert.strictEqual(advanceTimedDiscussion(room, 201), true);
+  assert.strictEqual(room.phase, "hunter");
+  assert.strictEqual(applyRoomAction(room, players[0], "hunterShot", { targetId: players[1].id }), null);
+  assert.strictEqual(room.phase, "result");
+  assert.deepStrictEqual(room.result.winnerTeams, ["village"]);
+  assert(room.result.eliminatedIds.includes(players[1].id));
+  assert.deepStrictEqual(
+    room.result.votes.filter((vote) => vote.targetId === null).map((vote) => vote.voterId),
+    [players[0].id, players[3].id]
+  );
+}
+
 function testVoteAndWinConditionMatrix() {
   const scenarios = [
     { name: "有狼人但狼人未死亡", roles: ["werewolf", "minion", "seer", "villager"], eliminated: [2], teams: ["werewolf"] },
@@ -582,7 +880,55 @@ function testHunterTakesVotedPlayerDown() {
   assert.strictEqual(applyRoomAction(room, players[0], "hunterShot", { targetId: players[1].id }), null);
   assert(room.result.eliminatedIds.includes(players[0].id));
   assert(room.result.eliminatedIds.includes(players[1].id));
-  assert(room.result.winnerTeams.includes("village"));
+  assert.deepStrictEqual(room.result.winnerTeams, ["village"]);
+  assert.deepStrictEqual(
+    new Set(room.result.winningPlayerIds),
+    new Set([players[0].id, players[2].id, players[3].id])
+  );
+  assert(room.result.reason.includes("狼人"));
+  assert.strictEqual(room.result.rolesByPlayer[players[1].id], "werewolf");
+}
+
+function testMultipleHuntersUseRollOrderAndChainReactions() {
+  const { room, players } = setup(4);
+  room.phase = "discussion";
+  room.doppelCopiedRole = "hunter";
+  room.cards = {
+    [players[0].id]: "doppelganger",
+    [players[1].id]: "hunter",
+    [players[2].id]: "werewolf",
+    [players[3].id]: "villager"
+  };
+  players[0].roll = 90;
+  players[1].roll = 40;
+  room.votes = {
+    [players[0].id]: players[1].id,
+    [players[1].id]: players[0].id,
+    [players[2].id]: players[0].id,
+    [players[3].id]: players[1].id
+  };
+
+  finishVote(room);
+  assert.strictEqual(room.phase, "hunter");
+  assert.deepStrictEqual(room.pendingHunterIds, [players[0].id, players[1].id]);
+
+  assert.strictEqual(
+    applyRoomAction(room, players[0], "hunterShot", { targetId: players[1].id }),
+    null
+  );
+  assert.strictEqual(room.phase, "hunter");
+  assert.strictEqual(room.pendingHunterIds[0], players[1].id);
+
+  assert.strictEqual(
+    applyRoomAction(room, players[1], "hunterShot", { targetId: players[2].id }),
+    null
+  );
+  assert.strictEqual(room.phase, "result");
+  assert.deepStrictEqual(room.result.winnerTeams, ["village"]);
+  assert.deepStrictEqual(
+    new Set(room.result.eliminatedIds),
+    new Set([players[0].id, players[1].id, players[2].id])
+  );
 }
 
 function testTannerAndVillageCanBothWin() {
@@ -702,6 +1048,49 @@ function testReloadRequiresExplicitRejoinData() {
   assert(joinRoom(room, "", "missing").error);
 }
 
+function testChatAndLogAreUnlimitedAndResetOnReturnLobby() {
+  const { room, host, players } = setup(4);
+  room.phase = "discussion";
+  room.cards = {
+    [players[0].id]: "werewolf",
+    [players[1].id]: "seer",
+    [players[2].id]: "robber",
+    [players[3].id]: "villager"
+  };
+  room.chat = [];
+  room.log = [];
+
+  for (let index = 0; index < 250; index += 1) {
+    assert.strictEqual(applyRoomAction(room, players[index % players.length], "chat", {
+      message: `message-${index}`
+    }), null);
+    room.log.push(`log-${index}`);
+  }
+  assert.strictEqual(room.chat.length, 250);
+  assert.strictEqual(makeView(room, host.id).room.chat.length, 250);
+  assert(room.log.length >= 250);
+  assert(makeView(room, host.id).room.log.length >= 250);
+
+  room.phase = "result";
+  room.result = {
+    winner: "werewolf",
+    winnerTeams: ["werewolf"],
+    winningPlayerIds: [players[0].id],
+    reason: "test",
+    counts: {},
+    votedOutIds: [],
+    eliminatedIds: [],
+    rolesByPlayer: { ...room.cards },
+    votes: players.map((player) => ({ voterId: player.id, targetId: null }))
+  };
+  assert.strictEqual(applyRoomAction(room, host, "returnLobby"), null);
+  assert.strictEqual(room.phase, "lobby");
+  assert.deepStrictEqual(room.chat, []);
+  assert.deepStrictEqual(room.log, []);
+  assert.deepStrictEqual(makeView(room, host.id).room.chat, []);
+  assert.deepStrictEqual(makeView(room, host.id).room.log, []);
+}
+
 function testNightOrderViewStatesAndDoppelInsomniacMapping() {
   const { room, players } = setup(4);
   room.phase = "night";
@@ -753,18 +1142,27 @@ testHostTransferAndKickOfflinePlayer();
 testDoppelgangerCopiesAndActsImmediately();
 testDoppelgangerNightOrderByCopiedRole();
 testDoppelgangerMinionAndInsomniacOrder();
+testDoppelgangerCopiesEveryRoleAbility();
+testDoppelgangerPassiveRolesAtResolution();
 testMasonRecognition();
 testRobberSwap();
 testTroublemakerThenInsomniac();
 testVoteResolution();
+testDiscussionTimeoutCountsVotesAndPublishesAbstentions();
+testDiscussionTimeoutWithoutVotesExecutesNobody();
+testHighestVoteOfOneExecutesNobody();
+testVoteArrivingAfterDeadlineBecomesAbstention();
+testDiscussionTimeoutPreservesVotesThroughHunterPhase();
 testVoteAndWinConditionMatrix();
 testCannotVoteForSelf();
 testHunterTakesVotedPlayerDown();
+testMultipleHuntersUseRollOrderAndChainReactions();
 testTannerAndVillageCanBothWin();
 testNoWolfNoMinionOutcomes();
 testMinionWithoutWerewolf();
 testTannerWinsAloneWithoutWerewolf();
 testMovedDoppelgangerKeepsCopiedRole();
 testReloadRequiresExplicitRejoinData();
+testChatAndLogAreUnlimitedAndResetOnReturnLobby();
 testNightOrderViewStatesAndDoppelInsomniacMapping();
 console.log("onenightwolf game tests passed");

@@ -10,7 +10,16 @@ const {
   randomDelay
 } = require("../Shared/server/random");
 const { transferHost, kickOfflinePlayer } = require("../Shared/server/room-actions");
-const { connectionStatusText, formatCountUnit, playerCardClasses } = require("../Shared/public/room-ui");
+const {
+  connectionStatusText,
+  formatCountUnit,
+  playerCardClasses,
+  captureScroll,
+  restoreScroll,
+  updateChatUnread,
+  readLatestChat,
+  mobileStatusSummary
+} = require("../Shared/public/room-ui");
 const { createActionRequest, SESSION_ERROR_CODES } = require("../Shared/public/client-state");
 const {
   ERROR_CODES,
@@ -70,6 +79,56 @@ assert.strictEqual(
   playerCardClasses({ playerId: "P2", viewerId: "P1", online: false, retired: true }),
   "offline retired"
 );
+const readingHistory = { scrollHeight: 1000, clientHeight: 300, scrollTop: 200 };
+assert.deepStrictEqual(captureScroll(readingHistory), { atBottom: false, scrollTop: 200 });
+restoreScroll(readingHistory, { atBottom: false, scrollTop: 200 });
+assert.strictEqual(readingHistory.scrollTop, 200);
+const followingLatest = { scrollHeight: 1000, clientHeight: 300, scrollTop: 680 };
+assert.strictEqual(captureScroll(followingLatest).atBottom, true);
+restoreScroll(followingLatest, { atBottom: true, scrollTop: 680 });
+assert.strictEqual(followingLatest.scrollTop, 1000);
+const chatEntries = [
+  { id: 1, playerId: "P2" },
+  { id: 2, playerId: "system" },
+  { id: 3, playerId: "P1" },
+  { id: 4, playerId: "P3" }
+];
+assert.deepStrictEqual(updateChatUnread({
+  entries: chatEntries,
+  lastObservedId: 1,
+  viewerId: "P1",
+  chatActive: true,
+  chatAtBottom: false,
+  currentCount: 0
+}), { count: 1, lastObservedId: 4 });
+assert.deepStrictEqual(updateChatUnread({
+  entries: chatEntries,
+  lastObservedId: 1,
+  viewerId: "P1",
+  chatActive: true,
+  chatAtBottom: true,
+  currentCount: 3
+}), { count: 0, lastObservedId: 4 });
+assert.deepStrictEqual(updateChatUnread({
+  entries: chatEntries,
+  lastObservedId: 1,
+  viewerId: "P1",
+  chatActive: false,
+  chatAtBottom: true,
+  currentCount: 2
+}), { count: 3, lastObservedId: 4 });
+let markedLatest = false;
+const switchedChat = { scrollHeight: 900, clientHeight: 300, scrollTop: 100 };
+readLatestChat(switchedChat, () => { markedLatest = true; });
+assert.strictEqual(switchedChat.scrollTop, 900);
+assert.strictEqual(markedLatest, true);
+const compactStatus = mobileStatusSummary([
+  { label: "階段", value: "投票" },
+  { label: "領袖", value: "<Lou>" }
+]);
+assert(compactStatus.includes("mobile-status-summary-item"));
+assert(compactStatus.includes("<small>階段</small>"));
+assert(compactStatus.includes("&lt;Lou&gt;"));
 
 const actionRequest = createActionRequest({
   action: "vote",

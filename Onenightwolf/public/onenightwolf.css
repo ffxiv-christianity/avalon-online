@@ -84,6 +84,40 @@
   gap: 4px;
 }
 
+.wolf-vote-result {
+  margin-top: 20px;
+  border-top: 1px solid rgba(32, 40, 43, .12);
+  padding-top: 16px;
+}
+
+.wolf-vote-result h3 {
+  margin-bottom: 10px;
+}
+
+.wolf-vote-result-list {
+  display: grid;
+  gap: 6px;
+}
+
+.wolf-vote-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 7px;
+  background: rgba(32, 40, 43, .045);
+  padding: 9px 11px;
+}
+
+.wolf-vote-result-row strong {
+  text-align: right;
+}
+
+.wolf-vote-result-row.abstained strong {
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .wolf-identity {
   margin-top: 20px;
   border-left: 4px solid var(--gold);
@@ -614,6 +648,16 @@ body.wolf-mode #wolfRoomView {
     align-items: flex-start;
     flex-direction: column;
     gap: 3px;
+  }
+
+  .wolf-vote-result-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .wolf-vote-result-row strong {
+    text-align: left;
   }
 }
 

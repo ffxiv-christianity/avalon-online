@@ -19,7 +19,7 @@ const ROLE_DEFS = {
     team: "neutral",
     max: 1,
     order: 0,
-    description: "最早行動，查看一名玩家的初始角色，並複製該角色的能力與陣營。"
+    description: "最早行動，查看一名玩家的初始角色並複製其能力與陣營；不同角色會立即、同時或延後行動。"
   },
   werewolf: {
     name: "狼人",
@@ -560,6 +560,14 @@ function advanceTimedNight(room, now = Date.now()) {
   return true;
 }
 
+function advanceTimedDiscussion(room, now = Date.now()) {
+  if (room.phase !== "discussion" || !room.discussionEndsAt || now < room.discussionEndsAt) return false;
+  addLog(room, "討論時間結束，未投票者視為廢票。");
+  finishVote(room);
+  touch(room);
+  return true;
+}
+
 function beginDiscussion(room) {
   room.phase = "discussion";
   room.discussionEndsAt = Date.now() + room.settings.discussionSeconds * 1000;
@@ -569,6 +577,7 @@ function beginDiscussion(room) {
 
 function vote(room, actor, targetId) {
   if (room.phase !== "discussion") return "目前不能投票";
+  if (advanceTimedDiscussion(room)) return "討論時間已結束，這張票視為廢票";
   if (room.votes[actor.id]) return "你已完成投票，不能更改票選";
   const target = room.players.find((player) => player.id === targetId && player.id !== actor.id);
   if (!target) return "找不到投票目標";
@@ -579,6 +588,7 @@ function vote(room, actor, targetId) {
 }
 
 function finishVote(room) {
+  room.discussionEndsAt = null;
   const counts = {};
   Object.values(room.votes).forEach((targetId) => {
     counts[targetId] = (counts[targetId] || 0) + 1;
@@ -689,7 +699,11 @@ function completeVoteResolution(room, counts, votedOutIds, eliminatedIds) {
     counts,
     votedOutIds,
     eliminatedIds,
-    rolesByPlayer
+    rolesByPlayer,
+    votes: room.players.map((player) => ({
+      voterId: player.id,
+      targetId: room.votes[player.id] || null
+    }))
   };
   room.pendingVoteResult = null;
   room.pendingHunterIds = [];
@@ -744,13 +758,13 @@ function returnLobby(room, actor) {
   room.pendingVoteResult = null;
   room.result = null;
   room.discussionEndsAt = null;
+  room.chat = [];
   room.log = [];
   room.players.forEach((player) => {
     player.ready = false;
     player.roll = null;
     player.rollTie = null;
   });
-  addChat(room, "system", "房間已返回準備階段");
   touch(room);
   return null;
 }
@@ -807,7 +821,7 @@ function makeView(room, playerId) {
         shots: { ...room.hunterShots }
       },
       discussionEndsAt: room.discussionEndsAt,
-      chat: room.chat.slice(-200),
+      chat: room.chat.slice(),
       log: room.log.slice(),
       playerJoinEvents: room.playerJoinEvents.slice(-20),
       result: room.phase === "result" ? {
@@ -947,7 +961,6 @@ function playerById(room, playerId) {
 
 function addChat(room, playerId, message, name = "") {
   room.chat.push({ id: room.nextChatId++, playerId, name, message, at: Date.now() });
-  if (room.chat.length > 200) room.chat.shift();
 }
 
 function addLog(room, message) {
@@ -1010,6 +1023,7 @@ module.exports = {
   makeView,
   validateLobby,
   advanceTimedNight,
+  advanceTimedDiscussion,
   finishVote,
   shuffle,
   NIGHT_ORDER

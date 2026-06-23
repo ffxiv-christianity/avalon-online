@@ -172,16 +172,20 @@ function waitForMessage(socket, predicate) {
     const takeover = await sendAndCollect(
       second,
       {
-        type: "joinRoom",
+        type: "takeControl",
         roomCode: joined.roomCode,
-        playerId: joined.playerId,
-        name: "ReconnectTester"
+        playerId: joined.playerId
       },
-      (messages) => messages.some((message) => message.type === "joined")
+      (messages) => messages.some((message) => message.type === "controlGranted")
         && messages.some((message) => message.type === "state")
     );
-    assert(takeover.some((message) => message.type === "joined"));
+    assert(takeover.some((message) => message.type === "controlGranted"));
     assert.strictEqual((await replacedThird).code, "SESSION_REPLACED");
+    assert.strictEqual(
+      takeover.filter((message) => message.type === "state").at(-1).room.code,
+      joined.roomCode,
+      "taking control must keep the original room"
+    );
     await closeSocket(second);
     await closeSocket(third);
 

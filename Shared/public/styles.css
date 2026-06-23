@@ -539,6 +539,10 @@ body.shared-readonly .shared-control-lock button {
   font-size: 1.08rem;
 }
 
+.mobile-status-summary {
+  display: none;
+}
+
 .game-layout {
   display: grid;
   grid-template-columns: clamp(320px, 23vw, 420px) minmax(0, 1fr);
@@ -612,6 +616,7 @@ body.shared-readonly .shared-control-lock button {
   display: none;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .info-panel.active {
@@ -1068,6 +1073,8 @@ body.shared-readonly .shared-control-lock button {
   align-content: start;
   gap: 4px;
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: #fff;
@@ -2244,7 +2251,7 @@ body.modal-open {
   }
 
   .side-panel {
-    height: clamp(240px, 42dvh, 360px);
+    height: clamp(360px, 60dvh, 520px);
   }
 
   .hero-panel {
@@ -2320,10 +2327,57 @@ body.modal-open {
     grid-column: 1 / -1;
   }
 
-  .status-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+  .room-view > .status-strip {
+    display: none;
+  }
+
+  .room-view:not(.lobby-mode) > .mobile-status-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+    gap: 0;
+    overflow: hidden;
     margin-bottom: 8px;
+    border: 1px solid rgba(32, 40, 43, .13);
+    border-radius: 8px;
+    background: rgba(255, 253, 248, .9);
+    box-shadow: var(--shadow);
+    padding: 8px 10px;
+  }
+
+  .mobile-status-summary-item {
+    display: grid;
+    min-width: 0;
+    align-content: center;
+    gap: 2px;
+    padding: 0 7px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .mobile-status-summary-item + .mobile-status-summary-item {
+    border-left: 1px solid rgba(32, 40, 43, .13);
+  }
+
+  .mobile-status-summary-item small {
+    min-width: 0;
+    overflow: hidden;
+    color: inherit;
+    font-size: .64rem;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-status-summary-item strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ink);
+    font-size: .76rem;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .status-card {
@@ -2630,6 +2684,10 @@ body.modal-open {
 @media (max-width: 380px) {
   .app-shell {
     width: calc(100vw - 10px);
+  }
+
+  .mobile-status-summary-item {
+    padding-inline: 4px;
   }
 
   .reaction-button {
