@@ -14,6 +14,11 @@ const wolfPage = fs.readFileSync(path.join(root, "Onenightwolf", "public", "inde
 const wolfScript = fs.readFileSync(path.join(root, "Onenightwolf", "public", "onenightwolf.js"), "utf8");
 const wolfStyles = fs.readFileSync(path.join(root, "Onenightwolf", "public", "onenightwolf.css"), "utf8");
 
+const avalonMainStart = avalonPage.indexOf('<main class="app-shell">');
+const avalonMainEnd = avalonPage.indexOf("</main>");
+const embeddedWolfRoom = avalonPage.indexOf('id="wolfRoomView"');
+assert(embeddedWolfRoom > avalonMainStart && embeddedWolfRoom < avalonMainEnd, "Embedded wolf room must stay inside the shared app shell");
+
 [
   "遊戲模式",
   "你的名字",
@@ -68,6 +73,7 @@ assert(avalonPage.includes("/shared/styles.css") && wolfPage.includes("/shared/s
 assert(avalonPage.includes("/shared/client-state.js") && wolfPage.includes("/shared/client-state.js"), "Games must load Shared client state");
 assert(avalonPage.includes("/shared/room-ui.js") && wolfPage.includes("/shared/room-ui.js"), "Games must load Shared room UI");
 assert(sharedClient.includes("SharedRoomClient"), "Shared client API is missing");
+assert(sharedClient.includes("inviteGame"), "Shared invite game detection is missing");
 assert(sharedRoomUi.includes("bindHostControls"), "Shared host controls are missing");
 
 console.log("cross-game UI contract tests passed");

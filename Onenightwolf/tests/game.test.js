@@ -702,6 +702,40 @@ function testReloadRequiresExplicitRejoinData() {
   assert(joinRoom(room, "", "missing").error);
 }
 
+function testNightOrderViewStatesAndDoppelInsomniacMapping() {
+  const { room, players } = setup(4);
+  room.phase = "night";
+  room.settings.deck = [
+    "doppelganger",
+    "werewolf",
+    "seer",
+    "robber",
+    "troublemaker",
+    "insomniac",
+    "villager"
+  ];
+  room.nightStage = {
+    role: "seer",
+    actorIds: [players[0].id],
+    completedIds: [],
+    delayUntil: null
+  };
+
+  let order = makeView(room, players[0].id).room.night.order;
+  assert.deepStrictEqual(order.map((step) => step.role), NIGHT_ORDER.filter((role) => role !== "doppelInsomniac"));
+  assert.strictEqual(order.length, 9);
+  assert.strictEqual(order.find((step) => step.role === "doppelganger").state, "done");
+  assert.strictEqual(order.find((step) => step.role === "werewolf").state, "done");
+  assert.strictEqual(order.find((step) => step.role === "minion").state, "disabled");
+  assert.strictEqual(order.find((step) => step.role === "seer").state, "active");
+  assert.strictEqual(order.find((step) => step.role === "robber").state, "upcoming");
+
+  room.nightStage.role = "doppelInsomniac";
+  order = makeView(room, players[0].id).room.night.order;
+  assert.strictEqual(order.find((step) => step.role === "insomniac").state, "active");
+  assert(!order.some((step) => step.role === "doppelInsomniac"));
+}
+
 testRecommendedDecks();
 testStartAndPrivateView();
 testCenterRoleDelayAndMissingRoleSkip();
@@ -732,4 +766,5 @@ testMinionWithoutWerewolf();
 testTannerWinsAloneWithoutWerewolf();
 testMovedDoppelgangerKeepsCopiedRole();
 testReloadRequiresExplicitRejoinData();
+testNightOrderViewStatesAndDoppelInsomniacMapping();
 console.log("onenightwolf game tests passed");

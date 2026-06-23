@@ -77,6 +77,18 @@
     return normalizeRoomCode(input);
   }
 
+  function inviteGame(value, baseUrl = "https://avalon.invalid/") {
+    const input = String(value || "").trim();
+    if (!input || !/[/?]/.test(input)) return null;
+    try {
+      const url = new URL(input, baseUrl);
+      if (!url.searchParams.get("room")) return null;
+      return url.pathname.toLowerCase().startsWith("/onenightwolf") ? "onenightwolf" : "avalon";
+    } catch {
+      return null;
+    }
+  }
+
   function normalizeRoomCode(value) {
     const compact = String(value || "").trim().toUpperCase();
     return /^[A-Z0-9]{4,8}$/.test(compact) ? compact : "";
@@ -112,6 +124,7 @@
     removeSession,
     removeRoomSessions,
     parseRoomCode,
+    inviteGame,
     roomUrlPath,
     selectSession
   };

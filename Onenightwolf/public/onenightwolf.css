@@ -85,7 +85,176 @@
 }
 
 .wolf-identity {
+  margin-top: 20px;
   border-left: 4px solid var(--gold);
+}
+
+.wolf-night-order {
+  margin-top: 16px;
+  border-bottom: 1px solid rgba(32, 40, 43, .1);
+  padding: 2px 0 14px;
+}
+
+.wolf-night-order-title,
+.wolf-night-action-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wolf-night-order-title span {
+  color: var(--gold-strong);
+  font-size: .9rem;
+  font-weight: 800;
+}
+
+.wolf-night-order-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 0;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wolf-night-step {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 20px 2px 0;
+  color: var(--ink);
+  transition: opacity .2s ease, color .2s ease;
+}
+
+.wolf-night-step:not(:last-child)::after {
+  content: "➜";
+  position: absolute;
+  right: 5px;
+  color: rgba(32, 40, 43, .3);
+  font-size: .78rem;
+}
+
+.wolf-night-step strong {
+  font-size: .9rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.wolf-night-step.active {
+  color: var(--gold-strong);
+}
+
+.wolf-night-step.active strong {
+  position: relative;
+  font-weight: 900;
+}
+
+.wolf-night-step.active strong::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 6px 2px 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.wolf-night-step.active strong::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -3px;
+  left: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.wolf-night-step.done {
+  opacity: .38;
+}
+
+.wolf-night-step.disabled {
+  opacity: .24;
+}
+
+.wolf-night-action {
+  position: relative;
+  overflow: hidden;
+  margin-top: 26px;
+  border: 1px solid rgba(32, 40, 43, .15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .76);
+  padding: 18px;
+  box-shadow: 0 12px 28px rgba(32, 40, 43, .07);
+}
+
+.wolf-night-action::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--gold-strong), var(--evil), var(--gold));
+}
+
+.wolf-night-action.is-your-turn {
+  border-color: rgba(213, 173, 91, .48);
+  background:
+    radial-gradient(circle at 100% 0, rgba(213, 173, 91, .16), transparent 34%),
+    rgba(255, 255, 255, .84);
+}
+
+.wolf-night-action-heading {
+  margin-bottom: 16px;
+}
+
+.wolf-night-action-heading .eyebrow {
+  margin-bottom: 3px;
+}
+
+.wolf-night-action-heading h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.wolf-night-pulse {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border-radius: 50%;
+  background: var(--gold-strong);
+  box-shadow: 0 0 0 0 rgba(213, 173, 91, .45);
+  animation: wolf-night-pulse 1.8s ease-out infinite;
+}
+
+.wolf-night-action.is-waiting .wolf-night-pulse {
+  background: var(--muted);
+  animation-duration: 2.8s;
+}
+
+.wolf-night-action-body > p:first-child {
+  margin-top: 0;
+}
+
+.wolf-night-action-body > .primary-button:last-child,
+.wolf-night-action-body > .button-row:last-child {
+  margin-bottom: 0;
+}
+
+.wolf-night-waiting {
+  margin: 0;
+}
+
+@keyframes wolf-night-pulse {
+  70% {
+    box-shadow: 0 0 0 10px rgba(213, 173, 91, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(213, 173, 91, 0);
+  }
 }
 
 .wolf-role-name {
@@ -295,8 +464,9 @@ body.wolf-mode .topbar .eyebrow {
   color: var(--evil);
 }
 
-body.wolf-mode #recentSessions {
-  display: none !important;
+body.wolf-mode #wolfRoomView {
+  width: 100%;
+  min-width: 0;
 }
 
 @media (min-width: 1500px) {
@@ -317,6 +487,14 @@ body.wolf-mode #recentSessions {
 }
 
 @media (max-width: 560px) {
+  body.wolf-mode.room-active #wolfRoomView {
+    padding-top: 0;
+  }
+
+  body.wolf-mode.room-active #wolfRoomView > .status-strip {
+    margin-top: 0;
+  }
+
   .wolf-vote-guide {
     grid-template-columns: 1fr;
     gap: 5px;
@@ -364,6 +542,36 @@ body.wolf-mode #recentSessions {
     padding: 9px 10px;
   }
 
+  .wolf-night-order {
+    padding-bottom: 12px;
+  }
+
+  .wolf-night-order-list {
+    gap: 8px 0;
+    margin-top: 8px;
+  }
+
+  .wolf-night-step {
+    padding-right: 18px;
+  }
+
+  .wolf-night-step:not(:last-child)::after {
+    right: 4px;
+  }
+
+  .wolf-night-step strong {
+    font-size: .84rem;
+  }
+
+  .wolf-night-action {
+    margin-top: 20px;
+    padding: 15px 13px;
+  }
+
+  .wolf-identity {
+    margin-top: 16px;
+  }
+
   .wolf-result-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -400,5 +608,19 @@ body.wolf-mode #recentSessions {
 
   .wolf-result-row strong {
     text-align: left;
+  }
+
+  .wolf-night-order-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wolf-night-step,
+  .wolf-night-pulse {
+    animation: none;
+    transition: none;
   }
 }

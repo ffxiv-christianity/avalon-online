@@ -3,10 +3,13 @@
 
   const STORAGE_KEY = "onenightwolf-sessions";
   const TAB_KEY = "onenightwolf-tab-player";
+  const AVALON_PAGE_TITLE = "阿瓦隆線上版";
+  const WOLF_PAGE_TITLE = "一夜終極狼人";
   const isDirectPage = location.pathname.toLowerCase().startsWith("/onenightwolf");
 
   let socket = null;
   let snapshot = null;
+  let lastVersion = 0;
   let selectedSession = readSelectedSession();
   let reconnectTimer = null;
   let discussionTimer = null;
@@ -47,6 +50,8 @@
     page.roomInput = document.getElementById("roomInput");
     page.createButton = document.getElementById("createRoomButton");
     page.rejoinButton = document.getElementById("rejoinRoomButton");
+    page.recentSessions = document.getElementById("recentSessions");
+    page.recentSessionList = document.getElementById("recentSessionList");
     page.connection = document.getElementById("connectionChip");
     page.rulesButton = document.getElementById("openRulesButton");
     page.avalonRules = document.getElementById("rulesOverlay");
@@ -102,6 +107,7 @@
   function applyModePresentation(mode) {
     const wolf = mode === "onenightwolf";
     document.body.classList.toggle("wolf-mode", wolf);
+    document.title = wolf ? WOLF_PAGE_TITLE : AVALON_PAGE_TITLE;
     if (wolf) {
       if (page.siteEyebrow) page.siteEyebrow.textContent = "One Night Ultimate Werewolf";
       if (page.siteTitle) page.siteTitle.textContent = "一夜終極狼人";
@@ -115,6 +121,7 @@
       }
       if (page.changelog && !isDirectPage) loadWolfChangelog();
       syncWolfRejoin();
+      renderWolfRecentSessions();
       return;
     }
     if (page.siteEyebrow) page.siteEyebrow.textContent = page.mode.dataset.avalonEyebrow;
@@ -125,6 +132,7 @@
     if (page.changelog) page.changelog.innerHTML = page.mode.dataset.avalonChangelog;
     page.rejoinButton.textContent = avalonRejoinState.text;
     page.rejoinButton.classList.toggle("hidden", avalonRejoinState.hidden);
+    global.refreshAvalonLobby?.();
     global.requestFullSync?.();
   }
 
@@ -148,8 +156,36 @@
   }
 
   function bindLoginCapture() {
+    page.roomInput.addEventListener("input", () => {
+      const inviteMode = SharedRoomClient.inviteGame(page.roomInput.value, location.href);
+      if (!inviteMode || inviteMode === page.mode.value || isDirectPage) {
+        if (page.mode.value === "onenightwolf") syncWolfRejoin();
+        return;
+      }
+      page.mode.value = inviteMode;
+      applyModePresentation(inviteMode);
+    });
+
     document.addEventListener("click", (event) => {
       if (page.mode.value !== "onenightwolf") return;
+      const recentButton = event.target.closest("[data-wolf-recent-player]");
+      if (recentButton) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const saved = sessionStore().sessions[recentButton.dataset.wolfRecentPlayer];
+        if (!saved) return;
+        page.nameInput.value = saved.name || "";
+        page.roomInput.value = saved.roomCode;
+        selectedSession = saved;
+        sessionStorage.setItem(TAB_KEY, saved.playerId);
+        connectAndSend({
+          type: "joinRoom",
+          roomCode: saved.roomCode,
+          playerId: saved.playerId,
+          name: saved.name || ""
+        });
+        return;
+      }
       if (event.target.closest("#createRoomButton")) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -168,6 +204,24 @@
     }, true);
 
     page.joinForm.addEventListener("submit", (event) => {
+      const inviteMode = SharedRoomClient.inviteGame(page.roomInput.value, location.href);
+      if (inviteMode === "avalon") {
+        page.mode.value = "avalon";
+        if (isDirectPage) {
+          const roomCode = parseRoomCode(page.roomInput.value);
+          sessionStorage.setItem("shared-entry-name", page.nameInput.value.trim());
+          location.href = `/?room=${encodeURIComponent(roomCode)}`;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        } else {
+          applyModePresentation("avalon");
+        }
+        return;
+      }
+      if (inviteMode === "onenightwolf" && page.mode.value !== "onenightwolf") {
+        page.mode.value = "onenightwolf";
+        applyModePresentation("onenightwolf");
+      }
       if (page.mode.value !== "onenightwolf") return;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -251,7 +305,7 @@
             <li>第一次遊玩建議先不使用化身幽靈、皮匠與獵人。</li>
             <li>守夜人必須同時放入兩張；其他角色可由房主自由調整。</li>
             <li>每局所有玩家先擲 d100 決定順時鐘座位與玩家列表順序；夜間仍依固定角色順序進行。</li>
-            <li>夜間行動順序：化身幽靈、狼人、爪牙、守夜人、預言家、強盜、搗蛋鬼、酒鬼、失眠者。</li>
+            <li>夜晚行動順序：化身幽靈➜狼人➜爪牙➜守夜人➜預言家➜強盜➜搗蛋鬼➜酒鬼➜失眠者。</li>
             <li>村民、皮匠與獵人沒有夜間操作。</li>
           </ul>
         </section>
@@ -310,7 +364,9 @@
         return;
       }
       if (message.type === "state") {
+        lastVersion = message.room.version || lastVersion;
         snapshot = message;
+        setConnection(syncStatusText());
         renderRoom();
         return;
       }
@@ -331,6 +387,7 @@
     window.clearInterval(discussionTimer);
     if (snapshot.room.phase === "lobby" && activeInfoTab === "log") activeInfoTab = "chat";
     syncInfoUnread();
+    document.title = WOLF_PAGE_TITLE;
     document.body.classList.add("room-active", "wolf-mode");
     page.joinView.classList.add("hidden");
     page.avalonRoomView?.classList.add("hidden");
@@ -641,11 +698,43 @@
           <strong>${room.night.completedCount} / ${Math.max(1, room.night.actorCount)}</strong>
         </div>
         <div class="notice">${escapeHtml(nightNarration(room.night.role))}</div>
+        ${nightOrderTrack()}
         ${identityCard()}
-        ${room.night.yourTurn
-          ? nightControls(room.night.actionRole)
-          : `<div class="progress-panel"><strong>${escapeHtml(room.night.roleName)}正在行動</strong><p>請等待${escapeHtml(room.night.roleName)}完成行動。</p></div>`}
+        <section class="wolf-night-action ${room.night.yourTurn ? "is-your-turn" : "is-waiting"}">
+          <header class="wolf-night-action-heading">
+            <div>
+              <p class="eyebrow">目前行動</p>
+              <h3>${room.night.yourTurn ? "輪到你行動" : `等待${escapeHtml(room.night.roleName)}`}</h3>
+            </div>
+            <span class="wolf-night-pulse" aria-hidden="true"></span>
+          </header>
+          <div class="wolf-night-action-body">
+            ${room.night.yourTurn
+              ? nightControls(room.night.actionRole)
+              : `<div class="progress-panel wolf-night-waiting"><strong>${escapeHtml(room.night.roleName)}正在行動</strong><p>請等待${escapeHtml(room.night.roleName)}完成行動。</p></div>`}
+          </div>
+        </section>
       </div>`;
+  }
+
+  function nightOrderTrack() {
+    const order = snapshot.room.night.order || [];
+    const active = order.find((step) => step.state === "active");
+    return `<section class="wolf-night-order" aria-label="夜晚行動順序">
+      <div class="wolf-night-order-title">
+        <strong>夜晚行動順序</strong>
+        <span>${active ? `目前：${escapeHtml(active.name)}` : "準備進入討論"}</span>
+      </div>
+      <ol class="wolf-night-order-list" data-wolf-night-order>
+        ${order.map((step) => {
+          const state = ["done", "active", "upcoming", "disabled"].includes(step.state) ? step.state : "upcoming";
+          const label = state === "done" ? "已完成" : state === "active" ? "行動中" : state === "disabled" ? "本局未啟用" : "尚未行動";
+          return `<li class="wolf-night-step ${state}" title="${escapeHtml(label)}" ${state === "active" ? 'aria-current="step"' : ""}>
+            <strong>${escapeHtml(step.name)}</strong>
+          </li>`;
+        }).join("")}
+      </ol>
+    </section>`;
   }
 
   function identityCard() {
@@ -722,7 +811,7 @@
           <div><p class="eyebrow">Dawn</p><h2>天亮了，開始討論與投票</h2></div>
           <strong class="wolf-timer" data-wolf-timer></strong>
         </div>
-        <div class="notice">所有玩家禁止再查看初始角色牌。請根據夜間情報、發言與座位順序進行討論。</div>
+        <div class="notice">所有玩家禁止再查看初始角色牌。<br>請根據夜間情報進行討論。</div>
         <div class="wolf-vote-guide">
           <strong>投票規則</strong>
           <span>所有玩家完成投票後立即結算。</span>
@@ -969,12 +1058,30 @@
     if (saved) page.rejoinButton.textContent = `以 ${saved.name} 重新連線`;
   }
 
+  function renderWolfRecentSessions() {
+    if (!page.recentSessions || !page.recentSessionList || page.mode?.value !== "onenightwolf") return;
+    const recent = SharedRoomClient.listSessions(sessionStore()).slice(0, 4);
+    page.recentSessions.classList.toggle("hidden", recent.length === 0);
+    page.recentSessionList.innerHTML = recent.map((item) => `
+      <button class="recent-session-button" data-wolf-recent-player="${escapeHtml(item.playerId)}" type="button">
+        <span>
+          <strong>${escapeHtml(item.name || "原玩家")}</strong>
+          <small>房間 ${escapeHtml(item.roomCode)}</small>
+        </span>
+        <span>重新連線</span>
+      </button>`).join("");
+  }
+
   function wolfModeActive() {
     return page.mode?.value === "onenightwolf" || (!page.roomView?.classList.contains("hidden") && snapshot);
   }
 
   function setConnection(text) {
     if (page.connection && wolfModeActive()) page.connection.textContent = text;
+  }
+
+  function syncStatusText() {
+    return SharedRoomUI.connectionStatusText(lastVersion);
   }
 
   function sendAction(action, payload = {}) {
@@ -1001,6 +1108,7 @@
   function saveSession(session) {
     const store = SharedRoomClient.saveSession(sessionStore(), session);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    renderWolfRecentSessions();
   }
 
   function findRoomSession(roomCode) {

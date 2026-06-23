@@ -12,7 +12,7 @@
 ## Public
 
 - `public/styles.css`：首頁、房間、聊天、玩家列表、Lightbox、規則與 RWD 的基礎樣式。
-- `public/client-state.js`：房號解析、本機 Session、重連身分及玩家加入未讀計算。
+- `public/client-state.js`：房號與邀請遊戲解析、本機 Session、最近房間、重連身分及玩家加入未讀計算。
 - `public/room-ui.js`：房主指示物、轉房主與踢離線玩家 UI。
 
 ## 使用規則

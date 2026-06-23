@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#20282b">
   <title>一夜終極狼人</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="/shared/styles.css">
   <link rel="stylesheet" href="/Onenightwolf/onenightwolf.css">
 </head>
@@ -53,10 +55,18 @@
             <button class="secondary-button" id="joinRoomButton" type="submit">加入房間</button>
             <button class="ghost-button hidden" id="rejoinRoomButton" type="button">重新連線</button>
           </div>
+          <section class="recent-sessions hidden" id="recentSessions" aria-label="最近使用的房間">
+            <div class="recent-sessions-heading">
+              <strong>最近使用</strong>
+              <span>可直接回到原玩家身分</span>
+            </div>
+            <div class="recent-session-list" id="recentSessionList"></div>
+          </section>
         </form>
         <details class="changelog" id="changelog" open>
-          <summary><span>更新日誌</span><small>最新版本 2026/06/22 v3</small></summary>
+          <summary><span>更新日誌</span><small>最新版本 2026/06/23</small></summary>
           <ul>
+            <li><strong>2026/06/23</strong> 優化UI；修正文本；優化手機RWD；優化快速重連功能；貼上網址會自動判斷遊戲</li>
             <li><strong>2026/06/22 v3</strong> First release：完成一夜終極狼人遊戲流程、房主指示物與轉房主、踢出離線玩家、隨時查看規則、快速斷線重連、加密洗牌、跨遊戲後台統計與手機版 RWD。</li>
           </ul>
         </details>

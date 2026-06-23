@@ -131,6 +131,11 @@ function bindEvents() {
 
   const queryRoom = new URLSearchParams(location.search).get("room");
   if (queryRoom) els.roomInput.value = queryRoom;
+  const handedOffName = sessionStorage.getItem("shared-entry-name");
+  if (handedOffName) {
+    els.nameInput.value = handedOffName;
+    sessionStorage.removeItem("shared-entry-name");
+  }
   if (session?.playerId) writeTabPlayerId(session.playerId);
   if (queryRoom && new URLSearchParams(location.search).has("player")) {
     history.replaceState(null, "", AvalonClientState.roomUrlPath(location.pathname, queryRoom));
@@ -1279,19 +1284,7 @@ function setConnection(text) {
 }
 
 function syncStatusText() {
-  return lastVersion ? `已同步 ${formatCountUnit(lastVersion)}` : "已連線";
-}
-
-function formatCountUnit(value) {
-  const count = Number(value || 0);
-  if (count >= 1000000000) return `${trimUnit(count / 1000000000)}B 次`;
-  if (count >= 1000000) return `${trimUnit(count / 1000000)}M 次`;
-  if (count >= 1000) return `${trimUnit(count / 1000)}K 次`;
-  return `${count} 次`;
-}
-
-function trimUnit(value) {
-  return Number(value.toFixed(value >= 10 ? 0 : 1)).toString();
+  return SharedRoomUI.connectionStatusText(lastVersion);
 }
 
 function showToast(message) {
@@ -1355,5 +1348,9 @@ function escapeHtml(value) {
 
 els.roomInput.addEventListener("input", updateJoinControls);
 els.nameInput.addEventListener("input", updateJoinControls);
+window.refreshAvalonLobby = () => {
+  renderRecentSessions();
+  updateJoinControls();
+};
 bindEvents();
 connect();

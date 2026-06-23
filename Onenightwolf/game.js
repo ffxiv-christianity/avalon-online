@@ -113,6 +113,7 @@ const RECOMMENDED_DECKS = {
 
 const NIGHT_ROLES = new Set(["doppelganger", "werewolf", "minion", "mason", "seer", "robber", "troublemaker", "drunk", "insomniac"]);
 const NIGHT_ORDER = ["doppelganger", "werewolf", "minion", "mason", "seer", "robber", "troublemaker", "drunk", "insomniac", "doppelInsomniac"];
+const DISPLAY_NIGHT_ORDER = NIGHT_ORDER.filter((role) => role !== "doppelInsomniac");
 const CENTER_DELAY_MIN_MS = 5000;
 const CENTER_DELAY_MAX_MS = 9000;
 
@@ -789,6 +790,7 @@ function makeView(room, playerId) {
       night: {
         role: room.nightStage?.role || null,
         roleName: nightRoleName(room.nightStage?.role),
+        order: makeNightOrderView(room),
         actionRole: room.nightStage?.role === "doppelganger" && room.doppelPendingRole === playerId
           ? room.doppelCopiedRole
           : (room.nightStage?.role === "doppelInsomniac" ? "insomniac" : room.nightStage?.role),
@@ -868,6 +870,26 @@ function publicPlayerReference(player) {
 function nightRoleName(role) {
   if (role === "doppelInsomniac") return "化身幽靈（失眠者）";
   return ROLE_DEFS[role]?.name || "";
+}
+
+function makeNightOrderView(room) {
+  const stageRole = room.nightStage?.role === "doppelInsomniac"
+    ? "insomniac"
+    : room.nightStage?.role;
+  const activeIndex = DISPLAY_NIGHT_ORDER.indexOf(stageRole);
+  return DISPLAY_NIGHT_ORDER.map((role, index) => {
+    const enabled = room.settings.deck.includes(role);
+    let state = "upcoming";
+    if (!enabled) state = "disabled";
+    if (enabled && activeIndex >= 0 && index < activeIndex) state = "done";
+    if (role === stageRole) state = "active";
+    return {
+      role,
+      name: ROLE_DEFS[role].name,
+      enabled,
+      state
+    };
+  });
 }
 
 function validateLobby(room) {

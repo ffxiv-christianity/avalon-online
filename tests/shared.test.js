@@ -10,6 +10,7 @@ const {
   randomDelay
 } = require("../Shared/server/random");
 const { transferHost, kickOfflinePlayer } = require("../Shared/server/room-actions");
+const { connectionStatusText, formatCountUnit } = require("../Shared/public/room-ui");
 
 for (let index = 0; index < 100; index += 1) {
   const roll = randomIntInclusive(1, 100);
@@ -47,5 +48,11 @@ assert.strictEqual(kickOfflinePlayer({
 }), null);
 assert(!room.players.some((player) => player.id === "offline"));
 assert(room.players.every((player) => !player.ready));
+
+assert.strictEqual(connectionStatusText(0), "已連線");
+assert.strictEqual(connectionStatusText(12), "已同步 12 次");
+assert.strictEqual(connectionStatusText(1234), "已同步 1.2K 次");
+assert.strictEqual(connectionStatusText(12000), "已同步 12K 次");
+assert.strictEqual(formatCountUnit(1250000), "1.3M 次");
 
 console.log("shared framework tests passed");

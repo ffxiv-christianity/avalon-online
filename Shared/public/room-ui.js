@@ -29,6 +29,23 @@
     });
   }
 
+  function connectionStatusText(version, connectedText = "已連線") {
+    const normalizedVersion = Math.max(0, Number(version) || 0);
+    return normalizedVersion ? `已同步 ${formatCountUnit(normalizedVersion)}` : connectedText;
+  }
+
+  function formatCountUnit(value) {
+    const count = Math.max(0, Number(value) || 0);
+    if (count >= 1000000000) return `${trimUnit(count / 1000000000)}B 次`;
+    if (count >= 1000000) return `${trimUnit(count / 1000000)}M 次`;
+    if (count >= 1000) return `${trimUnit(count / 1000)}K 次`;
+    return `${count} 次`;
+  }
+
+  function trimUnit(value) {
+    return Number(value.toFixed(value >= 10 ? 0 : 1)).toString();
+  }
+
   function escapeAttribute(value) {
     return String(value || "")
       .replaceAll("&", "&amp;")
@@ -37,5 +54,11 @@
       .replaceAll(">", "&gt;");
   }
 
-  return { token, hostControls, bindHostControls };
+  return {
+    token,
+    hostControls,
+    bindHostControls,
+    connectionStatusText,
+    formatCountUnit
+  };
 }));

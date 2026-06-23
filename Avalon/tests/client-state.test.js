@@ -8,6 +8,7 @@ const {
   removeSession,
   removeRoomSessions,
   parseRoomCode,
+  inviteGame,
   roomUrlPath,
   selectSession
 } = require("../../Shared/public/client-state");
@@ -65,6 +66,9 @@ function testRoomCodeParsing() {
   assert.strictEqual(parseRoomCode("https://example.com/?room=xy98pq"), "XY98PQ");
   assert.strictEqual(parseRoomCode("/?room=ROOM7", "https://example.com/"), "ROOM7");
   assert.strictEqual(parseRoomCode("not a room"), "");
+  assert.strictEqual(inviteGame("https://example.com/?room=ROOM7"), "avalon");
+  assert.strictEqual(inviteGame("https://example.com/Onenightwolf/?room=ROOM7"), "onenightwolf");
+  assert.strictEqual(inviteGame("ROOM7"), null);
   assert.strictEqual(roomUrlPath("/", "ab12cd"), "/?room=AB12CD");
   assert.strictEqual(roomUrlPath("/avalon/", "ROOM7"), "/avalon/?room=ROOM7");
   assert(!roomUrlPath("/", "ROOM7").includes("player"));
