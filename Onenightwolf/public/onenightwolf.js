@@ -11,6 +11,7 @@
   let socket = null;
   let snapshot = null;
   let lastVersion = 0;
+  let lastMessageAt = 0;
   let hasControl = true;
   let actionSequence = 0;
   let selectedSession = readSelectedSession();
@@ -336,6 +337,7 @@
     socket = connection;
     connection.addEventListener("open", () => {
       if (socket !== connection) return;
+      lastMessageAt = Date.now();
       if (wolfModeActive()) setConnection("已連線");
       if (hadRoomConnection && selectedSession?.roomCode && selectedSession?.playerId) {
         send({
@@ -354,6 +356,7 @@
     connection.addEventListener("message", (event) => {
       if (socket !== connection) return;
       const message = JSON.parse(event.data);
+      lastMessageAt = Date.now();
       if (message.type === "joined") {
         hasControl = true;
         SharedRoomUI.clearControlLock();
@@ -370,17 +373,29 @@
         const nextUrl = `/Onenightwolf/?room=${encodeURIComponent(message.roomCode)}`;
         if (isDirectPage) history.replaceState({ game: "onenightwolf" }, "", nextUrl);
         else history.pushState({ game: "onenightwolf" }, "", nextUrl);
-        send({ type: "sync" });
+        requestSync();
         return;
       }
       if (message.type === "controlGranted") {
         hasControl = true;
         SharedRoomUI.clearControlLock();
         hadRoomConnection = true;
-        send({ type: "sync" });
+        requestSync();
+        return;
+      }
+      if (message.type === "ping") {
+        lastMessageAt = Date.now();
+        send({ type: "pong", at: message.at });
+        return;
+      }
+      if (message.type === "syncOk") {
+        lastMessageAt = Date.now();
+        lastVersion = message.version || lastVersion;
+        setConnection(syncStatusText());
         return;
       }
       if (message.type === "state") {
+        lastMessageAt = Date.now();
         lastVersion = message.room.version || lastVersion;
         snapshot = message;
         setConnection(syncStatusText());
@@ -398,7 +413,7 @@
         if ([
           SharedRoomClient.SESSION_ERROR_CODES.staleRoomVersion,
           SharedRoomClient.SESSION_ERROR_CODES.actionAlreadyConfirmed
-        ].includes(message.code)) send({ type: "sync" });
+        ].includes(message.code)) requestSync();
         clearInvalidWolfSession(message);
         showToast(message.message);
       }
@@ -1216,6 +1231,10 @@
       roomCode: target.roomCode,
       playerId: target.playerId
     });
+  }
+
+  function requestSync() {
+    send({ type: "sync", version: lastVersion });
   }
 
   function send(payload) {

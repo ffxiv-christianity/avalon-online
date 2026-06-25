@@ -6,6 +6,11 @@ const path = require("path");
 const { roomCode } = require("../Shared/server/random");
 const { serveSharedStatic } = require("../Shared/server/static");
 const {
+  createRealtimeMetrics,
+  shouldSendFullState,
+  syncOk
+} = require("../Shared/server/realtime-metrics");
+const {
   ERROR_CODES,
   errorMessage,
   claimPlayerControl,
@@ -24,9 +29,31 @@ const {
 const PUBLIC_DIR = path.join(__dirname, "public");
 const ROOM_EMPTY_TTL_MS = 30 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const HEARTBEAT_INTERVAL_MS = 8000;
+const CLIENT_STALE_MS = 20000;
 const HOST_AUTO_TRANSFER_MS = 2 * 60 * 1000;
 const rooms = new Map();
 const clients = new Set();
+const realtimeMetrics = createRealtimeMetrics();
+const pendingBroadcastTimers = new Map();
+const COALESCED_BROADCAST_DELAY_MS = 50;
+const STALE_SAFE_ACTIONS = new Set([
+  "chat",
+  "roll",
+  "toggleReady",
+  "confirmReveal",
+  "nightAction",
+  "vote",
+  "hunterShot"
+]);
+const COALESCED_ACTIONS = new Set([
+  "roll",
+  "toggleReady",
+  "confirmReveal",
+  "nightAction",
+  "vote",
+  "hunterShot"
+]);
 
 function serveStatic(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
@@ -97,6 +124,7 @@ function readFrames(client, chunk) {
 }
 
 function onMessage(client, message) {
+  markClientSeen(client);
   if (message.type === "joinRoom") {
     client.pendingJoin = {
       roomCode: normalizeCode(message.roomCode),
@@ -130,9 +158,10 @@ function onMessage(client, message) {
     }
     attach(client, room.code, player.id);
     send(client, { type: "controlGranted", roomCode: room.code, playerId: player.id });
-    broadcast(room);
-    return;
-  }
+      broadcast(room);
+      return;
+    }
+  if (message.type === "pong" || message.type === "heartbeat") return;
   if (message.type === "joinRoom") {
     const room = rooms.get(normalizeCode(message.roomCode));
     if (!room) return send(client, { type: "error", message: "找不到房間，可能已經過期" });
@@ -145,7 +174,11 @@ function onMessage(client, message) {
   }
   if (message.type === "sync") {
     const room = rooms.get(client.roomCode);
-    if (room) send(client, makeView(room, client.playerId));
+    if (room) {
+      const sentFullState = shouldSendFullState(room, message.version);
+      realtimeMetrics.recordFullSync({ roomCode: room.code, sentFullState });
+      send(client, sentFullState ? makeView(room, client.playerId) : syncOk(room));
+    }
     return;
   }
   if (message.type === "action") {
@@ -159,7 +192,7 @@ function onMessage(client, message) {
       });
     }
     const guardError = validateActionRequest(room, client, message, {
-      allowStale: message.action === "chat"
+      allowStale: isStaleSafeAction(message.action)
     });
     if (guardError) {
       send(client, { type: "error", ...guardError });
@@ -172,18 +205,31 @@ function onMessage(client, message) {
     if (message.action === "kickOfflinePlayer") {
       detachPlayerClients(room.code, message.payload?.playerId, "你已被房主移出房間");
     }
-    broadcast(room);
+    broadcastAfterAction(room, message.action);
   }
+}
+
+function isStaleSafeAction(action) {
+  return STALE_SAFE_ACTIONS.has(action);
+}
+
+function shouldCoalesceAction(action) {
+  return COALESCED_ACTIONS.has(action);
 }
 
 function attach(client, roomCode, playerId) {
   client.roomCode = roomCode;
   client.playerId = playerId;
   claimPlayerControl({ clients, client, roomCode, playerId, send });
-  const room = rooms.get(roomCode);
-  const player = room?.players.find((item) => item.id === playerId);
+  markClientSeen(client);
+}
+
+function markClientSeen(client) {
+  client.lastSeen = Date.now();
+  const room = rooms.get(client.roomCode);
+  const player = room?.players.find((item) => item.id === client.playerId);
   if (player) player.online = true;
-  if (room?.hostId === playerId) room.hostOfflineSince = null;
+  if (room?.hostId === client.playerId) room.hostOfflineSince = null;
 }
 
 function removeClient(client) {
@@ -198,7 +244,14 @@ function removeClient(client) {
 }
 
 function hasLiveClient(roomCode, playerId) {
-  return [...clients].some((client) => client.roomCode === roomCode && client.playerId === playerId && !client.socket.destroyed);
+  const now = Date.now();
+  return [...clients].some((client) => (
+    client.roomCode === roomCode
+    && client.playerId === playerId
+    && !client.socket.destroyed
+    && client.lastSeen
+    && now - client.lastSeen <= CLIENT_STALE_MS
+  ));
 }
 
 function detachPlayerClients(roomCode, playerId, message) {
@@ -211,15 +264,54 @@ function detachPlayerClients(roomCode, playerId, message) {
 }
 
 function broadcast(room) {
+  const timer = pendingBroadcastTimers.get(room.code);
+  if (timer) {
+    clearTimeout(timer);
+    pendingBroadcastTimers.delete(room.code);
+  }
   refreshEmptyState(room);
+  realtimeMetrics.recordBroadcast(room.code);
   clients.forEach((client) => {
     if (client.roomCode === room.code) send(client, makeView(room, client.playerId));
   });
 }
 
+function broadcastAfterAction(room, action) {
+  if (!shouldCoalesceAction(action)) {
+    broadcast(room);
+    return;
+  }
+  scheduleBroadcast(room);
+}
+
+function scheduleBroadcast(room) {
+  if (pendingBroadcastTimers.has(room.code)) return;
+  const timer = setTimeout(() => {
+    pendingBroadcastTimers.delete(room.code);
+    if (rooms.get(room.code) === room) broadcast(room);
+  }, COALESCED_BROADCAST_DELAY_MS);
+  timer.unref?.();
+  pendingBroadcastTimers.set(room.code, timer);
+}
+
 function refreshEmptyState(room) {
   const connected = [...clients].some((client) => client.roomCode === room.code && !client.socket.destroyed);
   room.emptySince = connected ? null : (room.emptySince || Date.now());
+}
+
+function heartbeatClients() {
+  clients.forEach((client) => {
+    if (client.socket.destroyed) {
+      removeClient(client);
+      return;
+    }
+    if (Date.now() - (client.lastSeen || 0) > CLIENT_STALE_MS) {
+      client.socket.end();
+      removeClient(client);
+      return;
+    }
+    send(client, { type: "ping", at: Date.now() });
+  });
 }
 
 function cleanupRooms(now = Date.now()) {
@@ -284,6 +376,7 @@ function updateHostTransfer(room, now = Date.now()) {
 
 function attachMaintenance(server) {
   const cleanupTimer = setInterval(cleanupRooms, CLEANUP_INTERVAL_MS);
+  const heartbeatTimer = setInterval(heartbeatClients, HEARTBEAT_INTERVAL_MS);
   const nightTimer = setInterval(() => {
     rooms.forEach((room) => {
       const nightAdvanced = advanceTimedNight(room);
@@ -293,9 +386,11 @@ function attachMaintenance(server) {
     });
   }, 250);
   cleanupTimer.unref?.();
+  heartbeatTimer.unref?.();
   nightTimer.unref?.();
   server.on("close", () => {
     clearInterval(cleanupTimer);
+    clearInterval(heartbeatTimer);
     clearInterval(nightTimer);
   });
 }
@@ -326,7 +421,14 @@ function send(client, payload) {
   if (payload.type === "error" && !payload.code) payload.code = ERROR_CODES.invalidAction;
   if (payload.type === "error") payload.message = errorMessage(payload.code, payload.message);
   if (payload.type === "joined") client.pendingJoin = null;
-  client.socket.write(encodeFrame(JSON.stringify(payload)));
+  const text = JSON.stringify(payload);
+  const frame = encodeFrame(text);
+  realtimeMetrics.recordOutbound({
+    roomCode: client.roomCode,
+    type: payload.type,
+    bytes: frame.length
+  });
+  client.socket.write(frame);
 }
 
 function contentType(filePath) {
@@ -385,6 +487,7 @@ function encodeFrame(text) {
 module.exports = {
   rooms,
   clients,
+  realtimeMetrics,
   serveStatic,
   handleUpgrade,
   cleanupRooms,

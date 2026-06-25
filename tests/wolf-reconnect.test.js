@@ -2,6 +2,7 @@
 
 const assert = require("assert");
 const { createServer } = require("../server");
+const wolf = require("../Onenightwolf/server");
 
 function openSocket(url) {
   return new Promise((resolve, reject) => {
@@ -59,6 +60,10 @@ function waitForMessage(socket, predicate) {
     };
     socket.addEventListener("message", onMessage);
   });
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 (async () => {
@@ -142,6 +147,14 @@ function waitForMessage(socket, predicate) {
     const rolledState = rolled.filter((message) => message.type === "state").at(-1);
     assert(rolledState.room.players.find((player) => player.id === joined.playerId).roll);
 
+    const alreadySynced = await sendAndCollect(
+      third,
+      { type: "sync", version: rolledState.room.version },
+      (messages) => messages.some((message) => message.type === "syncOk")
+    );
+    assert.strictEqual(alreadySynced.find((message) => message.type === "syncOk").version, rolledState.room.version);
+    assert(!alreadySynced.some((message) => message.type === "state"), "latest sync must not resend full state");
+
     const duplicate = await sendAndCollect(
       third,
       validAction,
@@ -156,7 +169,7 @@ function waitForMessage(socket, predicate) {
       third,
       {
         type: "action",
-        action: "toggleReady",
+        action: "startGame",
         payload: {},
         roomVersion: thirdState.room.version,
         actionId: "third:2"
@@ -204,6 +217,61 @@ function waitForMessage(socket, predicate) {
     assert.strictEqual(staleError.code, "ROOM_NOT_FOUND", "stale quick reconnect must return a stable cleanup code");
     assert.strictEqual(staleError.message, "找不到這個房間，可能已經過期。");
     await closeSocket(missing);
+
+    const voteSockets = [];
+    const voteErrors = [];
+    const host = await openSocket(`ws://127.0.0.1:${port}/ws/onenightwolf`);
+    voteSockets.push(host);
+    const hostMessages = await sendAndCollect(
+      host,
+      { type: "createRoom", name: "WolfVoteHost" },
+      (messages) => messages.some((message) => message.type === "joined")
+        && messages.some((message) => message.type === "state")
+    );
+    const hostJoin = hostMessages.find((message) => message.type === "joined");
+    const votePlayerIds = [hostJoin.playerId];
+    host.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === "error") voteErrors.push(message);
+    });
+    for (let index = 2; index <= 3; index += 1) {
+      const socket = await openSocket(`ws://127.0.0.1:${port}/ws/onenightwolf`);
+      voteSockets.push(socket);
+      socket.addEventListener("message", (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === "error") voteErrors.push(message);
+      });
+      const joinedMessages = await sendAndCollect(
+        socket,
+        { type: "joinRoom", roomCode: hostJoin.roomCode, name: `WolfVoteP${index}` },
+        (messages) => messages.some((message) => message.type === "joined")
+          && messages.some((message) => message.type === "state")
+      );
+      votePlayerIds.push(joinedMessages.find((message) => message.type === "joined").playerId);
+    }
+    const voteRoom = wolf.rooms.get(hostJoin.roomCode);
+    voteRoom.phase = "discussion";
+    voteRoom.version = 200;
+    voteRoom.votes = {};
+    voteRoom.discussionEndsAt = Date.now() + 60 * 1000;
+    voteRoom.effectiveRoles = Object.fromEntries(votePlayerIds.map((playerId) => [playerId, "villager"]));
+    const broadcastsBefore = wolf.realtimeMetrics.snapshot(voteRoom.code).broadcasts;
+    voteSockets.forEach((socket, index) => {
+      socket.send(JSON.stringify({
+        type: "action",
+        action: "vote",
+        payload: { targetId: votePlayerIds[(index + 1) % votePlayerIds.length] },
+        roomVersion: 200,
+        actionId: `wolf-vote-burst:${index + 1}`
+      }));
+    });
+    await delay(150);
+    assert.strictEqual(Object.keys(voteRoom.votes).length, votePlayerIds.length);
+    assert(["result", "hunter"].includes(voteRoom.phase));
+    assert(!voteErrors.some((message) => message.code === "STALE_ROOM_VERSION"), "simultaneous wolf votes must not fail only because another player voted first");
+    const broadcastsAfter = wolf.realtimeMetrics.snapshot(voteRoom.code).broadcasts;
+    assert.strictEqual(broadcastsAfter - broadcastsBefore, 1, "simultaneous wolf vote burst should be coalesced into one broadcast");
+    await Promise.all(voteSockets.map(closeSocket));
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

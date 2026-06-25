@@ -15,6 +15,11 @@ const {
 const { serveSharedStatic } = require("../Shared/server/static");
 const { bytesToMb, roomConnectionCount } = require("../Shared/server/admin");
 const {
+  createRealtimeMetrics,
+  shouldSendFullState,
+  syncOk
+} = require("../Shared/server/realtime-metrics");
+const {
   ERROR_CODES,
   errorMessage,
   claimPlayerControl,
@@ -74,6 +79,25 @@ const RECOMMENDED_DECKS = {
 
 const rooms = new Map();
 const clients = new Set();
+const realtimeMetrics = createRealtimeMetrics();
+const pendingBroadcastTimers = new Map();
+const COALESCED_BROADCAST_DELAY_MS = 50;
+const STALE_SAFE_ACTIONS = new Set([
+  "sendChat",
+  "react",
+  "roll",
+  "setReady",
+  "confirmReveal",
+  "castVote",
+  "submitMission"
+]);
+const COALESCED_ACTIONS = new Set([
+  "roll",
+  "setReady",
+  "confirmReveal",
+  "castVote",
+  "submitMission"
+]);
 const REACTIONS = [
   { id: "like", emoji: "👍", label: "讚" },
   { id: "cry", emoji: "😭", label: "哭哭" },
@@ -305,7 +329,11 @@ function applyAction(client, message) {
   if (message.type === "syncState") {
     markClientSeen(client);
     const room = client.roomCode ? rooms.get(client.roomCode) : null;
-    if (room && client.playerId) send(client, makeView(room, client.playerId));
+    if (room && client.playerId) {
+      const sentFullState = shouldSendFullState(room, message.version);
+      realtimeMetrics.recordFullSync({ roomCode: room.code, sentFullState });
+      send(client, sentFullState ? makeView(room, client.playerId) : syncOk(room));
+    }
     return;
   }
   if (!client.roomCode || !client.playerId) {
@@ -325,7 +353,7 @@ function applyAction(client, message) {
     return;
   }
   const guardError = validateActionRequest(room, client, message, {
-    allowStale: ["sendChat", "react"].includes(message.action)
+    allowStale: isStaleSafeAction(message.action)
   });
   if (guardError) {
     send(client, { type: "error", ...guardError });
@@ -334,12 +362,24 @@ function applyAction(client, message) {
   }
   const payload = message.payload || {};
   const error = applyRoomAction(room, actor, message.action, payload);
-  if (error) send(client, { type: "error", code: ERROR_CODES.invalidAction, message: error });
+  if (error) {
+    send(client, { type: "error", code: ERROR_CODES.invalidAction, message: error });
+    send(client, makeView(room, client.playerId));
+    return;
+  }
   if (!error) {
     rememberAction(room, message.actionId);
     touchRoom(room);
   }
-  broadcast(room);
+  broadcastAfterAction(room, message.action);
+}
+
+function isStaleSafeAction(action) {
+  return STALE_SAFE_ACTIONS.has(action);
+}
+
+function shouldCoalesceAction(action) {
+  return COALESCED_ACTIONS.has(action);
 }
 
 function applyRoomAction(room, actor, action, payload) {
@@ -429,6 +469,7 @@ function applyRoomAction(room, actor, action, payload) {
   }
   if (action === "confirmReveal") {
     if (room.phase !== "reveal") return "現在不是身份確認階段。";
+    if (room.revealed[actor.id]) return "你已完成身份確認。";
     room.revealed[actor.id] = true;
     if (room.players.every((player) => room.revealed[player.id])) {
       room.phase = "team";
@@ -476,6 +517,7 @@ function applyRoomAction(room, actor, action, payload) {
   }
   if (action === "castVote") {
     if (room.phase !== "vote") return "現在不是投票階段。";
+    if (room.votes[actor.id]) return "你已經投過票，不能更改票選。";
     const vote = payload.vote === "approve" ? "approve" : "reject";
     room.votes[actor.id] = vote;
     if (Object.keys(room.votes).length === room.players.length) finishVote(room);
@@ -492,6 +534,7 @@ function applyRoomAction(room, actor, action, payload) {
   if (action === "submitMission") {
     if (room.phase !== "mission") return "現在不是任務階段。";
     if (!room.selectedTeam.includes(actor.id)) return "只有任務成員可以提交任務牌。";
+    if (room.missionCards[actor.id]) return "你已經提交任務牌，不能更改。";
     const card = payload.card === "fail" && actor.side === "evil" ? "fail" : "success";
     room.missionCards[actor.id] = card;
     if (Object.keys(room.missionCards).length === room.selectedTeam.length) completeMissionSubmissions(room);
@@ -1495,17 +1538,48 @@ function attachClient(client, roomCode, playerId) {
 }
 
 function broadcast(room) {
+  const timer = pendingBroadcastTimers.get(room.code);
+  if (timer) {
+    clearTimeout(timer);
+    pendingBroadcastTimers.delete(room.code);
+  }
   refreshOnlineStatus(room);
+  realtimeMetrics.recordBroadcast(room.code);
   clients.forEach((client) => {
     if (client.roomCode === room.code) send(client, makeView(room, client.playerId));
   });
+}
+
+function broadcastAfterAction(room, action) {
+  if (!shouldCoalesceAction(action)) {
+    broadcast(room);
+    return;
+  }
+  scheduleBroadcast(room);
+}
+
+function scheduleBroadcast(room) {
+  if (pendingBroadcastTimers.has(room.code)) return;
+  const timer = setTimeout(() => {
+    pendingBroadcastTimers.delete(room.code);
+    if (rooms.get(room.code) === room) broadcast(room);
+  }, COALESCED_BROADCAST_DELAY_MS);
+  timer.unref?.();
+  pendingBroadcastTimers.set(room.code, timer);
 }
 
 function send(client, payload) {
   if (client.socket.destroyed) return;
   if (payload.type === "error" && !payload.code) payload.code = ERROR_CODES.invalidAction;
   if (payload.type === "error") payload.message = errorMessage(payload.code, payload.message);
-  client.socket.write(encodeFrame(JSON.stringify(payload)));
+  const text = JSON.stringify(payload);
+  const frame = encodeFrame(text);
+  realtimeMetrics.recordOutbound({
+    roomCode: client.roomCode,
+    type: payload.type,
+    bytes: frame.length
+  });
+  client.socket.write(frame);
 }
 
 function serveStatic(req, res) {
@@ -1671,6 +1745,7 @@ module.exports = {
   ACHIEVEMENT_THRESHOLDS,
   rooms,
   clients,
+  realtimeMetrics,
   makeRoom,
   joinRoom,
   applyRoomAction,

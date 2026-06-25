@@ -11,6 +11,7 @@ let hasControl = true;
 let actionSequence = 0;
 let session = readSession();
 let lastStateAt = 0;
+let lastMessageAt = 0;
 let lastVersion = 0;
 let staleTimer = null;
 let activeInfoTab = "chat";
@@ -62,6 +63,7 @@ const els = {
 function connect() {
   socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
   socket.addEventListener("open", () => {
+    lastMessageAt = Date.now();
     setConnection("已連線");
     requestFullSync();
     startStaleWatcher();
@@ -73,6 +75,7 @@ function connect() {
     window.setTimeout(connect, 1200);
   });
   socket.addEventListener("message", (event) => {
+    lastMessageAt = Date.now();
     const message = JSON.parse(event.data);
     if (message.type === "joined") {
       hasControl = true;
@@ -99,6 +102,11 @@ function connect() {
     }
     if (message.type === "ping") {
       sendRaw({ type: "pong", at: message.at });
+      return;
+    }
+    if (message.type === "syncOk") {
+      lastVersion = message.version || lastVersion;
+      setConnection(syncStatusText());
       return;
     }
     if (message.type === "state") {
@@ -1350,7 +1358,7 @@ function startStaleWatcher() {
   stopStaleWatcher();
   staleTimer = window.setInterval(() => {
     if (!snapshot) return;
-    if (Date.now() - lastStateAt <= STALE_STATE_MS) return;
+    if (Date.now() - lastMessageAt <= STALE_STATE_MS) return;
     setConnection("同步中...");
     requestFullSync();
   }, 3000);

@@ -61,6 +61,10 @@ function closeSocket(socket) {
   });
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 (async () => {
   const server = createServer();
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -106,7 +110,16 @@ function closeSocket(socket) {
       validAction,
       (messages) => messages.some((message) => message.type === "state")
     );
-    assert(rolled.filter((message) => message.type === "state").at(-1).room.players[0].roll);
+    const rolledState = rolled.filter((message) => message.type === "state").at(-1);
+    assert(rolledState.room.players[0].roll);
+
+    const alreadySynced = await sendAndCollect(
+      second,
+      { type: "syncState", version: rolledState.room.version },
+      (messages) => messages.some((message) => message.type === "syncOk")
+    );
+    assert.strictEqual(alreadySynced.find((message) => message.type === "syncOk").version, rolledState.room.version);
+    assert(!alreadySynced.some((message) => message.type === "state"), "latest sync must not resend full state");
 
     const duplicate = await sendAndCollect(
       second,
@@ -191,6 +204,60 @@ function closeSocket(socket) {
       "ROOM_NOT_FOUND"
     );
     await closeSocket(missingTakeover);
+
+    const voteSockets = [];
+    const voteErrors = [];
+    const host = await openSocket(`ws://127.0.0.1:${port}/ws`);
+    voteSockets.push(host);
+    const hostMessages = await sendAndCollect(
+      host,
+      { type: "createRoom", name: "VoteHost" },
+      (messages) => messages.some((message) => message.type === "joined")
+        && messages.some((message) => message.type === "state")
+    );
+    const hostJoin = hostMessages.find((message) => message.type === "joined");
+    const votePlayerIds = [hostJoin.playerId];
+    for (let index = 2; index <= 5; index += 1) {
+      const socket = await openSocket(`ws://127.0.0.1:${port}/ws`);
+      voteSockets.push(socket);
+      socket.addEventListener("message", (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === "error") voteErrors.push(message);
+      });
+      const joinedMessages = await sendAndCollect(
+        socket,
+        { type: "joinRoom", roomCode: hostJoin.roomCode, name: `VoteP${index}` },
+        (messages) => messages.some((message) => message.type === "joined")
+          && messages.some((message) => message.type === "state")
+      );
+      votePlayerIds.push(joinedMessages.find((message) => message.type === "joined").playerId);
+    }
+    host.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === "error") voteErrors.push(message);
+    });
+    const voteRoom = require("../Avalon/server").rooms.get(hostJoin.roomCode);
+    voteRoom.phase = "vote";
+    voteRoom.version = 100;
+    voteRoom.votes = {};
+    voteRoom.resultDelaySeconds = 0;
+    const broadcastsBefore = require("../Avalon/server").realtimeMetrics.snapshot(voteRoom.code).broadcasts;
+    voteSockets.forEach((socket, index) => {
+      socket.send(JSON.stringify({
+        type: "action",
+        action: "castVote",
+        payload: { vote: index % 2 ? "reject" : "approve" },
+        roomVersion: 100,
+        actionId: `vote-burst:${index + 1}`
+      }));
+    });
+    await delay(150);
+    assert.strictEqual(Object.keys(voteRoom.votes).length, votePlayerIds.length);
+    assert.strictEqual(voteRoom.phase, "voteResult");
+    assert(!voteErrors.some((message) => message.code === "STALE_ROOM_VERSION"), "simultaneous votes must not fail only because another player voted first");
+    const broadcastsAfter = require("../Avalon/server").realtimeMetrics.snapshot(voteRoom.code).broadcasts;
+    assert.strictEqual(broadcastsAfter - broadcastsBefore, 1, "simultaneous vote burst should be coalesced into one broadcast");
+    await Promise.all(voteSockets.map(closeSocket));
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
