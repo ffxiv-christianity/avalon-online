@@ -36,11 +36,31 @@ function setNightStage(room, role, actorIds) {
   room.nightStage = { role, actorIds, completedIds: [], delayUntil: null };
 }
 
+function prepareManualNight(playerCards, centerCards, deck, role, actorIndexes) {
+  const { room, players } = setup(playerCards.length);
+  room.phase = "night";
+  room.initialCards = Object.fromEntries(players.map((player, index) => [player.id, playerCards[index]]));
+  room.cards = { ...room.initialCards };
+  room.centerInitial = [...centerCards];
+  room.centerCards = [...centerCards];
+  room.privateInfo = Object.fromEntries(players.map((player) => [player.id, []]));
+  room.effectiveRoles = { ...room.initialCards };
+  room.settings.deck = [...deck];
+  room.nightRoleIndex = NIGHT_ORDER.indexOf(role);
+  setNightStage(room, role, actorIndexes.map((index) => players[index].id));
+  return { room, players };
+}
+
 function testRecommendedDecks() {
   for (let count = 3; count <= 10; count += 1) {
     assert.strictEqual(RECOMMENDED_DECKS[count].length, count + 3);
     RECOMMENDED_DECKS[count].forEach((role) => assert(ROLE_DEFS[role], `unknown role ${role}`));
   }
+  assert.strictEqual(
+    RECOMMENDED_DECKS[3].filter((role) => role === "werewolf").length,
+    1,
+    "三人推薦牌庫應只放一張狼人，避免兩名狼人夜晚相認後資訊過度失衡"
+  );
 }
 
 function testMasonsMustBePaired() {
@@ -235,6 +255,14 @@ function testDoppelgangerCopiesEveryRoleAbility() {
     const { room, players } = makeDoppelScenario("seer");
     copyWithDoppel(room, players);
     assert.strictEqual(room.doppelPendingRole, players[0].id);
+    const selfSeerError = applyRoomAction(room, players[0], "nightAction", {
+      mode: "player",
+      targetId: players[0].id
+    });
+    assert(selfSeerError.includes("其他玩家"), "化身幽靈複製預言家後仍不能查看自己的牌");
+    assert.strictEqual(room.doppelPendingRole, players[0].id);
+    assert.strictEqual(room.nightStage.completedIds.includes(players[0].id), false);
+    assert(!room.privateInfo[players[0].id].some((message) => message.includes("化身幽靈 的牌")));
     assert.strictEqual(
       applyRoomAction(room, players[0], "nightAction", { mode: "center", centerIndexes: [0, 1] }),
       null
@@ -297,8 +325,148 @@ function testDoppelgangerCopiesEveryRoleAbility() {
       }
     }
     assert.strictEqual(room.nightStage.role, "doppelInsomniac");
+    const doppelView = makeView(room, players[0].id);
+    assert.strictEqual(doppelView.room.night.role, "insomniac");
+    assert.strictEqual(doppelView.room.night.roleName, "失眠者");
+    assert.strictEqual(doppelView.room.night.actionRole, "insomniac");
+    assert.strictEqual(doppelView.you.nightContext.role, "insomniac");
+    assert.strictEqual(doppelView.room.night.order.find((step) => step.role === "insomniac").state, "active");
+
+    const otherView = makeView(room, players[1].id);
+    assert.strictEqual(otherView.room.night.role, "privateNightAction");
+    assert.strictEqual(otherView.room.night.roleName, "夜間行動");
+    assert.strictEqual(otherView.room.night.actionRole, null);
+    assert.strictEqual(otherView.you.nightContext, null);
+    assert.notStrictEqual(otherView.room.night.order.find((step) => step.role === "insomniac").state, "active");
+    assert(!otherView.room.log.some((entry) => entry.includes("化身幽靈以失眠者")));
+
     assert.strictEqual(applyRoomAction(room, players[0], "nightAction"), null);
     assert(room.privateInfo[players[0].id].some((message) => message.includes("夜晚結束時")));
+  }
+}
+
+function testDoppelInsomniacClosurePhaseIsPubliclyNeutral() {
+  {
+    const { room, players } = makeDoppelScenario("insomniac", ["werewolf", "villager"]);
+    copyWithDoppel(room, players);
+    while (room.phase === "night" && room.nightStage.role !== "doppelInsomniac") {
+      if (room.nightStage.delayUntil) {
+        advanceTimedNight(room, room.nightStage.delayUntil + 1);
+      } else {
+        room.nightStage.actorIds.forEach((playerId) => {
+          if (room.nightStage.completedIds.includes(playerId)) return;
+          const actor = room.players.find((player) => player.id === playerId);
+          const payload = room.nightStage.role === "werewolf" ? { centerIndex: 0 } : {};
+          assert.strictEqual(applyRoomAction(room, actor, "nightAction", payload), null);
+        });
+      }
+    }
+    assert.strictEqual(room.nightStage.role, "doppelInsomniac");
+    assert(room.nightStage.delayUntil, "化身幽靈複製失眠者的收尾階段也應有假秒數");
+    assert.strictEqual(makeView(room, players[1].id).room.night.roleName, "夜間行動");
+    assert.strictEqual(applyRoomAction(room, players[0], "nightAction"), null);
+    assert.strictEqual(room.phase, "night", "化身幽靈按下確認後仍需等待假秒數，不立即天亮");
+    assert.strictEqual(advanceTimedNight(room, room.nightStage.delayUntil + 1), true);
+    assert.strictEqual(room.phase, "discussion");
+  }
+
+  {
+    const { room, players } = makeDoppelScenario("villager", ["werewolf", "villager"]);
+    assert(!room.settings.deck.includes("insomniac"));
+    copyWithDoppel(room, players);
+    while (room.phase === "night" && room.nightStage.role !== "doppelInsomniac") {
+      if (room.nightStage.delayUntil) {
+        advanceTimedNight(room, room.nightStage.delayUntil + 1);
+      } else {
+        room.nightStage.actorIds.forEach((playerId) => {
+          if (room.nightStage.completedIds.includes(playerId)) return;
+          const actor = room.players.find((player) => player.id === playerId);
+          const payload = room.nightStage.role === "werewolf" ? { centerIndex: 0 } : {};
+          assert.strictEqual(applyRoomAction(room, actor, "nightAction", payload), null);
+        });
+      }
+    }
+    assert.strictEqual(room.nightStage.role, "doppelInsomniac");
+    assert.deepStrictEqual(room.nightStage.actorIds, []);
+    assert(room.nightStage.delayUntil, "即使牌庫沒有失眠者，仍應有中性收尾假秒數");
+    const publicView = makeView(room, players[1].id);
+    assert.strictEqual(publicView.room.night.role, "privateNightAction");
+    assert.strictEqual(publicView.room.night.roleName, "夜間行動");
+    assert.strictEqual(publicView.room.night.completedCount, 0);
+    assert.strictEqual(publicView.room.night.actorCount, 0);
+    assert.strictEqual(advanceTimedNight(room, room.nightStage.delayUntil + 1), true);
+    assert.strictEqual(room.phase, "discussion");
+  }
+}
+
+function testNightActorsFollowCurrentCardsAfterEarlierSwaps() {
+  {
+    const { room, players } = prepareManualNight(
+      ["doppelganger", "werewolf", "troublemaker"],
+      ["villager", "villager", "villager"],
+      ["doppelganger", "werewolf", "troublemaker", "villager", "villager", "villager"],
+      "doppelganger",
+      [0]
+    );
+    assert.strictEqual(applyRoomAction(room, players[0], "nightAction", { targetId: players[2].id }), null);
+    assert.strictEqual(room.doppelPendingRole, players[0].id);
+    assert.strictEqual(
+      applyRoomAction(room, players[0], "nightAction", { targetIds: [players[1].id, players[2].id] }),
+      null
+    );
+    assert.strictEqual(room.cards[players[1].id], "troublemaker");
+    assert.strictEqual(room.cards[players[2].id], "werewolf");
+    assert.strictEqual(room.nightStage.role, "werewolf");
+    assert.deepStrictEqual(room.nightStage.actorIds, [players[2].id], "化身幽靈先換牌後，狼人階段應由當下持有狼人牌的人行動");
+    assert(applyRoomAction(room, players[1], "nightAction", { centerIndex: 0 }).includes("目前不是你的行動"));
+    assert.strictEqual(applyRoomAction(room, players[2], "nightAction", { centerIndex: 0 }), null);
+    assert.strictEqual(room.nightStage.role, "troublemaker");
+    assert.deepStrictEqual(room.nightStage.actorIds, [players[1].id], "化身幽靈已立即使用複製能力，不應在正牌階段重複行動");
+  }
+
+  {
+    const { room, players } = prepareManualNight(
+      ["robber", "drunk", "werewolf"],
+      ["villager", "villager", "villager"],
+      ["werewolf", "robber", "drunk", "villager", "villager", "villager"],
+      "robber",
+      [0]
+    );
+    assert.strictEqual(applyRoomAction(room, players[0], "nightAction", { targetId: players[1].id }), null);
+    assert.strictEqual(room.cards[players[0].id], "drunk");
+    assert.strictEqual(room.nightStage.role, "drunk");
+    assert.deepStrictEqual(room.nightStage.actorIds, [players[0].id], "強盜換到酒鬼後，酒鬼階段應由強盜玩家行動");
+  }
+
+  {
+    const { room, players } = prepareManualNight(
+      ["troublemaker", "drunk", "werewolf"],
+      ["villager", "villager", "villager"],
+      ["werewolf", "troublemaker", "drunk", "villager", "villager", "villager"],
+      "troublemaker",
+      [0]
+    );
+    assert.strictEqual(
+      applyRoomAction(room, players[0], "nightAction", { targetIds: [players[1].id, players[2].id] }),
+      null
+    );
+    assert.strictEqual(room.cards[players[2].id], "drunk");
+    assert.strictEqual(room.nightStage.role, "drunk");
+    assert.deepStrictEqual(room.nightStage.actorIds, [players[2].id], "搗蛋鬼換牌後，酒鬼階段應由當下持有酒鬼牌的人行動");
+  }
+
+  {
+    const { room, players } = prepareManualNight(
+      ["drunk", "werewolf", "villager"],
+      ["insomniac", "villager", "villager"],
+      ["werewolf", "drunk", "insomniac", "villager", "villager", "villager"],
+      "drunk",
+      [0]
+    );
+    assert.strictEqual(applyRoomAction(room, players[0], "nightAction", { centerIndex: 0 }), null);
+    assert.strictEqual(room.cards[players[0].id], "insomniac");
+    assert.strictEqual(room.nightStage.role, "insomniac");
+    assert.deepStrictEqual(room.nightStage.actorIds, [players[0].id], "酒鬼從中央換到失眠者後，失眠者階段應由酒鬼玩家行動");
   }
 }
 
@@ -375,6 +543,52 @@ function testStartAndPrivateView() {
   assert(room.log.some((entry) => entry.includes("夜晚開始")));
 }
 
+function testPrivateInfoIsServerScopedPerViewer() {
+  const { room, players } = setup(4);
+  room.phase = "night";
+  room.initialCards = {
+    [players[0].id]: "werewolf",
+    [players[1].id]: "villager",
+    [players[2].id]: "seer",
+    [players[3].id]: "robber"
+  };
+  room.cards = { ...room.initialCards };
+  room.centerCards = ["drunk", "troublemaker", "villager"];
+  room.effectiveRoles = { ...room.initialCards };
+  room.privateInfo = {
+    [players[0].id]: ["SERVER_ONLY_SECRET_FOR_PLAYER_ZERO"],
+    [players[1].id]: ["SERVER_ONLY_SECRET_FOR_PLAYER_ONE"],
+    [players[2].id]: [],
+    [players[3].id]: []
+  };
+
+  const firstView = makeView(room, players[0].id);
+  const secondView = makeView(room, players[1].id);
+  assert.deepStrictEqual(firstView.you.privateInfo, ["SERVER_ONLY_SECRET_FOR_PLAYER_ZERO"]);
+  assert.deepStrictEqual(secondView.you.privateInfo, ["SERVER_ONLY_SECRET_FOR_PLAYER_ONE"]);
+  assert(!JSON.stringify(firstView).includes("SERVER_ONLY_SECRET_FOR_PLAYER_ONE"));
+  assert(!JSON.stringify(secondView).includes("SERVER_ONLY_SECRET_FOR_PLAYER_ZERO"));
+  assert(!Object.hasOwn(firstView.room, "privateInfo"));
+  assert(!Object.hasOwn(firstView.room, "cards"));
+  assert(!Object.hasOwn(firstView.room, "initialCards"));
+  assert(!Object.hasOwn(firstView.room, "effectiveRoles"));
+
+  room.privateInfo[players[0].id] = [];
+  setNightStage(room, "werewolf", [players[0].id]);
+  assert.strictEqual(
+    applyRoomAction(room, players[0], "nightAction", {
+      centerIndex: 1,
+      privateInfo: ["CLIENT_FORGED_SECRET"],
+      role: "seer",
+      cards: { [players[0].id]: "seer" }
+    }),
+    null
+  );
+  assert(!room.privateInfo[players[0].id].some((message) => message.includes("CLIENT_FORGED_SECRET")));
+  assert(!JSON.stringify(makeView(room, players[0].id)).includes("CLIENT_FORGED_SECRET"));
+  assert(room.privateInfo[players[0].id].some((message) => message.includes("中央第 2 張")));
+}
+
 function testCenterRoleDelayAndMissingRoleSkip() {
   const { room, players } = setup(4);
   room.phase = "night";
@@ -444,6 +658,7 @@ function testWerewolfContextsAndRules() {
 
   room.effectiveRoles[players[1].id] = "villager";
   room.initialCards[players[1].id] = "villager";
+  room.cards[players[1].id] = "villager";
   room.privateInfo[players[0].id] = [];
   setNightStage(room, "werewolf", [players[0].id]);
   view = makeView(room, players[0].id);
@@ -545,11 +760,12 @@ function testTenPlayerFullRoomAndAllRolesFlow() {
   while (room.phase === "night" && guard < 100) {
     guard += 1;
     const stage = room.nightStage;
-    if (stage.delayUntil) {
+    const pendingActorIds = stage.actorIds.filter((playerId) => !stage.completedIds.includes(playerId));
+    if (!pendingActorIds.length && stage.delayUntil) {
       assert.strictEqual(advanceTimedNight(room, stage.delayUntil + 1), true);
       continue;
     }
-    for (const playerId of [...stage.actorIds]) {
+    for (const playerId of pendingActorIds) {
       if (stage.completedIds.includes(playerId)) continue;
       const actor = room.players.find((player) => player.id === playerId);
       let role = stage.role === "doppelInsomniac" ? "insomniac" : stage.role;
@@ -1111,22 +1327,78 @@ function testNightOrderViewStatesAndDoppelInsomniacMapping() {
   };
 
   let order = makeView(room, players[0].id).room.night.order;
-  assert.deepStrictEqual(order.map((step) => step.role), NIGHT_ORDER.filter((role) => role !== "doppelInsomniac"));
-  assert.strictEqual(order.length, 9);
+  assert.deepStrictEqual(order.map((step) => step.role), [
+    "doppelganger",
+    "werewolf",
+    "seer",
+    "robber",
+    "troublemaker",
+    "insomniac"
+  ]);
   assert.strictEqual(order.find((step) => step.role === "doppelganger").state, "done");
   assert.strictEqual(order.find((step) => step.role === "werewolf").state, "done");
-  assert.strictEqual(order.find((step) => step.role === "minion").state, "disabled");
+  assert(!order.some((step) => step.role === "minion"));
+  assert(!order.some((step) => step.role === "mason"));
+  assert(!order.some((step) => step.role === "drunk"));
   assert.strictEqual(order.find((step) => step.role === "seer").state, "active");
   assert.strictEqual(order.find((step) => step.role === "robber").state, "upcoming");
 
+  room.settings.deck = ["werewolf", "villager", "seer", "robber", "troublemaker", "villager", "villager"];
+  room.nightStage.role = "werewolf";
+  order = makeView(room, players[0].id).room.night.order;
+  assert.deepStrictEqual(order.map((step) => step.role), ["werewolf", "seer", "robber", "troublemaker"]);
+  assert.strictEqual(order.find((step) => step.role === "werewolf").state, "active");
+  assert(!order.some((step) => step.role === "villager"));
+
+  room.settings.deck = [
+    "doppelganger",
+    "werewolf",
+    "seer",
+    "robber",
+    "troublemaker",
+    "insomniac",
+    "villager"
+  ];
   room.nightStage.role = "doppelInsomniac";
+  room.nightStage.actorIds = [players[0].id];
   order = makeView(room, players[0].id).room.night.order;
   assert.strictEqual(order.find((step) => step.role === "insomniac").state, "active");
+  order = makeView(room, players[1].id).room.night.order;
+  assert.notStrictEqual(order.find((step) => step.role === "insomniac").state, "active");
   assert(!order.some((step) => step.role === "doppelInsomniac"));
+}
+
+function testNightOrderViewFiltersAllRoleCombinations() {
+  const allRoles = Object.keys(ROLE_DEFS);
+  const visibleNightOrder = NIGHT_ORDER.filter((role) => role !== "doppelInsomniac");
+  const passiveRoles = ["villager", "tanner", "hunter"];
+
+  for (let mask = 0; mask < (1 << allRoles.length); mask += 1) {
+    const { room, players } = setup(4);
+    const deck = allRoles.filter((_, index) => mask & (1 << index));
+    const expected = visibleNightOrder.filter((role) => deck.includes(role));
+    const activeRole = expected[0] || "werewolf";
+    room.phase = "night";
+    room.settings.deck = deck;
+    room.nightStage = {
+      role: activeRole,
+      actorIds: [players[0].id],
+      completedIds: [],
+      delayUntil: null
+    };
+
+    const order = makeView(room, players[0].id).room.night.order;
+    assert.deepStrictEqual(order.map((step) => step.role), expected, `visible night order mismatch for deck: ${deck.join(",")}`);
+    passiveRoles.forEach((role) => {
+      assert(!order.some((step) => step.role === role), `${role} must never appear in night order`);
+    });
+    assert(!order.some((step) => step.state === "disabled"), "disabled night roles must be omitted instead of dimmed");
+  }
 }
 
 testRecommendedDecks();
 testStartAndPrivateView();
+testPrivateInfoIsServerScopedPerViewer();
 testCenterRoleDelayAndMissingRoleSkip();
 testSameRolePlayersActInOneStage();
 testWerewolfContextsAndRules();
@@ -1143,6 +1415,8 @@ testDoppelgangerCopiesAndActsImmediately();
 testDoppelgangerNightOrderByCopiedRole();
 testDoppelgangerMinionAndInsomniacOrder();
 testDoppelgangerCopiesEveryRoleAbility();
+testDoppelInsomniacClosurePhaseIsPubliclyNeutral();
+testNightActorsFollowCurrentCardsAfterEarlierSwaps();
 testDoppelgangerPassiveRolesAtResolution();
 testMasonRecognition();
 testRobberSwap();
@@ -1165,4 +1439,5 @@ testMovedDoppelgangerKeepsCopiedRole();
 testReloadRequiresExplicitRejoinData();
 testChatAndLogAreUnlimitedAndResetOnReturnLobby();
 testNightOrderViewStatesAndDoppelInsomniacMapping();
+testNightOrderViewFiltersAllRoleCombinations();
 console.log("onenightwolf game tests passed");

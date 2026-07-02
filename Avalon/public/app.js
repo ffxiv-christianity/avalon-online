@@ -57,7 +57,8 @@ const els = {
   infoTabs: document.getElementById("infoTabs"),
   chatUnread: document.getElementById("chatUnread"),
   rosterUnread: document.getElementById("rosterUnread"),
-  mainPanel: document.getElementById("mainPanel")
+  mainPanel: document.getElementById("mainPanel"),
+  lobbyTemplate: document.getElementById("avalonLobbyTemplate")
 };
 
 function connect() {
@@ -600,79 +601,63 @@ function renderLobby() {
   const settings = room.settings;
   const current = currentPlayer();
   const canStart = room.canStart && you.isHost;
-  els.mainPanel.innerHTML = `
-    ${phaseHeader("準備房間", "房主設定人數、牌庫與任務人數；每位玩家擲 d100 後按準備。")}
-    <div class="lobby-grid">
-      <section class="section-block">
-        <h3>你的狀態</h3>
-        <div class="action-card">
-          <span class="ready-alert ${current.ready ? "ready" : "not-ready"}" tabindex="0" aria-label="${current.ready ? "已準備" : "尚未準備"}"></span>
-          <span class="ready-alert-popover" role="tooltip">${current.ready ? "已準備" : "尚未準備"}</span>
-          <div class="action-card-status">
-            <strong>${escapeHtml(you.name)}</strong>
-            <p>${current.roll ? `你的骰點是 ${current.roll}` : "尚未擲骰"}</p>
-          </div>
-          <div class="button-row">
-            <button class="secondary-button" data-action="roll" type="button" ${current.roll ? "disabled" : ""}>擲 d100</button>
-            <button class="primary-button" data-action="ready" type="button" ${current.roll ? "" : "disabled"}>${current.ready ? "取消準備" : "準備"}</button>
-          </div>
-        </div>
-        <div class="validation-list">
-          ${room.validation.errors.map((message) => `<div class="validation error">${escapeHtml(message)}</div>`).join("")}
-          ${room.validation.warnings.map((message) => `<div class="validation warn">${escapeHtml(message)}</div>`).join("")}
-          ${room.canStart ? `<div class="validation ok">所有條件完成，可以開始遊戲。</div>` : ""}
-        </div>
-        ${you.isHost ? `<button class="start-button" data-action="start" type="button" ${canStart ? "" : "disabled"}>開始遊戲</button>` : `<div class="notice">等待房主開始遊戲。</div>`}
-      </section>
+  const fragment = els.lobbyTemplate.content.cloneNode(true);
+  const phaseHeaderSlot = fragment.querySelector("[data-template-slot='phase-header']");
+  phaseHeaderSlot.insertAdjacentHTML("beforebegin", phaseHeader("準備房間", "房主設定人數、牌庫與任務人數；每位玩家擲 d100 後按準備。"));
+  phaseHeaderSlot.remove();
 
-      <section class="section-block ${you.isHost ? "" : "locked"}">
-        <div class="section-heading">
-          <h3>房主設定</h3>
-          ${you.isHost ? `<button class="ghost-button" data-action="recommend" type="button">${settings.playerCount} 人推薦牌庫</button>` : ""}
-        </div>
-        <div class="settings-grid">
-          <label class="field">
-            <span>遊戲人數</span>
-            <select id="playerCountSelect" ${you.isHost ? "" : "disabled"}>
-              ${Object.keys(snapshot.rules).map((count) => `<option value="${count}" ${Number(count) === settings.playerCount ? "selected" : ""}>${count} 人</option>`).join("")}
-            </select>
-          </label>
-          <label class="field">
-            <span>領袖規則</span>
-            <select id="leaderModeSelect" ${you.isHost ? "" : "disabled"}>
-              <option value="appoint" ${settings.leaderMode === "appoint" ? "selected" : ""}>領袖指定下一位</option>
-              <option value="standard" ${settings.leaderMode === "standard" ? "selected" : ""}>標準順時針</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>公開結果延遲</span>
-            <select id="resultDelaySelect" ${you.isHost ? "" : "disabled"}>
-              <option value="0" ${settings.resultDelaySeconds === 0 ? "selected" : ""}>不延遲</option>
-              <option value="3" ${settings.resultDelaySeconds === 3 ? "selected" : ""}>3 秒</option>
-              <option value="5" ${settings.resultDelaySeconds === 5 ? "selected" : ""}>5 秒</option>
-            </select>
-          </label>
-        </div>
-        <h3>擴充規則</h3>
-        <div class="settings-grid">
-          ${settingToggle("excaliburToggle", "啟用王者之劍", settings.expansions?.excalibur, "領袖可將王者之劍交給參與任務的其他玩家。任務牌提交完畢後，持劍者先選擇目標並確認，私下查看該玩家原本的任務牌，再翻轉並結算。", you.isHost)}
-          ${settingToggle("excaliburUniqueToggle", "王者之劍不可重複持有", settings.expansions?.excaliburUnique, "啟用後，每位玩家每局最多持有一次王者之劍；投票未通過不會消耗持有次數。", you.isHost && settings.expansions?.excalibur)}
-          ${settingToggle("ladyToggle", "啟用湖中女神", settings.expansions?.ladyOfLake, "建議大於七人遊戲使用。開局由擲骰第二大的玩家持有；第 2、3、4 次任務結束後，湖中女神可以私下查驗一名玩家陣營。若被查驗者已持有過湖中女神，指示物會依擲骰順序交給下一位未持有者。", you.isHost)}
-        </div>
-        <h3>每輪任務人數</h3>
-        <div class="mission-inputs">
-          ${settings.teamSizes.map((size, index) => `
-            <label class="field compact">
-              <span>第 ${index + 1} 次</span>
-              <input class="team-size-input" data-index="${index}" min="1" max="${settings.playerCount}" type="number" value="${size}" ${you.isHost ? "" : "disabled"}>
-            </label>
-          `).join("")}
-        </div>
-        <h3>牌庫</h3>
-        <div class="role-builder" id="roleBuilder"></div>
-      </section>
-    </div>
-  `;
+  const readyText = current.ready ? "已準備" : "尚未準備";
+  const readyAlert = fragment.querySelector(".ready-alert");
+  readyAlert.classList.add(current.ready ? "ready" : "not-ready");
+  readyAlert.setAttribute("aria-label", readyText);
+  fragment.querySelector(".ready-alert-popover").textContent = readyText;
+  fragment.querySelector("[data-lobby-player-name]").textContent = you.name;
+  fragment.querySelector("[data-lobby-roll-status]").textContent = current.roll ? `你的骰點是 ${current.roll}` : "尚未擲骰";
+  const rollButton = fragment.querySelector('[data-action="roll"]');
+  rollButton.disabled = Boolean(current.roll);
+  const readyButton = fragment.querySelector('[data-action="ready"]');
+  readyButton.disabled = !current.roll;
+  readyButton.textContent = current.ready ? "取消準備" : "準備";
+
+  fragment.querySelector("[data-lobby-validation]").innerHTML = [
+    ...room.validation.errors.map((message) => `<div class="validation error">${escapeHtml(message)}</div>`),
+    ...room.validation.warnings.map((message) => `<div class="validation warn">${escapeHtml(message)}</div>`),
+    room.canStart ? `<div class="validation ok">所有條件完成，可以開始遊戲。</div>` : ""
+  ].join("");
+  fragment.querySelector("[data-lobby-start-control]").innerHTML = you.isHost
+    ? `<button class="start-button" data-action="start" type="button" ${canStart ? "" : "disabled"}>開始遊戲</button>`
+    : `<div class="notice">等待房主開始遊戲。</div>`;
+
+  const settingsPanel = fragment.querySelector('[data-shell-panel="host-settings"]');
+  settingsPanel.classList.toggle("locked", !you.isHost);
+  fragment.querySelector("[data-lobby-recommend-control]").innerHTML = you.isHost
+    ? `<button class="ghost-button" data-action="recommend" type="button">${settings.playerCount} 人推薦牌庫</button>`
+    : "";
+  const playerCountSelect = fragment.querySelector("#playerCountSelect");
+  playerCountSelect.disabled = !you.isHost;
+  playerCountSelect.innerHTML = Object.keys(snapshot.rules).map((count) => (
+    `<option value="${count}" ${Number(count) === settings.playerCount ? "selected" : ""}>${count} 人</option>`
+  )).join("");
+  const leaderSelect = fragment.querySelector("#leaderModeSelect");
+  leaderSelect.disabled = !you.isHost;
+  leaderSelect.value = settings.leaderMode;
+  const resultDelaySelect = fragment.querySelector("#resultDelaySelect");
+  resultDelaySelect.disabled = !you.isHost;
+  resultDelaySelect.value = String(settings.resultDelaySeconds);
+
+  fragment.querySelector("[data-lobby-expansions]").innerHTML = [
+    settingToggle("excaliburToggle", "啟用王者之劍", settings.expansions?.excalibur, "領袖可將王者之劍交給參與任務的其他玩家。任務牌提交完畢後，持劍者先選擇目標並確認，私下查看該玩家原本的任務牌，再翻轉並結算。", you.isHost),
+    settingToggle("excaliburUniqueToggle", "王者之劍不可重複持有", settings.expansions?.excaliburUnique, "啟用後，每位玩家每局最多持有一次王者之劍；投票未通過不會消耗持有次數。", you.isHost && settings.expansions?.excalibur),
+    settingToggle("ladyToggle", "啟用湖中女神", settings.expansions?.ladyOfLake, "建議大於七人遊戲使用。開局由擲骰第二大的玩家持有；第 2、3、4 次任務結束後，湖中女神可以私下查驗一名玩家陣營。若被查驗者已持有過湖中女神，指示物會依擲骰順序交給下一位未持有者。", you.isHost)
+  ].join("");
+  fragment.querySelector("[data-lobby-team-sizes]").innerHTML = settings.teamSizes.map((size, index) => `
+    <label class="field compact">
+      <span>第 ${index + 1} 次</span>
+      <input class="team-size-input" data-index="${index}" min="1" max="${settings.playerCount}" type="number" value="${size}" ${you.isHost ? "" : "disabled"}>
+    </label>
+  `).join("");
+
+  els.mainPanel.replaceChildren(fragment);
   bindLobby(settings);
 }
 

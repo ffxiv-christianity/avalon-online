@@ -16,8 +16,9 @@ const wolfStyles = fs.readFileSync(path.join(root, "Onenightwolf", "public", "on
 
 const avalonMainStart = avalonPage.indexOf('<main class="app-shell">');
 const avalonMainEnd = avalonPage.indexOf("</main>");
-const embeddedWolfRoom = avalonPage.indexOf('id="wolfRoomView"');
-assert(embeddedWolfRoom > avalonMainStart && embeddedWolfRoom < avalonMainEnd, "Embedded wolf room must stay inside the shared app shell");
+assert(!avalonPage.includes('id="wolfRoomView"'), "Avalon index should not embed the One Night Wolf room shell");
+assert(avalonPage.includes('window.location.href = "/Onenightwolf/"'), "Avalon game selector must navigate to the One Night Wolf index");
+assert(wolfPage.includes('window.location.href = "/"'), "One Night Wolf game selector must navigate to the Avalon index");
 
 [
   "遊戲模式",
@@ -43,8 +44,49 @@ assert(embeddedWolfRoom > avalonMainStart && embeddedWolfRoom < avalonMainEnd, "
   "mobile-room-panel"
 ].forEach((className) => {
   assert(avalonPage.includes(className), `Avalon room framework is missing: ${className}`);
-  assert(wolfScript.includes(className), `One Night Wolf room framework is missing: ${className}`);
+  assert(wolfPage.includes(className), `One Night Wolf room framework is missing: ${className}`);
 });
+assert(avalonPage.includes("settings-grid"), "Avalon settings grid shell is missing");
+assert(wolfPage.includes("settings-grid"), "One Night Wolf settings grid shell is missing");
+
+[
+  'data-shell-view="join"',
+  'data-shell-view="room"',
+  'data-shell-layout="game"',
+  'data-shell-region="info-sidebar"',
+  'data-shell-panel="chat"',
+  'data-shell-panel="players"',
+  'data-shell-panel="progress"',
+  'data-shell-panel="log"',
+  'data-shell-panel="main"',
+  'data-shell-template="lobby"',
+  'data-shell-panel="your-status"',
+  'data-shell-panel="host-settings"',
+  'data-shell-panel="deck"'
+].forEach((token) => {
+  assert(avalonPage.includes(token), `Avalon shared shell contract is missing: ${token}`);
+});
+[
+  'data-shell-view="join"',
+  'data-shell-view="room"',
+  'data-shell-layout="game"',
+  'data-shell-region="info-sidebar"',
+  'data-shell-panel="chat"',
+  'data-shell-panel="players"',
+  'data-shell-panel="progress"',
+  'data-shell-panel="log"',
+  'data-shell-panel="main"',
+  'data-shell-template="lobby"',
+  'data-shell-panel="your-status"',
+  'data-shell-panel="host-settings"',
+  'data-shell-panel="deck"'
+].forEach((token) => {
+  assert(wolfPage.includes(token), `One Night Wolf shared shell contract is missing: ${token}`);
+});
+assert(avalonScript.includes("lobbyTemplate"), "Avalon lobby must be mounted from the HTML shell template");
+assert(avalonScript.includes("replaceChildren(fragment)"), "Avalon lobby render must clone and mount the HTML template");
+assert(!avalonScript.includes("renderLegacyLobby"), "Avalon legacy JS lobby framework must be removed");
+assert(!wolfScript.includes("page.roomView.innerHTML"), "One Night Wolf must fill the HTML room shell instead of rebuilding it in JS");
 assert(avalonPage.includes('id="mobileStatusSummary"'), "Avalon mobile status summary mount is missing");
 assert(wolfScript.includes("mobileStatusSummary()"), "One Night Wolf mobile status summary is missing");
 assert(sharedRoomUi.includes("mobileStatusSummary"), "Shared mobile status summary template is missing");
@@ -58,7 +100,7 @@ assert(sharedStyles.includes("height: clamp(360px, 60dvh, 520px)"), "Shared mobi
 
 ["聊天", "玩家", "記錄", "玩家順序", "複製邀請連結"].forEach((text) => {
   assert(avalonPage.includes(text), `Avalon common room text is missing: ${text}`);
-  assert(wolfScript.includes(text), `One Night Wolf common room text is missing: ${text}`);
+  assert(wolfPage.includes(text), `One Night Wolf common room text is missing: ${text}`);
 });
 
 ["930px", "560px", "380px"].forEach((breakpoint) => {
@@ -77,6 +119,10 @@ assert(avalonScript.includes("SharedRoomUI.bindHostControls"), "Avalon must bind
 assert(wolfScript.includes("SharedRoomUI.bindHostControls"), "One Night Wolf must bind Shared host controls");
 assert(avalonPage.includes("openRulesButton"), "Avalon always-available rules button is missing");
 assert(wolfScript.includes("openWolfRules"), "One Night Wolf always-available rules action is missing");
+assert(wolfPage.includes('id="wolfRulesContent"'), "One Night Wolf rules content shell is missing");
+assert(wolfPage.includes("化身幽靈複製預言家、強盜、搗蛋鬼或酒鬼"), "One Night Wolf rules content must live in HTML");
+assert(!wolfScript.includes("page.wolfRules.innerHTML"), "One Night Wolf rules overlay must not be generated in JS");
+assert(!wolfScript.includes("content.innerHTML"), "One Night Wolf rules content must not be generated in JS");
 assert(avalonScript.includes('token("host"'), "Avalon host token is missing");
 assert(wolfScript.includes('SharedRoomUI.token("host"'), "One Night Wolf host token is missing");
 assert(avalonPage.includes("/shared/styles.css") && wolfPage.includes("/shared/styles.css"), "Games must load Shared styles");

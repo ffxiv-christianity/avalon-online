@@ -94,6 +94,58 @@
   margin-bottom: 10px;
 }
 
+.wolf-vote-summary {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.wolf-vote-total {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(32, 40, 43, .1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .72);
+  padding: 10px 12px;
+}
+
+.wolf-vote-total.eliminated {
+  border-color: rgba(166, 76, 58, .34);
+  background: rgba(166, 76, 58, .08);
+}
+
+.wolf-vote-total-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wolf-vote-total-head span,
+.wolf-vote-total p {
+  color: var(--muted);
+}
+
+.wolf-vote-total p {
+  margin: 0;
+  font-size: .92rem;
+}
+
+.wolf-vote-meter {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(32, 40, 43, .08);
+}
+
+.wolf-vote-meter span {
+  display: block;
+  width: var(--vote-fill, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--blue, #1f5d7a), #5f8fa5);
+}
+
 .wolf-vote-result-list {
   display: grid;
   gap: 6px;
@@ -208,10 +260,6 @@
 
 .wolf-night-step.done {
   opacity: .38;
-}
-
-.wolf-night-step.disabled {
-  opacity: .24;
 }
 
 .wolf-night-action {
@@ -495,6 +543,10 @@
 }
 
 body.wolf-mode .topbar .eyebrow {
+  color: var(--evil);
+}
+
+body.wolf-mode .rules-header .eyebrow {
   color: var(--evil);
 }
 

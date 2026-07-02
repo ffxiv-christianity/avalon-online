@@ -12,7 +12,6 @@
   <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="/shared/styles.css">
-  <link rel="stylesheet" href="/Onenightwolf/onenightwolf.css">
 </head>
 <body>
   <main class="app-shell">
@@ -27,7 +26,7 @@
       </div>
     </header>
 
-    <section id="joinView" class="join-view">
+    <section id="joinView" class="join-view" data-shell-view="join" data-game="avalon">
       <div class="hero-panel">
         <div class="hero-copy">
           <p class="eyebrow">4～10人即時房間</p>
@@ -91,39 +90,39 @@
       </div>
     </section>
 
-    <section id="roomView" class="room-view hidden">
-      <section class="status-strip" id="statusStrip"></section>
-      <section class="mobile-status-summary" id="mobileStatusSummary" aria-label="遊戲狀態摘要"></section>
-      <div class="game-layout">
-        <aside class="side-panel">
-          <nav class="info-tabs" id="infoTabs" aria-label="房間資訊">
+    <section id="roomView" class="room-view hidden" data-shell-view="room" data-game="avalon">
+      <section class="status-strip" id="statusStrip" data-shell-slot="status-strip"></section>
+      <section class="mobile-status-summary" id="mobileStatusSummary" aria-label="遊戲狀態摘要" data-shell-slot="mobile-status-summary"></section>
+      <div class="game-layout" data-shell-layout="game">
+        <aside class="side-panel" data-shell-region="info-sidebar">
+          <nav class="info-tabs" id="infoTabs" aria-label="房間資訊" data-shell-nav="info-tabs">
             <button class="info-tab active" data-info-tab="chat" type="button">聊天 <span class="tab-badge hidden" id="chatUnread">0</span></button>
             <button class="info-tab" data-info-tab="roster" type="button">玩家 <span class="tab-badge hidden" id="rosterUnread">0</span></button>
             <button class="info-tab game-only-tab" data-info-tab="mission" type="button">任務</button>
             <button class="info-tab game-only-tab" data-info-tab="log" type="button">記錄</button>
           </nav>
-          <section class="panel info-panel chat-panel active" data-info-panel="chat">
+          <section class="panel info-panel chat-panel active" data-info-panel="chat" data-shell-panel="chat">
             <h2>聊天</h2>
-            <div class="chat-list" id="chatList"></div>
-            <form class="chat-form" id="chatForm" autocomplete="off">
+            <div class="chat-list" id="chatList" data-shell-slot="chat-list"></div>
+            <form class="chat-form" id="chatForm" autocomplete="off" data-shell-form="chat">
               <input id="chatInput" name="avalon-chat-message" maxlength="240" autocomplete="off" placeholder="輸入訊息">
               <button class="primary-button" type="submit">送出</button>
             </form>
           </section>
-          <section class="panel info-panel roster-panel" data-info-panel="roster">
+          <section class="panel info-panel roster-panel" data-info-panel="roster" data-shell-panel="players">
             <h2>玩家順序</h2>
-            <div class="roster" id="roster"></div>
+            <div class="roster" id="roster" data-shell-slot="player-list"></div>
           </section>
-          <section class="panel info-panel game-only-panel mission-panel" data-info-panel="mission">
+          <section class="panel info-panel game-only-panel mission-panel" data-info-panel="mission" data-shell-panel="progress">
             <h2>任務進度</h2>
-            <div class="scoreboard" id="scoreboard"></div>
-            <div class="mission-table" id="missionTable"></div>
+            <div class="scoreboard" id="scoreboard" data-shell-slot="scoreboard"></div>
+            <div class="mission-table" id="missionTable" data-shell-slot="mission-table"></div>
           </section>
-          <section class="panel info-panel game-only-panel log-panel" data-info-panel="log">
+          <section class="panel info-panel game-only-panel log-panel" data-info-panel="log" data-shell-panel="log">
             <h2>記錄</h2>
-            <ol class="log-list" id="logList"></ol>
+            <ol class="log-list" id="logList" data-shell-slot="event-log"></ol>
           </section>
-          <section class="panel room-panel desktop-room-panel">
+          <section class="panel room-panel desktop-room-panel" data-shell-panel="invite">
             <div class="room-code-block">
               <span>房間代碼</span>
               <strong class="room-code-value">------</strong>
@@ -132,8 +131,8 @@
           </section>
         </aside>
 
-        <section class="main-panel" id="mainPanel"></section>
-        <section class="panel room-panel mobile-room-panel">
+        <section class="main-panel" id="mainPanel" data-shell-panel="main"></section>
+        <section class="panel room-panel mobile-room-panel" data-shell-panel="invite">
           <div class="room-code-block">
             <span>房間代碼</span>
             <strong class="room-code-value">------</strong>
@@ -143,7 +142,63 @@
       </div>
     </section>
 
-    <section id="wolfRoomView" class="room-view hidden"></section>
+    <template id="avalonLobbyTemplate" data-shell-template="lobby" data-game="avalon">
+      <div data-template-slot="phase-header"></div>
+      <div class="lobby-grid" data-shell-layout="lobby">
+        <section class="section-block" data-shell-panel="your-status">
+          <h3>你的狀態</h3>
+          <div class="action-card">
+            <span class="ready-alert" tabindex="0"></span>
+            <span class="ready-alert-popover" role="tooltip"></span>
+            <div class="action-card-status">
+              <strong data-lobby-player-name></strong>
+              <p data-lobby-roll-status></p>
+            </div>
+            <div class="button-row">
+              <button class="secondary-button" data-action="roll" type="button">擲 d100</button>
+              <button class="primary-button" data-action="ready" type="button">準備</button>
+            </div>
+          </div>
+          <div class="validation-list" data-lobby-validation></div>
+          <div data-lobby-start-control></div>
+        </section>
+
+        <section class="section-block" data-shell-panel="host-settings">
+          <div class="section-heading">
+            <h3>房主設定</h3>
+            <div data-lobby-recommend-control></div>
+          </div>
+          <div class="settings-grid" data-shell-slot="settings-grid">
+            <label class="field">
+              <span>遊戲人數</span>
+              <select id="playerCountSelect" data-lobby-setting="player-count"></select>
+            </label>
+            <label class="field">
+              <span>領袖規則</span>
+              <select id="leaderModeSelect" data-lobby-setting="leader-mode">
+                <option value="appoint">領袖指定下一位</option>
+                <option value="standard">標準順時針</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>公開結果延遲</span>
+              <select id="resultDelaySelect" data-lobby-setting="result-delay">
+                <option value="0">不延遲</option>
+                <option value="3">3 秒</option>
+                <option value="5">5 秒</option>
+              </select>
+            </label>
+          </div>
+          <h3>擴充規則</h3>
+          <div class="settings-grid" data-lobby-expansions></div>
+          <h3>每輪任務人數</h3>
+          <div class="mission-inputs" data-lobby-team-sizes></div>
+          <h3>牌庫</h3>
+          <div class="role-builder" id="roleBuilder" data-shell-panel="deck"></div>
+        </section>
+      </div>
+    </template>
+
   </main>
 
   <div class="rules-overlay hidden" id="rulesOverlay" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
@@ -207,7 +262,13 @@
 
   <script src="/shared/client-state.js"></script>
   <script src="/shared/room-ui.js"></script>
+  <script>
+    document.getElementById("gameModeSelect")?.addEventListener("change", (event) => {
+      if (event.target.value === "onenightwolf") {
+        window.location.href = "/Onenightwolf/";
+      }
+    });
+  </script>
   <script src="./app.js"></script>
-  <script src="/Onenightwolf/onenightwolf.js"></script>
 </body>
 </html>

@@ -23,7 +23,7 @@
       </div>
     </header>
 
-    <section id="joinView" class="join-view">
+    <section id="joinView" class="join-view" data-shell-view="join" data-game="onenightwolf">
       <div class="hero-panel">
         <div class="hero-copy">
           <p class="eyebrow" id="heroEyebrow">3～10 人即時房間</p>
@@ -66,9 +66,10 @@
         <details class="changelog" id="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/06/25</small>
+            <small>最新版本 2026/07/02</small>
           </summary>
           <ul>
+            <li><strong>2026/07/02</strong> 以共用 template 房間框架重構，玩法不變；優化化身幽靈邏輯</li>
             <li><strong>2026/06/25</strong> 優化伺服器連線</li>
             <li><strong>2026/06/23 v3</strong> 完善規則說明；完善投票結果顯示；優化手機板UI</li>
             <li><strong>2026/06/23 v2</strong> 新增多分頁控制權設定；重複操作的防護；玩家列表僅高亮本人，不再高亮其他玩家</li>
@@ -79,7 +80,102 @@
       </div>
     </section>
 
-    <section id="wolfRoomView" class="room-view hidden"></section>
+    <section id="wolfRoomView" class="room-view hidden" data-shell-view="room" data-game="onenightwolf">
+      <section class="status-strip" data-wolf-status data-shell-slot="status-strip" data-shell-panel="progress"></section>
+      <section class="mobile-status-summary" data-wolf-mobile-status aria-label="遊戲狀態摘要" data-shell-slot="mobile-status-summary"></section>
+      <div class="game-layout" data-shell-layout="game">
+        <aside class="side-panel" data-shell-region="info-sidebar">
+          <nav class="info-tabs" data-wolf-tabs aria-label="房間資訊" data-shell-nav="info-tabs">
+            <button class="info-tab active" data-wolf-tab="chat" type="button">聊天 <span class="tab-badge hidden" data-wolf-chat-unread>0</span></button>
+            <button class="info-tab" data-wolf-tab="roster" type="button">玩家 <span class="tab-badge hidden" data-wolf-roster-unread>0</span></button>
+            <button class="info-tab" data-wolf-tab="cards" type="button">角色卡</button>
+            <button class="info-tab game-only-tab" data-wolf-tab="log" type="button">記錄</button>
+          </nav>
+          <section class="panel info-panel chat-panel active" data-wolf-panel="chat" data-shell-panel="chat">
+            <h2>聊天</h2>
+            <div class="chat-list" data-wolf-chat-list data-shell-slot="chat-list"></div>
+            <form class="chat-form" data-wolf-chat-form autocomplete="off" data-shell-form="chat">
+              <input data-wolf-chat-input name="wolf-chat-message" maxlength="240" autocomplete="off" placeholder="輸入訊息">
+              <button class="primary-button" type="submit">送出</button>
+            </form>
+          </section>
+          <section class="panel info-panel roster-panel" data-wolf-panel="roster" data-shell-panel="players">
+            <h2>玩家順序</h2>
+            <div class="roster" data-wolf-roster data-shell-slot="player-list"></div>
+          </section>
+          <section class="panel info-panel cards-panel" data-wolf-panel="cards" data-shell-panel="role-cards">
+            <h2>角色卡</h2>
+            <div class="wolf-role-list" data-wolf-cards data-shell-slot="player-status"></div>
+          </section>
+          <section class="panel info-panel game-only-panel log-panel" data-wolf-panel="log" data-shell-panel="log">
+            <h2>記錄</h2>
+            <ol class="log-list" data-wolf-log data-shell-slot="event-log"></ol>
+          </section>
+          <section class="panel room-panel desktop-room-panel" data-shell-panel="invite">
+            <div class="room-code-block">
+              <span>房間代碼</span>
+              <strong class="room-code-value">------</strong>
+            </div>
+            <button class="ghost-button" data-copy-link type="button">複製邀請連結</button>
+          </section>
+        </aside>
+
+        <section class="main-panel" data-wolf-main data-shell-panel="main"></section>
+        <section class="panel room-panel mobile-room-panel" data-shell-panel="invite">
+          <div class="room-code-block">
+            <span>房間代碼</span>
+            <strong class="room-code-value">------</strong>
+          </div>
+          <button class="ghost-button" data-copy-link type="button">複製邀請連結</button>
+        </section>
+      </div>
+    </section>
+
+    <template id="wolfLobbyTemplate" data-shell-template="lobby" data-game="onenightwolf">
+      <div data-template-slot="phase-header"></div>
+      <div class="lobby-grid" data-shell-layout="lobby">
+        <section class="section-block" data-shell-panel="your-status">
+          <h3>你的狀態</h3>
+          <div class="action-card">
+            <span class="ready-alert" data-wolf-lobby-ready-alert tabindex="0"></span>
+            <span class="ready-alert-popover" data-wolf-lobby-ready-popover role="tooltip"></span>
+            <div class="action-card-status">
+              <strong data-wolf-lobby-player-name></strong>
+              <p data-wolf-lobby-roll-status></p>
+            </div>
+            <div class="button-row">
+              <button class="secondary-button" data-wolf-roll type="button">擲 d100</button>
+              <button class="primary-button" data-wolf-ready type="button">準備</button>
+            </div>
+          </div>
+          <div class="validation-list" data-wolf-lobby-validation></div>
+          <div data-wolf-lobby-start-control></div>
+        </section>
+        <section class="section-block" data-shell-panel="host-settings">
+          <div class="section-heading">
+            <h3>房主設定</h3>
+            <div data-wolf-lobby-host-actions></div>
+          </div>
+          <div class="settings-grid" data-wolf-lobby-settings data-shell-slot="settings-grid">
+            <label class="field">
+              <span>遊戲人數</span>
+              <select class="wolf-select" data-wolf-player-count></select>
+            </label>
+            <label class="field">
+              <span>討論時間</span>
+              <select class="wolf-select" data-wolf-discussion>
+                <option value="180">3 分鐘</option>
+                <option value="300" selected>5 分鐘</option>
+                <option value="420">7 分鐘</option>
+                <option value="600">10 分鐘</option>
+              </select>
+            </label>
+          </div>
+          <h3>牌庫</h3>
+          <div class="role-builder" data-wolf-role-builder data-shell-panel="deck"></div>
+        </section>
+      </div>
+    </template>
   </main>
 
   <div class="rules-overlay hidden" id="wolfRulesOverlay" role="dialog" aria-modal="true" aria-labelledby="wolfRulesTitle">
@@ -91,12 +187,75 @@
         </div>
         <button class="ghost-button" id="closeWolfRulesButton" type="button">關閉</button>
       </header>
-      <div class="rules-content" id="wolfRulesContent"></div>
+      <div class="rules-content" id="wolfRulesContent" data-wolf-rules-content>
+        <section>
+          <h3>遊戲流程</h3>
+          <ol>
+            <li>每名玩家取得一張角色牌，另有三張牌留在中央。</li>
+            <li>天亮前每位玩家只會看到自己的初始角色牌；輪到你行動時，行動區會提示你當下執行的角色。</li>
+            <li>依角色順序完成夜間能力；每個階段由當下持有該角色牌的玩家行動，部分能力會交換角色牌。</li>
+            <li>天亮後在房主設定的時間內自由討論並投票；所有人提早投完會立即結算。</li>
+            <li>討論時間結束後直接結算，尚未投票的玩家視為廢票。</li>
+            <li>最高票且至少兩票者遭到處決；平票可能同時處決多人。結算時會公開所有玩家的投票。</li>
+            <li>處決至少一名狼人，好人陣營獲勝；否則狼人陣營獲勝。</li>
+          </ol>
+        </section>
+        <section>
+          <h3>角色能力</h3>
+          <div class="wolf-rules-role-grid">
+          <div class="neutral"><strong>化身幽靈</strong><span>依複製角色決定</span><p>最早行動，查看一名玩家的初始角色並複製其能力與陣營；不同角色會立即、同時或延後行動。</p></div>
+          <div class="werewolf"><strong>狼人</strong><span>狼人陣營</span><p>查看其他狼人。若你是唯一的狼人，可以查看一張中央牌。</p></div>
+          <div class="werewolf"><strong>爪牙</strong><span>狼人陣營</span><p>查看所有狼人。狼人不知道你是誰；必要時可以代替狼人被處決。</p></div>
+          <div class="village"><strong>守夜人</strong><span>好人陣營</span><p>查看另一名守夜人。牌庫中必須同時放入兩張守夜人。</p></div>
+          <div class="village"><strong>預言家</strong><span>好人陣營</span><p>查看一名其他玩家的牌，或查看兩張中央牌。</p></div>
+          <div class="village"><strong>強盜</strong><span>好人陣營</span><p>可以和一名其他玩家交換牌，並查看自己換到的牌。</p></div>
+          <div class="village"><strong>搗蛋鬼</strong><span>好人陣營</span><p>可以交換另外兩名玩家的牌，但不能查看牌面。</p></div>
+          <div class="village"><strong>酒鬼</strong><span>好人陣營</span><p>必須將自己的牌與一張中央牌交換，但不能查看新牌。</p></div>
+          <div class="village"><strong>失眠者</strong><span>好人陣營</span><p>夜晚最後查看自己目前的牌。</p></div>
+          <div class="village"><strong>村民</strong><span>好人陣營</span><p>沒有夜間能力，依靠討論找出狼人。</p></div>
+          <div class="tanner"><strong>皮匠</strong><span>皮匠陣營</span><p>沒有夜間能力。你的目標是讓自己在投票後遭到處決。</p></div>
+          <div class="village"><strong>獵人</strong><span>好人陣營</span><p>沒有夜間能力。若你遭到處決，你可以選擇一名其他玩家開槍，使其一同出局。</p></div>
+          </div>
+        </section>
+        <section>
+          <h3>遊戲設置</h3>
+          <ul>
+            <li>支援 3～10 人；牌庫固定為玩家人數加三張角色牌。</li>
+            <li>第一次遊玩建議先不使用化身幽靈、皮匠與獵人。</li>
+            <li>守夜人必須同時放入兩張；其他角色可由房主自由調整。</li>
+            <li>每局所有玩家先擲 d100 決定順時鐘座位與玩家列表順序；夜間仍依固定角色順序進行。</li>
+            <li>夜晚行動順序：化身幽靈➜狼人➜爪牙➜守夜人➜預言家➜強盜➜搗蛋鬼➜酒鬼➜失眠者。</li>
+            <li>村民、皮匠與獵人沒有夜間操作。</li>
+            <li><strong>化身幽靈複製預言家、強盜、搗蛋鬼或酒鬼：</strong>在化身幽靈階段立即執行能力，之後不會在正牌角色階段再次行動。</li>
+            <li><strong>化身幽靈複製狼人或守夜人：</strong>等到該角色階段，與其他狼人或守夜人一同行動。</li>
+            <li><strong>化身幽靈複製爪牙：</strong>在化身幽靈階段立即確認狼人。</li>
+            <li><strong>化身幽靈複製失眠者：</strong>在正版失眠者行動後查看自己目前的牌。</li>
+            <li>若化身幽靈牌在夜間被換給其他玩家，該玩家的最終角色是化身幽靈最初複製的角色，但不會補發該角色的夜間能力。</li>
+          </ul>
+        </section>
+        <section>
+          <h3>勝利條件</h3>
+          <ol>
+            <li><strong class="team-werewolf">場上有狼人：</strong>至少一名狼人死亡，好人陣營獲勝；否則狼人陣營獲勝。</li>
+            <li><strong class="team-village">沒有狼人或爪牙：</strong>無人遭處決時所有玩家獲勝；若有人遭處決則無人獲勝。</li>
+            <li><strong class="team-werewolf">沒有狼人但有爪牙：</strong>爪牙死亡時好人陣營獲勝；其他玩家死亡時狼人陣營獲勝。</li>
+            <li><strong class="team-tanner">皮匠：</strong>皮匠死亡即可獲勝；若同時有狼人死亡，好人陣營也獲勝。</li>
+            <li><strong class="team-village">獵人：</strong>獵人死亡後選擇一名反擊目標，該玩家也會死亡。多名獵人需要反擊時依 d100 座位順序行動，不分正牌或化身幽靈；被獵人射殺的獵人也會繼續觸發反擊。</li>
+          </ol>
+        </section>
+      </div>
     </article>
   </div>
 
   <script src="/shared/client-state.js"></script>
   <script src="/shared/room-ui.js"></script>
-  <script src="/Onenightwolf/onenightwolf.js"></script>
+  <script>
+    document.getElementById("gameModeSelect")?.addEventListener("change", (event) => {
+      if (event.target.value === "avalon") {
+        window.location.href = "/";
+      }
+    });
+  </script>
+  <script src="/Onenightwolf/onenightwolf.js?v=shell-20260701-8"></script>
 </body>
 </html>

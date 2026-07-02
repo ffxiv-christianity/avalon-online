@@ -1,6 +1,8 @@
 "use strict";
 
 const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
 const {
   RECOMMENDED_DECKS,
   makeRoom,
@@ -8,6 +10,8 @@ const {
   applyRoomAction,
   validateLobby
 } = require("../game");
+
+const gameSource = fs.readFileSync(path.join(__dirname, "..", "game.js"), "utf8");
 
 function createRoomWithPlayers(count = 4) {
   const { room, player: host } = makeRoom("Host", "WOLFCT");
@@ -136,10 +140,45 @@ function testReturnLobbyClearsTransientRoomStateButKeepsPlayers() {
   assert.deepStrictEqual(room.log, []);
 }
 
+function testDoppelgangerUsesSharedRoleResolvers() {
+  const roleResolvers = {
+    doppelganger: "resolveDoppelganger",
+    werewolf: "resolveWerewolf",
+    minion: "resolveMinion",
+    mason: "resolveMason",
+    seer: "resolveSeer",
+    robber: "resolveRobber",
+    troublemaker: "resolveTroublemaker",
+    drunk: "resolveDrunk",
+    insomniac: "resolveInsomniac"
+  };
+  assert(gameSource.includes("const NIGHT_ROLE_ACTIONS = Object.freeze({"), "夜晚角色應集中登記在 dispatcher map");
+  Object.entries(roleResolvers).forEach(([role, resolver]) => {
+    assert(gameSource.includes(`${role}: ${resolver}`), `${role} 必須對應到正牌 resolver`);
+  });
+  assert(
+    gameSource.includes("const result = resolveNightRoleAction(room, actor, actionRole, payload);"),
+    "夜晚行動入口應以 actionRole 呼叫同一個 dispatcher"
+  );
+  assert(
+    gameSource.includes("return resolveNightRoleAction(room, actor, copiedRole, payload);"),
+    "化身幽靈立即發動複製能力時，也必須回到同一個 dispatcher"
+  );
+  const doppelMatch = gameSource.match(/function resolveDoppelganger\(room, actor, payload\) \{([\s\S]*?)\n\}\n\nfunction resolveWerewolf/);
+  assert(doppelMatch, "必須能定位化身幽靈 resolver");
+  const doppelBody = doppelMatch[1];
+  Object.values(roleResolvers)
+    .filter((resolver) => resolver !== "resolveDoppelganger")
+    .forEach((resolver) => {
+      assert(!doppelBody.includes(`${resolver}(`), `化身幽靈不應直接呼叫 ${resolver}，需透過 dispatcher`);
+    });
+}
+
 function run() {
   testHostSettingsResetReadyAndValidateCapacity();
   testLobbyJoinReconnectAndStartedRoomRestrictions();
   testReturnLobbyClearsTransientRoomStateButKeepsPlayers();
+  testDoppelgangerUsesSharedRoleResolvers();
   console.log("One Night Werewolf room contract tests passed");
 }
 

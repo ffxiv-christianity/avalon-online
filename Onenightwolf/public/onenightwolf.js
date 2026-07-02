@@ -19,6 +19,7 @@
   let discussionTimer = null;
   let activeInfoTab = "chat";
   let infoRoomCode = null;
+  let lastRoomPhase = null;
   let lastObservedChatId = null;
   let unreadChatCount = 0;
   let lastPlayerJoinSerial = 0;
@@ -48,6 +49,7 @@
     page.joinView = document.getElementById("joinView");
     page.avalonRoomView = document.getElementById("roomView");
     page.roomView = document.getElementById("wolfRoomView");
+    page.lobbyTemplate = document.getElementById("wolfLobbyTemplate");
     page.joinForm = document.getElementById("joinForm");
     page.nameInput = document.getElementById("nameInput");
     page.roomInput = document.getElementById("roomInput");
@@ -72,6 +74,7 @@
     bindModeSelector();
     bindLoginCapture();
     bindRules();
+    bindCoreRoomEvents();
 
     if (isDirectPage) {
       page.mode.value = "onenightwolf";
@@ -252,8 +255,258 @@
     });
   }
 
+  function bindCoreRoomEvents() {
+    if (!page.roomView || page.coreRoomEventsBound) return;
+    page.coreRoomEventsBound = true;
+    page.roomView.addEventListener("click", handleCoreRoomClick, true);
+    page.roomView.addEventListener("submit", handleCoreRoomSubmit, true);
+    page.roomView.addEventListener("change", handleCoreRoomChange, true);
+  }
+
+  function handleCoreRoomClick(event) {
+    const tab = event.target.closest("[data-wolf-tab]");
+    if (tab && page.roomView.contains(tab)) {
+      event.preventDefault();
+      event.stopPropagation();
+      activeInfoTab = tab.dataset.wolfTab;
+      if (activeInfoTab === "chat") unreadChatCount = 0;
+      if (activeInfoTab === "roster") unreadRosterCount = 0;
+      renderRoom();
+      if (activeInfoTab === "chat") {
+        SharedRoomUI.readLatestChat(page.roomView.querySelector("[data-wolf-chat-list]"));
+      }
+      return;
+    }
+
+    const rollButton = event.target.closest("[data-wolf-roll]");
+    if (rollButton && page.roomView.contains(rollButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!rollButton.disabled) sendAction("roll");
+      return;
+    }
+
+    const readyButton = event.target.closest("[data-wolf-ready]");
+    if (readyButton && page.roomView.contains(readyButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!readyButton.disabled) sendAction("toggleReady");
+      return;
+    }
+
+    const startButton = event.target.closest("[data-wolf-start]");
+    if (startButton && page.roomView.contains(startButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!startButton.disabled) sendAction("startGame");
+      return;
+    }
+
+    const choiceButton = event.target.closest(".wolf-choice[data-group]");
+    if (choiceButton && page.roomView.contains(choiceButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleWolfChoice(choiceButton);
+      refreshNightActionButtons();
+      return;
+    }
+
+    const nightSkipButton = event.target.closest("[data-night-skip]");
+    if (nightSkipButton && page.roomView.contains(nightSkipButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!nightSkipButton.disabled && window.confirm("確定不使用角色能力嗎？")) {
+        sendAction("nightAction", { skip: true });
+      }
+      return;
+    }
+
+    const nightButton = event.target.closest("[data-night-action]");
+    if (nightButton && page.roomView.contains(nightButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!nightButton.disabled) handleNightAction({ currentTarget: nightButton });
+      return;
+    }
+
+    const voteButton = event.target.closest("[data-wolf-vote]");
+    if (voteButton && page.roomView.contains(voteButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      pendingVoteTargetId = voteButton.dataset.wolfVote;
+      page.roomView.querySelectorAll("[data-wolf-vote]").forEach((button) => {
+        button.classList.toggle("selected", button === voteButton);
+      });
+      const confirmButton = page.roomView.querySelector("[data-wolf-confirm-vote]");
+      if (confirmButton) confirmButton.disabled = false;
+      return;
+    }
+
+    const hunterTargetButton = event.target.closest("[data-wolf-hunter-target]");
+    if (hunterTargetButton && page.roomView.contains(hunterTargetButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      pendingHunterTargetId = hunterTargetButton.dataset.wolfHunterTarget;
+      page.roomView.querySelectorAll("[data-wolf-hunter-target]").forEach((button) => {
+        button.classList.toggle("selected", button === hunterTargetButton);
+      });
+      const confirmButton = page.roomView.querySelector("[data-wolf-confirm-hunter]");
+      if (confirmButton) confirmButton.disabled = false;
+      return;
+    }
+
+    const confirmHunterButton = event.target.closest("[data-wolf-confirm-hunter]");
+    if (confirmHunterButton && page.roomView.contains(confirmHunterButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!confirmHunterButton.disabled && pendingHunterTargetId) {
+        sendAction("hunterShot", { targetId: pendingHunterTargetId });
+        pendingHunterTargetId = null;
+      }
+      return;
+    }
+
+    const confirmRevealButton = event.target.closest("[data-wolf-confirm-reveal]");
+    if (confirmRevealButton && page.roomView.contains(confirmRevealButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!confirmRevealButton.disabled) sendAction("confirmReveal");
+      return;
+    }
+
+    const confirmVoteButton = event.target.closest("[data-wolf-confirm-vote]");
+    if (confirmVoteButton && page.roomView.contains(confirmVoteButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!confirmVoteButton.disabled && pendingVoteTargetId) {
+        sendAction("vote", { targetId: pendingVoteTargetId });
+      }
+      return;
+    }
+
+    const returnButton = event.target.closest("[data-wolf-return]");
+    if (returnButton && page.roomView.contains(returnButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!returnButton.disabled) sendAction("returnLobby");
+      return;
+    }
+
+    const recommendButton = event.target.closest("[data-wolf-recommend]");
+    if (recommendButton && page.roomView.contains(recommendButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      const deck = recommendedDeck(snapshot.room.settings.playerCount);
+      if (deck.length) sendAction("updateSettings", settingsPayload({ deck }));
+      return;
+    }
+
+    const copyButton = event.target.closest("[data-copy-link]");
+    if (copyButton && page.roomView.contains(copyButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      copyInvite();
+      return;
+    }
+
+    const roleButton = event.target.closest("[data-wolf-role]");
+    if (roleButton && page.roomView.contains(roleButton)) {
+      event.preventDefault();
+      event.stopPropagation();
+      const role = roleButton.dataset.wolfRole;
+      const delta = Number(roleButton.dataset.delta);
+      if (!role || !Number.isFinite(delta)) return;
+      const counts = deckCounts(snapshot.room.settings.deck);
+      const max = snapshot.roles[role]?.max ?? 10;
+      counts[role] = Math.max(0, Math.min(max, (counts[role] || 0) + delta));
+      sendAction("updateSettings", settingsPayload({ deck: deckFromCounts(counts) }));
+    }
+  }
+
+  function toggleWolfChoice(button) {
+    const group = button.dataset.group;
+    if (!group) return;
+    const isSelected = button.classList.contains("selected");
+    const max = Number(button.dataset.max || button.closest("[data-choice-max]")?.dataset.choiceMax || 1);
+    if (isSelected) {
+      button.classList.remove("selected");
+      return;
+    }
+    const selected = selectedChoices(group);
+    if (max <= 1) {
+      page.roomView.querySelectorAll(`.wolf-choice.selected[data-group="${cssEscape(group)}"]`).forEach((choice) => {
+        choice.classList.remove("selected");
+      });
+    } else if (selected.length >= max) {
+      selected[0]?.classList.remove("selected");
+    }
+    clearOpposingNightChoiceGroup(group);
+    button.classList.add("selected");
+  }
+
+  function clearOpposingNightChoiceGroup(group) {
+    if (!["player", "center"].includes(group)) return;
+    const opposingGroup = group === "player" ? "center" : "player";
+    page.roomView.querySelectorAll(`.wolf-choice.selected[data-group="${opposingGroup}"]`).forEach((choice) => {
+      choice.classList.remove("selected");
+    });
+  }
+
+  function refreshNightActionButtons() {
+    const playerChoices = selectedChoices("player").length;
+    const centerChoices = selectedChoices("center").length;
+    page.roomView.querySelectorAll("[data-night-action]").forEach((button) => {
+      const action = button.dataset.nightAction;
+      const requires = button.dataset.requiresSelection;
+      if (button.dataset.nightSkip !== undefined) return;
+      if (requires === "player") button.disabled = playerChoices < 1;
+      if (requires === "two-players") button.disabled = playerChoices < 2;
+      if (requires === "center") button.disabled = centerChoices < 1;
+      if (requires === "two-centers") button.disabled = centerChoices < 2;
+      if (requires === "seer") button.disabled = !(playerChoices === 1 || centerChoices === 2);
+      if (!requires && ["doppelganger", "robber"].includes(action)) button.disabled = playerChoices < 1;
+      if (!requires && action === "werewolf") button.disabled = centerChoices < 1;
+      if (!requires && action === "troublemaker") button.disabled = playerChoices < 2;
+      if (!requires && action === "seer") button.disabled = !(playerChoices === 1 || centerChoices === 2);
+      if (!requires && action === "drunk") button.disabled = centerChoices < 1;
+    });
+  }
+
+  function cssEscape(value) {
+    if (window.CSS?.escape) return CSS.escape(value);
+    return String(value).replace(/["\\]/g, "\\$&");
+  }
+
+  function handleCoreRoomSubmit(event) {
+    const form = event.target.closest("[data-wolf-chat-form]");
+    if (!form || !page.roomView.contains(form)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const input = form.querySelector("[data-wolf-chat-input]");
+    const message = input?.value.trim();
+    if (!message) return;
+    input.value = "";
+    sendAction("chat", { message });
+  }
+
+  function handleCoreRoomChange(event) {
+    const playerCountSelect = event.target.closest("[data-wolf-player-count]");
+    if (playerCountSelect && page.roomView.contains(playerCountSelect)) {
+      event.preventDefault();
+      event.stopPropagation();
+      sendAction("updateSettings", settingsPayload({ playerCount: Number(playerCountSelect.value) }));
+      return;
+    }
+
+    const discussionSelect = event.target.closest("[data-wolf-discussion]");
+    if (discussionSelect && page.roomView.contains(discussionSelect)) {
+      event.preventDefault();
+      event.stopPropagation();
+      sendAction("updateSettings", settingsPayload({ discussionSeconds: Number(discussionSelect.value) }));
+    }
+  }
+
   function openWolfRules() {
-    ensureRulesOverlay();
     page.wolfRules.classList.remove("hidden");
     document.body.classList.add("modal-open");
   }
@@ -261,73 +514,6 @@
   function closeWolfRules() {
     page.wolfRules?.classList.add("hidden");
     document.body.classList.remove("modal-open");
-  }
-
-  function ensureRulesOverlay() {
-    if (!page.wolfRules) {
-      page.wolfRules = document.createElement("div");
-      page.wolfRules.id = "wolfRulesOverlay";
-      page.wolfRules.className = "rules-overlay hidden";
-      page.wolfRules.innerHTML = `
-        <article class="rules-dialog">
-          <header class="rules-header">
-            <div><p class="eyebrow">One Night Ultimate Werewolf</p><h2>一夜終極狼人規則</h2></div>
-            <button class="ghost-button" data-close-wolf-rules type="button">關閉</button>
-          </header>
-          <div class="rules-content" data-wolf-rules-content></div>
-        </article>`;
-      document.body.appendChild(page.wolfRules);
-      page.wolfRules.querySelector("[data-close-wolf-rules]").addEventListener("click", closeWolfRules);
-      page.wolfRules.addEventListener("click", (event) => {
-        if (event.target === page.wolfRules) closeWolfRules();
-      });
-    }
-    const content = page.wolfRules.querySelector("#wolfRulesContent, [data-wolf-rules-content]");
-    if (content && !content.childElementCount) {
-      content.innerHTML = `
-        <section>
-          <h3>遊戲流程</h3>
-          <ol>
-            <li>每名玩家取得一張角色牌，另有三張牌留在中央。</li>
-            <li>依角色順序完成夜間能力；部分能力會交換角色牌。</li>
-            <li>天亮後在房主設定的時間內自由討論並投票；所有人提早投完會立即結算。</li>
-            <li>討論時間結束後直接結算，尚未投票的玩家視為廢票。</li>
-            <li>最高票且至少兩票者遭到處決；平票可能同時處決多人。結算時會公開所有玩家的投票。</li>
-            <li>處決至少一名狼人，好人陣營獲勝；否則狼人陣營獲勝。</li>
-          </ol>
-        </section>
-        <section>
-          <h3>角色能力</h3>
-          <div class="wolf-rules-role-grid">
-            ${Object.values(roleCatalog()).map((role) => `<div class="${role.team}"><strong>${role.name}</strong><span>${teamLabel(role.team)}</span><p>${role.description}</p></div>`).join("")}
-          </div>
-        </section>
-        <section>
-          <h3>遊戲設置</h3>
-          <ul>
-            <li>支援 3～10 人；牌庫固定為玩家人數加三張角色牌。</li>
-            <li>第一次遊玩建議先不使用化身幽靈、皮匠與獵人。</li>
-            <li>守夜人必須同時放入兩張；其他角色可由房主自由調整。</li>
-            <li>每局所有玩家先擲 d100 決定順時鐘座位與玩家列表順序；夜間仍依固定角色順序進行。</li>
-            <li>夜晚行動順序：化身幽靈➜狼人➜爪牙➜守夜人➜預言家➜強盜➜搗蛋鬼➜酒鬼➜失眠者。</li>
-            <li>村民、皮匠與獵人沒有夜間操作。</li>
-            <li><strong>化身幽靈複製預言家、強盜、搗蛋鬼或酒鬼：</strong>在化身幽靈階段立即執行能力，之後不會在正牌角色階段再次行動。</li>
-            <li><strong>化身幽靈複製狼人或守夜人：</strong>等到該角色階段，與其他狼人或守夜人一同行動。</li>
-            <li><strong>化身幽靈複製爪牙：</strong>在化身幽靈階段立即確認狼人；複製失眠者則在正版失眠者結束後查看自己目前的牌。</li>
-            <li>若化身幽靈牌在夜間被換給其他玩家，該玩家的最終角色是化身幽靈最初複製的角色，但不會補發該角色的夜間能力。</li>
-          </ul>
-        </section>
-        <section>
-          <h3>勝利條件</h3>
-          <ol>
-            <li><strong class="team-werewolf">場上有狼人：</strong>至少一名狼人死亡，好人陣營獲勝；否則狼人陣營獲勝。</li>
-            <li><strong class="team-village">沒有狼人或爪牙：</strong>無人遭處決時所有玩家獲勝；若有人遭處決則無人獲勝。</li>
-            <li><strong class="team-werewolf">沒有狼人但有爪牙：</strong>爪牙死亡時好人陣營獲勝；其他玩家死亡時狼人陣營獲勝。</li>
-            <li><strong class="team-tanner">皮匠：</strong>皮匠死亡即可獲勝；若同時有狼人死亡，好人陣營也獲勝。</li>
-            <li><strong class="team-village">獵人：</strong>獵人死亡後選擇一名反擊目標，該玩家也會死亡。多名獵人需要反擊時依 d100 座位順序行動，不分正牌或化身幽靈；被獵人射殺的獵人也會繼續觸發反擊。</li>
-          </ol>
-        </section>`;
-    }
   }
 
   function connect() {
@@ -434,7 +620,8 @@
     const chatScrollState = SharedRoomUI.captureScroll(
       page.roomView.querySelector("[data-wolf-chat-list]")
     );
-    if (snapshot.room.phase === "lobby" && activeInfoTab === "log") activeInfoTab = "chat";
+    const isLobbyPhase = snapshot.room.phase === "lobby";
+    if (isLobbyPhase && activeInfoTab === "log") activeInfoTab = "chat";
     syncInfoUnread(chatScrollState);
     document.title = WOLF_PAGE_TITLE;
     document.body.classList.add("room-active", "wolf-mode");
@@ -445,46 +632,32 @@
     if (page.siteEyebrow) page.siteEyebrow.textContent = "One Night Ultimate Werewolf";
     if (page.siteTitle) page.siteTitle.textContent = "一夜終極狼人";
 
-    page.roomView.innerHTML = `
-      <section class="status-strip">${statusCards()}</section>
-      <section class="mobile-status-summary" aria-label="遊戲狀態摘要">${mobileStatusSummary()}</section>
-      <div class="game-layout">
-        <aside class="side-panel">
-          <nav class="info-tabs" data-wolf-tabs aria-label="房間資訊">
-            <button class="info-tab ${activeInfoTab === "chat" ? "active" : ""}" data-wolf-tab="chat" type="button">聊天 <span class="tab-badge ${unreadChatCount ? "" : "hidden"}" data-wolf-chat-badge>${unreadChatCount}</span></button>
-            <button class="info-tab ${activeInfoTab === "roster" ? "active" : ""}" data-wolf-tab="roster" type="button">玩家 <span class="tab-badge ${unreadRosterCount ? "" : "hidden"}" data-wolf-roster-badge>${unreadRosterCount}</span></button>
-            <button class="info-tab ${activeInfoTab === "cards" ? "active" : ""}" data-wolf-tab="cards" type="button">角色卡</button>
-            <button class="info-tab game-only-tab ${activeInfoTab === "log" ? "active" : ""} ${snapshot.room.phase === "lobby" ? "hidden" : ""}" data-wolf-tab="log" type="button">記錄</button>
-          </nav>
-          <section class="panel info-panel chat-panel ${activeInfoTab === "chat" ? "active" : ""}" data-wolf-panel="chat">
-            <h2>聊天</h2>
-            <div class="chat-list" data-wolf-chat-list>${chatMessages()}</div>
-            <form class="chat-form" data-wolf-chat-form autocomplete="off">
-              <input data-wolf-chat-input maxlength="240" autocomplete="off" placeholder="輸入訊息">
-              <button class="primary-button" type="submit">送出</button>
-            </form>
-          </section>
-          <section class="panel info-panel roster-panel ${activeInfoTab === "roster" ? "active" : ""}" data-wolf-panel="roster">
-            <h2>玩家順序</h2>
-            <div class="roster">${rosterCards()}</div>
-          </section>
-          <section class="panel info-panel ${activeInfoTab === "cards" ? "active" : ""}" data-wolf-panel="cards">
-            <h2>角色卡</h2>
-            <div class="wolf-role-list">${enabledRoleCards()}</div>
-          </section>
-          <section class="panel info-panel log-panel ${activeInfoTab === "log" ? "active" : ""}" data-wolf-panel="log">
-            <h2>記錄</h2>
-            <ol class="log-list">${snapshot.room.log.slice().reverse().map((entry) => `<li>${escapeHtml(entry)}</li>`).join("")}</ol>
-          </section>
-          ${roomPanel("desktop-room-panel")}
-        </aside>
-        <section class="main-panel" data-wolf-main>${mainPhase()}</section>
-        ${roomPanel("mobile-room-panel")}
-      </div>`;
-
-    bindRoomEvents();
+    page.roomView.querySelector("[data-wolf-status]").innerHTML = statusCards();
+    page.roomView.querySelector("[data-wolf-mobile-status]").innerHTML = mobileStatusSummary();
+    page.roomView.querySelectorAll(".room-code-value").forEach((element) => {
+      element.textContent = snapshot.room.code;
+    });
+    page.roomView.querySelectorAll("[data-wolf-tab]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.wolfTab === activeInfoTab);
+    });
+    page.roomView.querySelectorAll("[data-wolf-panel]").forEach((panel) => {
+      panel.classList.toggle("active", panel.dataset.wolfPanel === activeInfoTab);
+    });
+    page.roomView.querySelectorAll(".game-only-tab, .game-only-panel").forEach((element) => {
+      element.classList.toggle("hidden", isLobbyPhase);
+    });
+    page.roomView.querySelector("[data-wolf-chat-unread]").textContent = String(unreadChatCount);
+    page.roomView.querySelector("[data-wolf-chat-unread]").classList.toggle("hidden", unreadChatCount === 0);
+    page.roomView.querySelector("[data-wolf-roster-unread]").textContent = String(unreadRosterCount);
+    page.roomView.querySelector("[data-wolf-roster-unread]").classList.toggle("hidden", unreadRosterCount === 0);
+    renderMainPanel();
+    renderRoomSlot("[data-wolf-chat-list]", chatMessages);
+    renderRoomSlot("[data-wolf-roster]", rosterCards);
+    renderRoomSlot("[data-wolf-cards]", enabledRoleCards);
+    renderRoomSlot("[data-wolf-log]", logEntries);
     const chatList = page.roomView.querySelector("[data-wolf-chat-list]");
     SharedRoomUI.restoreScroll(chatList, chatScrollState);
+    bindRoomEvents();
     if (snapshot.room.phase === "discussion") {
       updateDiscussionTimer();
       discussionTimer = window.setInterval(updateDiscussionTimer, 1000);
@@ -496,6 +669,7 @@
     const chat = room.chat || [];
     if (infoRoomCode !== room.code) {
       infoRoomCode = room.code;
+      lastRoomPhase = room.phase;
       lastObservedChatId = chat.at(-1)?.id || null;
       unreadChatCount = 0;
       lastPlayerJoinSerial = SharedRoomClient.latestJoinSerial(room.playerJoinEvents || []);
@@ -503,6 +677,11 @@
       activeInfoTab = "chat";
       return;
     }
+    if (lastRoomPhase && lastRoomPhase !== "lobby" && room.phase === "lobby") {
+      lastPlayerJoinSerial = SharedRoomClient.latestJoinSerial(room.playerJoinEvents || []);
+      unreadRosterCount = 0;
+    }
+    lastRoomPhase = room.phase;
     const chatUpdate = SharedRoomUI.updateChatUnread({
       entries: chat,
       lastObservedId: lastObservedChatId,
@@ -520,6 +699,37 @@
     }
     lastPlayerJoinSerial = Math.max(Number(lastPlayerJoinSerial), SharedRoomClient.latestJoinSerial(room.playerJoinEvents || []));
     if (activeInfoTab === "roster") unreadRosterCount = 0;
+  }
+
+  function renderMainPanel() {
+    const mainPanel = page.roomView.querySelector("[data-wolf-main]");
+    if (!mainPanel) return;
+    try {
+      if (snapshot.room.phase === "lobby") {
+        mainPanel.replaceChildren(lobbyFragment());
+      } else {
+        mainPanel.innerHTML = mainPhase();
+      }
+    } catch (error) {
+      console.error("Failed to render One Night Wolf main panel", error);
+      mainPanel.innerHTML = `
+        <section class="section-block">
+          <h3>畫面載入失敗</h3>
+          <p>主畫面渲染時發生錯誤，請重新整理或查看 Console。</p>
+          <pre>${escapeHtml(error?.message || String(error))}</pre>
+        </section>`;
+    }
+  }
+
+  function renderRoomSlot(selector, renderContent) {
+    const slot = page.roomView.querySelector(selector);
+    if (!slot) return;
+    try {
+      slot.innerHTML = renderContent();
+    } catch (error) {
+      console.error(`Failed to render ${selector}`, error);
+      slot.innerHTML = `<div class="notice">此區塊載入失敗：${escapeHtml(error?.message || String(error))}</div>`;
+    }
   }
 
   function statusCards() {
@@ -584,13 +794,6 @@
     ]);
   }
 
-  function roomPanel(extraClass) {
-    return `<section class="panel room-panel ${extraClass}">
-      <div class="room-code-block"><span>房間代碼</span><strong>${snapshot.room.code}</strong></div>
-      <button class="ghost-button" data-wolf-copy type="button">複製邀請連結</button>
-    </section>`;
-  }
-
   function rosterCards() {
     return snapshot.room.players.map((player, index) => `
       <div class="player-card ${SharedRoomUI.playerCardClasses({
@@ -620,6 +823,12 @@
       : `<div class="chat-message ${entry.playerId === snapshot.you.id ? "mine" : ""}"><span class="chat-line"><strong>${escapeHtml(entry.name)}:</strong> ${escapeHtml(entry.message)}</span></div>`).join("");
   }
 
+  function logEntries() {
+    return snapshot.room.log.slice().reverse()
+      .map((entry) => `<li>${escapeHtml(entry)}</li>`)
+      .join("");
+  }
+
   function enabledRoleCards() {
     const counts = deckCounts(snapshot.room.settings.deck);
     return Object.entries(counts).map(([roleKey, count]) => {
@@ -630,6 +839,25 @@
         <output>× ${count}</output>
       </div>`;
     }).join("");
+  }
+
+  function cloneTemplate(template, fallbackId) {
+    const source = template || (fallbackId ? document.getElementById(fallbackId) : null);
+    if (!source?.content) {
+      const fragment = document.createDocumentFragment();
+      const warning = document.createElement("section");
+      warning.className = "section-block";
+      warning.innerHTML = "<h3>Template 載入失敗</h3><p>找不到準備大廳 HTML template。</p>";
+      fragment.append(warning);
+      return fragment;
+    }
+    return source.content.cloneNode(true);
+  }
+
+  function fragmentToHtml(fragment) {
+    const wrapper = document.createElement("div");
+    wrapper.append(fragment);
+    return wrapper.innerHTML;
   }
 
   function mainPhase() {
@@ -677,60 +905,100 @@
       </div>`;
   }
 
-  function lobbyPhase() {
+  function lobbyFragment() {
     const room = snapshot.room;
     const me = room.players.find((player) => player.id === snapshot.you.id);
     const canStart = room.canStart && snapshot.you.isHost;
-    return `
-      ${phaseHeader("準備房間", "房主設定人數、牌庫與討論時間；每位玩家擲 d100 後按準備。")}
-      <div class="lobby-grid">
-        <section class="section-block">
-          <h3>你的狀態</h3>
-          <div class="action-card">
-            <span class="ready-alert ${me.ready ? "ready" : "not-ready"}" tabindex="0" aria-label="${me.ready ? "已準備" : "尚未準備"}"></span>
-            <span class="ready-alert-popover" role="tooltip">${me.ready ? "已準備" : "尚未準備"}</span>
-            <div class="action-card-status">
-              <strong>${escapeHtml(snapshot.you.name)}</strong>
-              <p>${me.roll ? `你的骰點是 ${me.roll}` : "尚未擲骰"}</p>
-            </div>
-            <div class="button-row">
-              <button class="secondary-button" data-wolf-roll type="button" ${me.roll ? "disabled" : ""}>擲 d100</button>
-              <button class="primary-button" data-wolf-ready type="button" ${me.roll ? "" : "disabled"}>${me.ready ? "取消準備" : "準備"}</button>
-            </div>
-          </div>
-          <div class="validation-list">
-            ${room.validation.errors.map((message) => `<div class="validation error">${escapeHtml(message)}</div>`).join("")}
-            ${room.validation.warnings.map((message) => `<div class="validation warn">${escapeHtml(message)}</div>`).join("")}
-            ${room.canStart ? `<div class="validation ok">所有條件完成，可以開始遊戲。</div>` : ""}
-          </div>
-          ${snapshot.you.isHost
-            ? `<button class="start-button" data-wolf-start type="button" ${canStart ? "" : "disabled"}>開始遊戲</button>`
-            : `<div class="notice">等待房主開始遊戲。</div>`}
-        </section>
+    const fragment = cloneTemplate(page.lobbyTemplate, "wolfLobbyTemplate");
 
-        <section class="section-block ${snapshot.you.isHost ? "" : "locked"}">
-          <div class="section-heading">
-            <h3>房主設定</h3>
-            ${snapshot.you.isHost ? `<button class="ghost-button" data-wolf-recommend type="button">${room.settings.playerCount} 人推薦牌庫</button>` : ""}
-          </div>
-          <div class="settings-grid">
-            <label class="field">
-              <span>遊戲人數</span>
-              <select class="wolf-select" data-wolf-player-count ${snapshot.you.isHost ? "" : "disabled"}>
-                ${Array.from({ length: 8 }, (_, index) => index + 3).map((count) => `<option value="${count}" ${count === room.settings.playerCount ? "selected" : ""}>${count} 人</option>`).join("")}
-              </select>
-            </label>
-            <label class="field">
-              <span>討論時間</span>
-              <select class="wolf-select" data-wolf-discussion ${snapshot.you.isHost ? "" : "disabled"}>
-                ${[180, 300, 420, 600].map((seconds) => `<option value="${seconds}" ${seconds === room.settings.discussionSeconds ? "selected" : ""}>${seconds / 60} 分鐘</option>`).join("")}
-              </select>
-            </label>
-          </div>
-          <h3>牌庫</h3>
-          <div class="role-builder" data-wolf-role-builder>${roleBuilder()}</div>
-        </section>
-      </div>`;
+    const phaseHeaderSlot = fragment.querySelector("[data-template-slot='phase-header']");
+    if (phaseHeaderSlot) {
+      phaseHeaderSlot.innerHTML = phaseHeader("準備房間", "房主設定人數、牌庫與討論時間；每位玩家擲 d100 後按準備。");
+    }
+
+    const readyAlert = fragment.querySelector("[data-wolf-lobby-ready-alert]");
+    if (readyAlert) {
+      readyAlert.classList.toggle("ready", Boolean(me.ready));
+      readyAlert.classList.toggle("not-ready", !me.ready);
+      readyAlert.setAttribute("aria-label", me.ready ? "已準備" : "尚未準備");
+    }
+
+    const readyPopover = fragment.querySelector("[data-wolf-lobby-ready-popover]");
+    if (readyPopover) {
+      readyPopover.textContent = me.ready ? "已準備" : "尚未準備";
+    }
+
+    const nameSlot = fragment.querySelector("[data-wolf-lobby-player-name]");
+    if (nameSlot) {
+      nameSlot.textContent = snapshot.you.name;
+    }
+
+    const rollStatus = fragment.querySelector("[data-wolf-lobby-roll-status]");
+    if (rollStatus) {
+      rollStatus.textContent = me.roll ? "你的骰點： " + me.roll : "尚未擲骰";
+    }
+
+    const rollButton = fragment.querySelector("[data-wolf-roll]");
+    if (rollButton) {
+      rollButton.disabled = Boolean(me.roll);
+    }
+
+    const readyButton = fragment.querySelector("[data-wolf-ready]");
+    if (readyButton) {
+      readyButton.disabled = !me.roll;
+      readyButton.textContent = me.ready ? "取消準備" : "準備";
+    }
+
+    const validationList = fragment.querySelector("[data-wolf-lobby-validation]");
+    if (validationList) {
+      validationList.innerHTML = [
+        ...room.validation.errors.map((message) => '<div class="validation error">' + escapeHtml(message) + "</div>"),
+        ...room.validation.warnings.map((message) => '<div class="validation warn">' + escapeHtml(message) + "</div>"),
+        room.canStart ? '<div class="validation ok">所有條件完成，可以開始遊戲。</div>' : ""
+      ].join("");
+    }
+
+    const startControl = fragment.querySelector("[data-wolf-lobby-start-control]");
+    if (startControl) {
+      startControl.innerHTML = snapshot.you.isHost
+        ? '<button class="start-button" data-wolf-start type="button" ' + (canStart ? "" : "disabled") + ">開始遊戲</button>"
+        : '<div class="notice">等待房主開始遊戲。</div>';
+    }
+
+    const hostSettings = fragment.querySelector('[data-shell-panel="host-settings"]');
+    if (hostSettings) {
+      hostSettings.classList.toggle("locked", !snapshot.you.isHost);
+    }
+
+    const hostActions = fragment.querySelector("[data-wolf-lobby-host-actions]");
+    if (hostActions && snapshot.you.isHost) {
+      hostActions.innerHTML = '<button class="ghost-button" data-wolf-recommend type="button">' + room.settings.playerCount + " 人推薦牌庫</button>";
+    }
+
+    const playerCountSelect = fragment.querySelector("[data-wolf-player-count]");
+    if (playerCountSelect) {
+      playerCountSelect.disabled = !snapshot.you.isHost;
+      playerCountSelect.innerHTML = Array.from({ length: 8 }, (_, index) => index + 3)
+        .map((count) => '<option value="' + count + '" ' + (count === room.settings.playerCount ? "selected" : "") + ">" + count + " 人</option>")
+        .join("");
+    }
+
+    const discussionSelect = fragment.querySelector("[data-wolf-discussion]");
+    if (discussionSelect) {
+      discussionSelect.disabled = !snapshot.you.isHost;
+      discussionSelect.value = String(room.settings.discussionSeconds);
+    }
+
+    const roleBuilderSlot = fragment.querySelector("[data-wolf-role-builder]");
+    if (roleBuilderSlot) {
+      roleBuilderSlot.innerHTML = roleBuilder();
+    }
+
+    return fragment;
+  }
+
+  function lobbyPhase() {
+    return fragmentToHtml(lobbyFragment());
   }
 
   function phaseHeader(title, subtitle) {
@@ -776,8 +1044,26 @@
     return Object.entries(counts).flatMap(([role, count]) => Array(Math.max(0, Number(count) || 0)).fill(role));
   }
 
+  function settingsPayload(overrides = {}) {
+    const settings = snapshot.room.settings;
+    return {
+      playerCount: settings.playerCount,
+      discussionSeconds: settings.discussionSeconds,
+      deck: settings.deck.slice(),
+      ...overrides
+    };
+  }
+
+  function recommendedDeck(playerCount) {
+    return (snapshot.recommendedDecks?.[playerCount] || snapshot.recommendedDecks?.[4] || []).slice();
+  }
+
   function nightPhase() {
     const room = snapshot.room;
+    const actionRoleName = roleDisplayName(room.night.actionRole);
+    const actionTitle = room.night.yourTurn
+      ? `輪到你行動${actionRoleName ? ` - 你是${actionRoleName}` : ""}`
+      : `等待${room.night.roleName}`;
     return `
       <div class="phase-card">
         <div class="wolf-phase-heading">
@@ -791,17 +1077,24 @@
           <header class="wolf-night-action-heading">
             <div>
               <p class="eyebrow">目前行動</p>
-              <h3>${room.night.yourTurn ? "輪到你行動" : `等待${escapeHtml(room.night.roleName)}`}</h3>
+              <h3>${escapeHtml(actionTitle)}</h3>
             </div>
             <span class="wolf-night-pulse" aria-hidden="true"></span>
           </header>
           <div class="wolf-night-action-body">
             ${room.night.yourTurn
               ? nightControls(room.night.actionRole)
-              : `<div class="progress-panel wolf-night-waiting"><strong>${escapeHtml(room.night.roleName)}正在行動</strong><p>請等待${escapeHtml(room.night.roleName)}完成行動。</p></div>`}
+              : nightWaitingPanel(room.night)}
           </div>
         </section>
       </div>`;
+  }
+
+  function nightWaitingPanel(night) {
+    if (night.role === "privateNightAction") {
+      return `<div class="progress-panel wolf-night-waiting"><strong>夜晚流程正在收尾</strong><p>請稍候，系統即將進入討論。</p></div>`;
+    }
+    return `<div class="progress-panel wolf-night-waiting"><strong>${escapeHtml(night.roleName)}正在行動</strong><p>請等待${escapeHtml(night.roleName)}完成行動。</p></div>`;
   }
 
   function nightOrderTrack() {
@@ -814,8 +1107,8 @@
       </div>
       <ol class="wolf-night-order-list" data-wolf-night-order>
         ${order.map((step) => {
-          const state = ["done", "active", "upcoming", "disabled"].includes(step.state) ? step.state : "upcoming";
-          const label = state === "done" ? "已完成" : state === "active" ? "行動中" : state === "disabled" ? "本局未啟用" : "尚未行動";
+          const state = ["done", "active", "upcoming"].includes(step.state) ? step.state : "upcoming";
+          const label = state === "done" ? "已完成" : state === "active" ? "行動中" : "尚未行動";
           return `<li class="wolf-night-step ${state}" title="${escapeHtml(label)}" ${state === "active" ? 'aria-current="step"' : ""}>
             <strong>${escapeHtml(step.name)}</strong>
           </li>`;
@@ -834,58 +1127,89 @@
     </section>`;
   }
 
+  function roleDisplayName(roleKey) {
+    return snapshot.roles?.[roleKey]?.name || "";
+  }
+
   function nightControls(role) {
+    const renderers = {
+      doppelganger: doppelgangerNightControls,
+      werewolf: werewolfNightControls,
+      minion: minionNightControls,
+      mason: masonNightControls,
+      insomniac: insomniacNightControls,
+      seer: seerNightControls,
+      robber: robberNightControls,
+      troublemaker: troublemakerNightControls,
+      drunk: drunkNightControls
+    };
+    return (renderers[role] || ackNightControls)();
+  }
+
+  function doppelgangerNightControls() {
     const others = snapshot.room.players.filter((player) => player.id !== snapshot.you.id);
-    if (role === "doppelganger") {
-      return `<p>選擇一名其他玩家，查看並複製他的初始角色與陣營。</p>
-        <div class="wolf-choice-grid">${others.map((player) => playerChoice(player, 1)).join("")}</div>
-        <button class="primary-button" data-night-action="doppelganger" data-requires-selection type="button" disabled>確認行動</button>`;
+    return `<p>選擇一名其他玩家，查看並複製他的初始角色與陣營。</p>
+      <div class="wolf-choice-grid">${others.map((player) => playerChoice(player, 1)).join("")}</div>
+      <button class="primary-button" data-night-action="doppelganger" data-requires-selection="player" type="button" disabled>確認行動</button>`;
+  }
+
+  function werewolfNightControls() {
+    const context = snapshot.you.nightContext || {};
+    if (!context.loneWerewolf) {
+      return `<p>其他狼人：<strong>${(context.teammates || []).map((player) => escapeHtml(player.name)).join("、")}</strong></p>
+        <p>場上有多名狼人，因此不能查看中央牌。</p>
+        <button class="primary-button" data-night-action="werewolf" type="button">確認相認</button>`;
     }
-    if (role === "werewolf") {
-      const context = snapshot.you.nightContext || {};
-      if (!context.loneWerewolf) {
-        return `<p>其他狼人：<strong>${(context.teammates || []).map((player) => escapeHtml(player.name)).join("、")}</strong></p>
-          <p>場上有多名狼人，因此不能查看中央牌。</p>
-          <button class="primary-button" data-night-action="werewolf" type="button">確認相認</button>`;
-      }
-      return `<p>你是場上唯一的狼人，可以查看一張中央牌。</p>
-        <div class="wolf-choice-grid">${centerChoices(1)}</div>
-        <button class="primary-button" data-night-action="werewolf" data-requires-selection type="button" disabled>確認查看</button>`;
-    }
-    if (role === "minion") {
-      const werewolves = snapshot.you.nightContext?.werewolves || [];
-      return `<p>${werewolves.length ? `狼人是：<strong>${werewolves.map((player) => escapeHtml(player.name)).join("、")}</strong>` : "場上玩家之中沒有狼人。"}</p>
-        <button class="primary-button" data-night-action="ack" type="button">確認情報</button>`;
-    }
-    if (role === "mason") {
-      const masons = snapshot.you.nightContext?.masons || [];
-      return `<p>${masons.length ? `另一名守夜人是：<strong>${masons.map((player) => escapeHtml(player.name)).join("、")}</strong>` : "場上玩家之中沒有另一名守夜人。"}</p>
-        <button class="primary-button" data-night-action="ack" type="button">確認情報</button>`;
-    }
-    if (role === "insomniac") {
-      return `<p>確認後，私人情報會顯示在你的角色卡。</p><button class="primary-button" data-night-action="ack" type="button">確認行動</button>`;
-    }
-    if (role === "seer") {
-      return `<p>選擇一名玩家，或選擇兩張中央牌。</p>
-        <div class="wolf-choice-grid">${others.map((player) => playerChoice(player, 1)).join("")}</div>
-        <div class="wolf-choice-grid">${centerChoices(2)}</div>
-        <button class="primary-button" data-night-action="seer" data-requires-selection type="button" disabled>確認行動</button>`;
-    }
-    if (role === "robber") {
-      return `<p>選擇另一名玩家交換角色牌，或不使用能力。</p>
-        <div class="wolf-choice-grid">${others.map((player) => playerChoice(player, 1)).join("")}</div>
-        <div class="button-row"><button class="primary-button" data-night-action="robber" data-requires-selection type="button" disabled>確認交換</button><button class="ghost-button" data-night-skip type="button">不交換</button></div>`;
-    }
-    if (role === "troublemaker") {
-      return `<p>選擇另外兩名玩家交換角色牌，或不使用能力。</p>
-        <div class="wolf-choice-grid">${others.map((player) => playerChoice(player, 2)).join("")}</div>
-        <div class="button-row"><button class="primary-button" data-night-action="troublemaker" data-requires-selection type="button" disabled>確認交換</button><button class="ghost-button" data-night-skip type="button">不交換</button></div>`;
-    }
-    if (role === "drunk") {
-      return `<p>選擇一張中央牌交換；你不會知道換到了什麼。</p>
-        <div class="wolf-choice-grid">${centerChoices(1)}</div>
-        <button class="primary-button" data-night-action="drunk" data-requires-selection type="button" disabled>確認交換</button>`;
-    }
+    return `<p>你是場上唯一的狼人，可以查看一張中央牌。</p>
+      <div class="wolf-choice-grid">${centerChoices(1)}</div>
+      <button class="primary-button" data-night-action="werewolf" data-requires-selection="center" type="button" disabled>確認查看</button>`;
+  }
+
+  function minionNightControls() {
+    const werewolves = snapshot.you.nightContext?.werewolves || [];
+    return `<p>${werewolves.length ? `狼人是：<strong>${werewolves.map((player) => escapeHtml(player.name)).join("、")}</strong>` : "場上玩家之中沒有狼人。"}</p>
+      <button class="primary-button" data-night-action="ack" type="button">確認情報</button>`;
+  }
+
+  function masonNightControls() {
+    const masons = snapshot.you.nightContext?.masons || [];
+    return `<p>${masons.length ? `另一名守夜人是：<strong>${masons.map((player) => escapeHtml(player.name)).join("、")}</strong>` : "場上玩家之中沒有另一名守夜人。"}</p>
+      <button class="primary-button" data-night-action="ack" type="button">確認情報</button>`;
+  }
+
+  function insomniacNightControls() {
+    return `<p>確認後，私人情報會顯示在你的角色卡。</p><button class="primary-button" data-night-action="ack" type="button">確認行動</button>`;
+  }
+
+  function seerNightControls() {
+    const others = snapshot.room.players.filter((player) => player.id !== snapshot.you.id);
+    return `<p>選擇一名其他玩家，或選擇兩張中央牌。</p>
+      <div class="wolf-choice-grid">${others.map((player) => playerChoice(player, 1)).join("")}</div>
+      <div class="wolf-choice-grid">${centerChoices(2)}</div>
+      <button class="primary-button" data-night-action="seer" data-requires-selection="seer" type="button" disabled>確認行動</button>`;
+  }
+
+  function robberNightControls() {
+    const others = snapshot.room.players.filter((player) => player.id !== snapshot.you.id);
+    return `<p>選擇另一名玩家交換角色牌，或不使用能力。</p>
+      <div class="wolf-choice-grid">${others.map((player) => playerChoice(player, 1)).join("")}</div>
+      <div class="button-row"><button class="primary-button" data-night-action="robber" data-requires-selection="player" type="button" disabled>確認交換</button><button class="ghost-button" data-night-skip type="button">不交換</button></div>`;
+  }
+
+  function troublemakerNightControls() {
+    const others = snapshot.room.players.filter((player) => player.id !== snapshot.you.id);
+    return `<p>選擇另外兩名玩家交換角色牌，或不使用能力。</p>
+      <div class="wolf-choice-grid">${others.map((player) => playerChoice(player, 2)).join("")}</div>
+      <div class="button-row"><button class="primary-button" data-night-action="troublemaker" data-requires-selection="two-players" type="button" disabled>確認交換</button><button class="ghost-button" data-night-skip type="button">不交換</button></div>`;
+  }
+
+  function drunkNightControls() {
+    return `<p>選擇一張中央牌交換；你不會知道換到了什麼。</p>
+      <div class="wolf-choice-grid">${centerChoices(1)}</div>
+      <button class="primary-button" data-night-action="drunk" data-requires-selection="center" type="button" disabled>確認交換</button>`;
+  }
+
+  function ackNightControls() {
     return `<button class="primary-button" data-night-action="ack" type="button">確認行動</button>`;
   }
 
@@ -926,12 +1250,12 @@
       werewolf: "狼人請確認彼此身分。若場上只有一名狼人，該狼人可以查看一張中央牌。",
       minion: "爪牙請確認場上的狼人身分；狼人不會得知爪牙是誰。",
       mason: "守夜人請確認另一名守夜人。",
-      seer: "預言家請選擇查看一位玩家的牌，或查看兩張中央牌。",
+      seer: "預言家請選擇查看一位其他玩家的牌，或查看兩張中央牌。",
       robber: "強盜可以與另一位玩家交換牌並查看新牌，也可以選擇不交換。",
       troublemaker: "搗蛋鬼可以交換另外兩位玩家的牌，但不能查看，也可以選擇不交換。",
       drunk: "酒鬼必須將自己的牌與一張中央牌交換，且不能查看新牌。",
       insomniac: "失眠者請查看自己現在持有的角色牌。",
-      doppelInsomniac: "複製失眠者的化身幽靈，請在正版失眠者結束後查看自己現在的角色。"
+      privateNightAction: "夜晚即將結束，請等待系統進入討論。"
     }[role] || "請完成目前角色的夜間行動。";
   }
 
@@ -950,6 +1274,7 @@
             </div>`).join("")}
         <section class="wolf-vote-result">
           <h3>投票結果</h3>
+          ${voteSummary(result)}
           <div class="wolf-vote-result-list">
             ${result.votes.map((vote) => {
               const voter = snapshot.room.players.find((player) => player.id === vote.voterId);
@@ -964,6 +1289,32 @@
         <p class="wolf-center-result">中央牌：${result.centerCards.map((role) => escapeHtml(snapshot.roles[role].name)).join("、")}</p>
         ${snapshot.you.isHost ? `<button class="primary-button" data-wolf-return type="button">返回準備房</button>` : `<p>等待房主開啟下一局。</p>`}
       </div>`;
+  }
+
+  function voteSummary(result) {
+    const totalVotes = result.votes.filter((vote) => vote.targetId).length;
+    const maxVotes = Math.max(1, ...snapshot.room.players.map((player) => Number(result.counts[player.id] || 0)));
+    return `<div class="wolf-vote-summary" aria-label="得票統計">
+      ${snapshot.room.players.map((player) => {
+        const voteCount = Number(result.counts[player.id] || 0);
+        const voters = result.votes
+          .filter((vote) => vote.targetId === player.id)
+          .map((vote) => snapshot.room.players.find((voter) => voter.id === vote.voterId)?.name || "未知玩家");
+        const percent = Math.round((voteCount / maxVotes) * 100);
+        const badges = [
+          result.votedOutIds.includes(player.id) ? "最高票" : "",
+          result.eliminatedIds.includes(player.id) && !result.votedOutIds.includes(player.id) ? "連帶出局" : ""
+        ].filter(Boolean);
+        return `<article class="wolf-vote-total ${result.eliminatedIds.includes(player.id) ? "eliminated" : ""}">
+          <div class="wolf-vote-total-head">
+            <strong>${escapeHtml(player.name)}</strong>
+            <span>${voteCount} / ${totalVotes} 票</span>
+          </div>
+          <div class="wolf-vote-meter" style="--vote-fill: ${percent}%" aria-hidden="true"><span></span></div>
+          <p>${voters.length ? `投給他：${voters.map(escapeHtml).join("、")}` : "沒有得票"}${badges.length ? ` · ${badges.join("、")}` : ""}</p>
+        </article>`;
+      }).join("")}
+    </div>`;
   }
 
   function hunterPhase() {
@@ -982,156 +1333,20 @@
   }
 
   function bindRoomEvents() {
-    page.roomView.querySelectorAll("[data-wolf-tab]").forEach((button) => {
-      button.addEventListener("click", () => {
-        activeInfoTab = button.dataset.wolfTab;
-        if (activeInfoTab === "chat") unreadChatCount = 0;
-        if (activeInfoTab === "roster") unreadRosterCount = 0;
-        page.roomView.querySelectorAll("[data-wolf-tab]").forEach((item) => item.classList.toggle("active", item === button));
-        page.roomView.querySelectorAll("[data-wolf-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.wolfPanel === activeInfoTab));
-        const chatBadge = page.roomView.querySelector("[data-wolf-chat-badge]");
-        const rosterBadge = page.roomView.querySelector("[data-wolf-roster-badge]");
-        if (chatBadge) {
-          chatBadge.textContent = String(unreadChatCount);
-          chatBadge.classList.toggle("hidden", unreadChatCount === 0);
-        }
-        if (rosterBadge) {
-          rosterBadge.textContent = String(unreadRosterCount);
-          rosterBadge.classList.toggle("hidden", unreadRosterCount === 0);
-        }
-        if (activeInfoTab === "chat") {
-          const chatList = page.roomView.querySelector("[data-wolf-chat-list]");
-          SharedRoomUI.readLatestChat(chatList, () => {
-            unreadChatCount = 0;
-            const badge = page.roomView.querySelector("[data-wolf-chat-badge]");
-            if (badge) {
-              badge.textContent = "0";
-              badge.classList.add("hidden");
-            }
-          });
-        }
-      });
-    });
-    SharedRoomUI.bindChatReadState(
-      page.roomView.querySelector("[data-wolf-chat-list]"),
-      () => {
+    const chatList = page.roomView.querySelector("[data-wolf-chat-list]");
+    if (chatList && !chatList.dataset.wolfReadStateBound) {
+      chatList.dataset.wolfReadStateBound = "true";
+      SharedRoomUI.bindChatReadState(chatList, () => {
         if (!unreadChatCount) return;
         unreadChatCount = 0;
-        const badge = page.roomView.querySelector("[data-wolf-chat-badge]");
+        const badge = page.roomView.querySelector("[data-wolf-chat-unread]");
         if (badge) {
           badge.textContent = "0";
           badge.classList.add("hidden");
         }
-      }
-    );
-    page.roomView.querySelectorAll("[data-wolf-copy]").forEach((button) => button.addEventListener("click", copyInvite));
+      });
+    }
     SharedRoomUI.bindHostControls(page.roomView, sendAction);
-    page.roomView.querySelector("[data-wolf-chat-form]")?.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const input = event.currentTarget.querySelector("[data-wolf-chat-input]");
-      const message = input.value.trim();
-      if (!message) return;
-      sendAction("chat", { message });
-      input.value = "";
-    });
-    page.roomView.querySelector("[data-wolf-ready]")?.addEventListener("click", () => sendAction("toggleReady"));
-    page.roomView.querySelector("[data-wolf-roll]")?.addEventListener("click", () => sendAction("roll"));
-    page.roomView.querySelector("[data-wolf-start]")?.addEventListener("click", () => sendAction("startGame"));
-    page.roomView.querySelector("[data-wolf-confirm-reveal]")?.addEventListener("click", () => sendAction("confirmReveal"));
-    page.roomView.querySelector("[data-wolf-recommend]")?.addEventListener("click", () => {
-      sendAction("updateSettings", {
-        playerCount: snapshot.room.settings.playerCount,
-        discussionSeconds: snapshot.room.settings.discussionSeconds,
-        useRecommended: true
-      });
-    });
-    page.roomView.querySelector("[data-wolf-player-count]")?.addEventListener("change", (event) => {
-      sendAction("updateSettings", {
-        playerCount: Number(event.currentTarget.value),
-        discussionSeconds: snapshot.room.settings.discussionSeconds,
-        deck: snapshot.room.settings.deck
-      });
-    });
-    page.roomView.querySelector("[data-wolf-discussion]")?.addEventListener("change", (event) => {
-      sendAction("updateSettings", {
-        playerCount: snapshot.room.settings.playerCount,
-        discussionSeconds: Number(event.currentTarget.value),
-        deck: snapshot.room.settings.deck
-      });
-    });
-    page.roomView.querySelectorAll("[data-wolf-role]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const role = button.dataset.wolfRole;
-        const counts = deckCounts(snapshot.room.settings.deck);
-        const nextCount = Math.max(0, Math.min(snapshot.roles[role].max, (counts[role] || 0) + Number(button.dataset.delta)));
-        counts[role] = nextCount;
-        sendAction("updateSettings", {
-          playerCount: snapshot.room.settings.playerCount,
-          discussionSeconds: snapshot.room.settings.discussionSeconds,
-          deck: deckFromCounts(counts)
-        });
-      });
-    });
-    page.roomView.querySelectorAll(".wolf-choice[data-group]").forEach((button) => {
-      button.addEventListener("click", () => toggleChoice(button));
-    });
-    page.roomView.querySelector("[data-night-skip]")?.addEventListener("click", () => {
-      if (!window.confirm("確定不使用角色能力嗎？")) return;
-      sendAction("nightAction", { skip: true });
-    });
-    page.roomView.querySelector("[data-night-action]")?.addEventListener("click", handleNightAction);
-    page.roomView.querySelectorAll("[data-wolf-vote]").forEach((button) => {
-      button.addEventListener("click", () => {
-        pendingVoteTargetId = button.dataset.wolfVote;
-        page.roomView.querySelectorAll("[data-wolf-vote]").forEach((item) => item.classList.toggle("selected", item === button));
-        page.roomView.querySelector("[data-wolf-confirm-vote]").disabled = false;
-      });
-    });
-    page.roomView.querySelector("[data-wolf-confirm-vote]")?.addEventListener("click", () => {
-      if (!pendingVoteTargetId) return;
-      page.roomView.querySelector("[data-wolf-confirm-vote]").disabled = true;
-      page.roomView.querySelectorAll("[data-wolf-vote]").forEach((button) => { button.disabled = true; });
-      sendAction("vote", { targetId: pendingVoteTargetId });
-      pendingVoteTargetId = null;
-    });
-    page.roomView.querySelectorAll("[data-wolf-hunter-target]").forEach((button) => {
-      button.addEventListener("click", () => {
-        pendingHunterTargetId = button.dataset.wolfHunterTarget;
-        page.roomView.querySelectorAll("[data-wolf-hunter-target]").forEach((item) => item.classList.toggle("selected", item === button));
-        page.roomView.querySelector("[data-wolf-confirm-hunter]").disabled = false;
-      });
-    });
-    page.roomView.querySelector("[data-wolf-confirm-hunter]")?.addEventListener("click", () => {
-      if (!pendingHunterTargetId) return;
-      sendAction("hunterShot", { targetId: pendingHunterTargetId });
-      pendingHunterTargetId = null;
-    });
-    page.roomView.querySelector("[data-wolf-return]")?.addEventListener("click", () => sendAction("returnLobby"));
-  }
-
-  function toggleChoice(button) {
-    const group = button.dataset.group;
-    const maximum = Number(button.dataset.max);
-    const choices = [...page.roomView.querySelectorAll(`.wolf-choice[data-group="${group}"]`)];
-    if (maximum === 1) choices.forEach((choice) => choice.classList.remove("selected"));
-    button.classList.toggle("selected");
-    const selected = choices.filter((choice) => choice.classList.contains("selected"));
-    if (selected.length > maximum) selected[0].classList.remove("selected");
-    const otherGroup = group === "player" ? "center" : "player";
-    if (button.classList.contains("selected")) {
-      page.roomView.querySelectorAll(`.wolf-choice[data-group="${otherGroup}"]`).forEach((choice) => choice.classList.remove("selected"));
-    }
-    const confirmButton = page.roomView.querySelector("[data-night-action][data-requires-selection]");
-    if (confirmButton) {
-      const action = confirmButton.dataset.nightAction;
-      const playerCount = selectedChoices("player").length;
-      const centerCount = selectedChoices("center").length;
-      confirmButton.disabled = action === "troublemaker"
-        ? playerCount !== 2
-        : action === "seer"
-          ? !(playerCount === 1 || centerCount === 2)
-          : !(playerCount === 1 || centerCount === 1);
-    }
   }
 
   function handleNightAction(event) {

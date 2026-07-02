@@ -22,7 +22,7 @@ function serveSharedStatic(req, res, requestUrl) {
       res.end("Not found");
       return;
     }
-    res.writeHead(200, { "Content-Type": contentType(filePath) });
+    res.writeHead(200, { "Content-Type": contentType(filePath), "Cache-Control": "no-store" });
     res.end(data);
   });
   return true;

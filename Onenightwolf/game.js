@@ -101,7 +101,7 @@ const ROLE_DEFS = {
 };
 
 const RECOMMENDED_DECKS = {
-  3: ["werewolf", "werewolf", "seer", "robber", "troublemaker", "villager"],
+  3: ["werewolf", "seer", "robber", "troublemaker", "drunk", "villager"],
   4: ["werewolf", "werewolf", "seer", "robber", "troublemaker", "drunk", "villager"],
   5: ["werewolf", "werewolf", "seer", "robber", "troublemaker", "drunk", "insomniac", "villager"],
   6: ["werewolf", "werewolf", "minion", "seer", "robber", "troublemaker", "drunk", "insomniac", "villager"],
@@ -114,8 +114,11 @@ const RECOMMENDED_DECKS = {
 const NIGHT_ROLES = new Set(["doppelganger", "werewolf", "minion", "mason", "seer", "robber", "troublemaker", "drunk", "insomniac"]);
 const NIGHT_ORDER = ["doppelganger", "werewolf", "minion", "mason", "seer", "robber", "troublemaker", "drunk", "insomniac", "doppelInsomniac"];
 const DISPLAY_NIGHT_ORDER = NIGHT_ORDER.filter((role) => role !== "doppelInsomniac");
+const DOPPEL_IMMEDIATE_ROLES = new Set(["minion", "seer", "robber", "troublemaker", "drunk"]);
 const CENTER_DELAY_MIN_MS = 5000;
 const CENTER_DELAY_MAX_MS = 9000;
+const DOPPEL_INSOMNIAC_DELAY_MIN_MS = 5000;
+const DOPPEL_INSOMNIAC_DELAY_MAX_MS = 9000;
 
 function makeRoom(hostName, code = makeRoomCode()) {
   const room = {
@@ -188,6 +191,7 @@ function joinRoom(room, name, requestedPlayerId = "") {
   if (!clean) return { error: "請輸入名字" };
   const player = makePlayer(clean);
   room.players.push(player);
+  room.players.forEach((roomPlayer) => { roomPlayer.ready = false; });
   recordPlayerJoin(room, player);
   addChat(room, "system", `${player.name} 加入了房間`);
   touch(room);
@@ -338,45 +342,43 @@ function nightAction(room, actor, payload) {
   if (!stage || !stage.actorIds.includes(actor.id)) return "目前不是你的行動";
   if (stage.completedIds.includes(actor.id)) return "你已完成這個角色階段";
   const role = stage.role === "doppelInsomniac" ? "insomniac" : stage.role;
-  let error = null;
-  let keepActing = false;
-  if (role === "doppelganger" && room.doppelPendingRole === actor.id) {
-    const copiedRole = room.doppelCopiedRole;
-    error = resolveRoleAbility(room, actor, copiedRole, payload);
-  } else switch (role) {
-    case "doppelganger": {
-      const result = resolveDoppelganger(room, actor, payload);
-      error = result?.error || null;
-      keepActing = Boolean(result?.keepActing);
-      break;
-    }
-    case "werewolf": error = resolveWerewolf(room, actor, payload); break;
-    case "minion": error = resolveMinion(room, actor); break;
-    case "mason": error = resolveMason(room, actor); break;
-    case "seer": error = resolveSeer(room, actor, payload); break;
-    case "robber": error = resolveRobber(room, actor, payload); break;
-    case "troublemaker": error = resolveTroublemaker(room, actor, payload); break;
-    case "drunk": error = resolveDrunk(room, actor, payload); break;
-    case "insomniac": error = resolveInsomniac(room, actor); break;
-    default: break;
-  }
+  const actionRole = role === "doppelganger" && room.doppelPendingRole === actor.id
+    ? room.doppelCopiedRole
+    : role;
+  const result = resolveNightRoleAction(room, actor, actionRole, payload);
+  const error = result.error;
+  const keepActing = result.keepActing;
   if (error) return error;
   if (!keepActing) {
     room.doppelPendingRole = room.doppelPendingRole === actor.id ? null : room.doppelPendingRole;
     stage.completedIds.push(actor.id);
   }
-  if (!keepActing && stage.completedIds.length >= stage.actorIds.length) advanceNightStage(room);
+  if (!keepActing && nightStageReadyToAdvance(stage)) advanceNightStage(room);
   touch(room);
   return null;
 }
 
-function resolveRoleAbility(room, actor, role, payload) {
-  if (role === "minion") return resolveMinion(room, actor);
-  if (role === "seer") return resolveSeer(room, actor, payload);
-  if (role === "robber") return resolveRobber(room, actor, payload);
-  if (role === "troublemaker") return resolveTroublemaker(room, actor, payload);
-  if (role === "drunk") return resolveDrunk(room, actor, payload);
-  return null;
+const NIGHT_ROLE_ACTIONS = Object.freeze({
+  doppelganger: resolveDoppelganger,
+  werewolf: resolveWerewolf,
+  minion: resolveMinion,
+  mason: resolveMason,
+  seer: resolveSeer,
+  robber: resolveRobber,
+  troublemaker: resolveTroublemaker,
+  drunk: resolveDrunk,
+  insomniac: resolveInsomniac
+});
+
+function resolveNightRoleAction(room, actor, role, payload) {
+  const resolver = NIGHT_ROLE_ACTIONS[role];
+  if (!resolver) return { error: null, keepActing: false };
+  const result = resolver(room, actor, payload);
+  if (typeof result === "string") return { error: result, keepActing: false };
+  return {
+    error: result?.error || null,
+    keepActing: Boolean(result?.keepActing)
+  };
 }
 
 function resolveDoppelganger(room, actor, payload) {
@@ -388,11 +390,9 @@ function resolveDoppelganger(room, actor, payload) {
   remember(room, actor.id, `你複製了 ${target.name} 的「${ROLE_DEFS[copiedRole].name}」，本局視為該角色與陣營。`);
 
   if (!NIGHT_ROLES.has(copiedRole) || copiedRole === "doppelganger") return { keepActing: false };
-  const immediateRoles = new Set(["minion", "seer", "robber", "troublemaker", "drunk"]);
-  if (immediateRoles.has(copiedRole)) {
+  if (DOPPEL_IMMEDIATE_ROLES.has(copiedRole)) {
     if (copiedRole === "minion") {
-      resolveMinion(room, actor);
-      return { keepActing: false };
+      return resolveNightRoleAction(room, actor, copiedRole, payload);
     }
     room.doppelPendingRole = actor.id;
     return { keepActing: true };
@@ -401,7 +401,7 @@ function resolveDoppelganger(room, actor, payload) {
 }
 
 function resolveWerewolf(room, actor, payload) {
-  const others = room.players.filter((player) => player.id !== actor.id && room.effectiveRoles[player.id] === "werewolf");
+  const others = room.players.filter((player) => player.id !== actor.id && finalRole(room, player.id) === "werewolf");
   if (others.length) {
     remember(room, actor.id, `其他狼人：${others.map((player) => player.name).join("、")}`);
     return null;
@@ -413,7 +413,7 @@ function resolveWerewolf(room, actor, payload) {
 }
 
 function resolveMinion(room, actor) {
-  const werewolves = room.players.filter((player) => room.effectiveRoles[player.id] === "werewolf");
+  const werewolves = room.players.filter((player) => finalRole(room, player.id) === "werewolf");
   remember(room, actor.id, werewolves.length
     ? `狼人是：${werewolves.map((player) => player.name).join("、")}`
     : "玩家之中沒有狼人。你必須獨自替狼人陣營掩護。");
@@ -421,7 +421,7 @@ function resolveMinion(room, actor) {
 }
 
 function resolveMason(room, actor) {
-  const others = room.players.filter((player) => player.id !== actor.id && room.effectiveRoles[player.id] === "mason");
+  const others = room.players.filter((player) => player.id !== actor.id && finalRole(room, player.id) === "mason");
   remember(room, actor.id, others.length
     ? `另一名守夜人是：${others.map((player) => player.name).join("、")}`
     : "玩家之中沒有另一名守夜人。");
@@ -498,17 +498,9 @@ function advanceNightStage(room, now = Date.now()) {
   while (room.nightRoleIndex < NIGHT_ORDER.length) {
     const role = NIGHT_ORDER[room.nightRoleIndex];
     if (role === "doppelInsomniac") {
-      if (room.doppelCopiedRole !== "insomniac") {
-        room.nightRoleIndex += 1;
-        continue;
-      }
       const doppel = room.players.find((player) => room.initialCards[player.id] === "doppelganger");
-      if (!doppel) {
-        room.nightRoleIndex += 1;
-        continue;
-      }
-      room.nightStage = makeNightStage(role, [doppel.id], now);
-      addLog(room, "化身幽靈以失眠者身分確認目前角色。");
+      const actorIds = room.doppelCopiedRole === "insomniac" && doppel ? [doppel.id] : [];
+      room.nightStage = makeNightStage(role, actorIds, now, { forceDelay: true });
       return;
     }
 
@@ -525,36 +517,41 @@ function advanceNightStage(room, now = Date.now()) {
   beginDiscussion(room);
 }
 
-function makeNightStage(role, actorIds, now) {
+function makeNightStage(role, actorIds, now, options = {}) {
+  const minDelay = role === "doppelInsomniac" ? DOPPEL_INSOMNIAC_DELAY_MIN_MS : CENTER_DELAY_MIN_MS;
+  const maxDelay = role === "doppelInsomniac" ? DOPPEL_INSOMNIAC_DELAY_MAX_MS : CENTER_DELAY_MAX_MS;
   return {
     role,
     actorIds,
     completedIds: [],
-    delayUntil: actorIds.length ? null : now + randomDelay(CENTER_DELAY_MIN_MS, CENTER_DELAY_MAX_MS)
+    delayUntil: actorIds.length && !options.forceDelay ? null : now + randomDelay(minDelay, maxDelay)
   };
+}
+
+function nightStageReadyToAdvance(stage, now = Date.now()) {
+  if (!stage) return false;
+  const actorsDone = stage.completedIds.length >= stage.actorIds.length;
+  const delayDone = !stage.delayUntil || now >= stage.delayUntil;
+  return actorsDone && delayDone;
 }
 
 function nightActors(room, role) {
   if (role === "doppelganger") {
     return room.players.filter((player) => room.initialCards[player.id] === "doppelganger").map((player) => player.id);
   }
-  if (role === "insomniac") {
-    return room.players
-      .filter((player) => room.initialCards[player.id] === "insomniac")
-      .map((player) => player.id);
-  }
-  if (role === "werewolf" || role === "mason") {
-    return room.players
-      .filter((player) => room.effectiveRoles[player.id] === role)
-      .map((player) => player.id);
-  }
   return room.players
-    .filter((player) => room.initialCards[player.id] === role)
+    .filter((player) => finalRole(room, player.id) === role)
+    .filter((player) => !shouldSkipDoppelCopiedRegularAction(room, player.id, role))
     .map((player) => player.id);
 }
 
+function shouldSkipDoppelCopiedRegularAction(room, playerId, role) {
+  if (room.cards[playerId] !== "doppelganger" || room.doppelCopiedRole !== role) return false;
+  return role === "insomniac" || DOPPEL_IMMEDIATE_ROLES.has(role);
+}
+
 function advanceTimedNight(room, now = Date.now()) {
-  if (room.phase !== "night" || !room.nightStage?.delayUntil || now < room.nightStage.delayUntil) return false;
+  if (room.phase !== "night" || !room.nightStage?.delayUntil || !nightStageReadyToAdvance(room.nightStage, now)) return false;
   advanceNightStage(room, now);
   touch(room);
   return true;
@@ -781,6 +778,9 @@ function makeView(room, playerId) {
   const you = room.players.find((player) => player.id === playerId);
   const initialRole = you ? room.initialCards[you.id] : null;
   const validation = validateLobby(room);
+  const visibleNightRole = nightRoleForViewer(room, playerId);
+  const actionRole = nightActionRoleForViewer(room, playerId);
+  const nightProgress = nightProgressForViewer(room, visibleNightRole);
   const publicPlayers = playersByRoll(room).map((player) => ({
     id: player.id,
     name: player.name,
@@ -802,14 +802,12 @@ function makeView(room, playerId) {
       canStart: validation.errors.length === 0,
       players: publicPlayers,
       night: {
-        role: room.nightStage?.role || null,
-        roleName: nightRoleName(room.nightStage?.role),
-        order: makeNightOrderView(room),
-        actionRole: room.nightStage?.role === "doppelganger" && room.doppelPendingRole === playerId
-          ? room.doppelCopiedRole
-          : (room.nightStage?.role === "doppelInsomniac" ? "insomniac" : room.nightStage?.role),
-        actorCount: room.nightStage?.actorIds.length || 0,
-        completedCount: room.nightStage?.completedIds.length || 0,
+        role: visibleNightRole,
+        roleName: nightRoleName(visibleNightRole),
+        order: makeNightOrderView(room, playerId),
+        actionRole,
+        actorCount: nightProgress.actorCount,
+        completedCount: nightProgress.completedCount,
         yourTurn: Boolean(room.nightStage?.actorIds.includes(playerId) && !room.nightStage?.completedIds.includes(playerId)),
         waitingDelay: Boolean(room.nightStage?.delayUntil),
         delayRemainingMs: Math.max(0, Number(room.nightStage?.delayUntil || 0) - Date.now())
@@ -846,6 +844,30 @@ function makeView(room, playerId) {
   };
 }
 
+function nightRoleForViewer(room, playerId) {
+  const role = room.nightStage?.role || null;
+  if (role !== "doppelInsomniac") return role;
+  return room.nightStage?.actorIds.includes(playerId) ? "insomniac" : "privateNightAction";
+}
+
+function nightActionRoleForViewer(room, playerId) {
+  const stage = room.nightStage;
+  if (!stage) return null;
+  if (stage.role === "doppelganger" && room.doppelPendingRole === playerId) return room.doppelCopiedRole;
+  if (stage.role === "doppelInsomniac") {
+    return stage.actorIds.includes(playerId) && !stage.completedIds.includes(playerId) ? "insomniac" : null;
+  }
+  return stage.role;
+}
+
+function nightProgressForViewer(room, visibleNightRole) {
+  if (visibleNightRole === "privateNightAction") return { actorCount: 0, completedCount: 0 };
+  return {
+    actorCount: room.nightStage?.actorIds.length || 0,
+    completedCount: room.nightStage?.completedIds.length || 0
+  };
+}
+
 function makeNightContext(room, playerId) {
   const stage = room.nightStage;
   if (room.phase !== "night" || !stage?.actorIds.includes(playerId) || stage.completedIds.includes(playerId)) return null;
@@ -854,7 +876,7 @@ function makeNightContext(room, playerId) {
     : (stage.role === "doppelInsomniac" ? "insomniac" : stage.role);
   if (actionRole === "werewolf") {
     const teammates = room.players
-      .filter((player) => player.id !== playerId && room.effectiveRoles[player.id] === "werewolf")
+      .filter((player) => player.id !== playerId && finalRole(room, player.id) === "werewolf")
       .map(publicPlayerReference);
     return { role: actionRole, teammates, loneWerewolf: teammates.length === 0 };
   }
@@ -862,7 +884,7 @@ function makeNightContext(room, playerId) {
     return {
       role: actionRole,
       werewolves: room.players
-        .filter((player) => room.effectiveRoles[player.id] === "werewolf")
+        .filter((player) => finalRole(room, player.id) === "werewolf")
         .map(publicPlayerReference)
     };
   }
@@ -870,7 +892,7 @@ function makeNightContext(room, playerId) {
     return {
       role: actionRole,
       masons: room.players
-        .filter((player) => player.id !== playerId && room.effectiveRoles[player.id] === "mason")
+        .filter((player) => player.id !== playerId && finalRole(room, player.id) === "mason")
         .map(publicPlayerReference)
     };
   }
@@ -882,25 +904,27 @@ function publicPlayerReference(player) {
 }
 
 function nightRoleName(role) {
-  if (role === "doppelInsomniac") return "化身幽靈（失眠者）";
+  if (role === "privateNightAction") return "夜間行動";
   return ROLE_DEFS[role]?.name || "";
 }
 
-function makeNightOrderView(room) {
+function makeNightOrderView(room, playerId) {
+  const hiddenDoppelInsomniac = room.nightStage?.role === "doppelInsomniac"
+    && !room.nightStage.actorIds.includes(playerId);
   const stageRole = room.nightStage?.role === "doppelInsomniac"
-    ? "insomniac"
+    ? (hiddenDoppelInsomniac ? null : "insomniac")
     : room.nightStage?.role;
-  const activeIndex = DISPLAY_NIGHT_ORDER.indexOf(stageRole);
-  return DISPLAY_NIGHT_ORDER.map((role, index) => {
-    const enabled = room.settings.deck.includes(role);
+  const enabledOrder = DISPLAY_NIGHT_ORDER.filter((role) => room.settings.deck.includes(role));
+  const activeIndex = enabledOrder.indexOf(stageRole);
+  return enabledOrder.map((role, index) => {
     let state = "upcoming";
-    if (!enabled) state = "disabled";
-    if (enabled && activeIndex >= 0 && index < activeIndex) state = "done";
+    if (hiddenDoppelInsomniac) state = "done";
+    if (activeIndex >= 0 && index < activeIndex) state = "done";
     if (role === stageRole) state = "active";
     return {
       role,
       name: ROLE_DEFS[role].name,
-      enabled,
+      enabled: true,
       state
     };
   });

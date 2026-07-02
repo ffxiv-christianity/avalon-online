@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node tests/game.test.js && node tests/room-contract.test.js && node tests/ui.test.js"
+    "test": "node tests/game.test.js && node tests/room-contract.test.js && node tests/ui.test.js && node tests/max-deck.test.js"
   },
   "engines": {
     "node": ">=18"
