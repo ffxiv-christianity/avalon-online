@@ -9,6 +9,10 @@
     return `<span class="token ${kind}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}"></span>`;
   }
 
+  function logEntries(entries = [], escape = escapeHtml) {
+    return entries.slice().reverse().map((entry) => `<li>${escape(entry)}</li>`).join("");
+  }
+
   function playerCardClasses({ playerId, viewerId, online = true, retired = false } = {}) {
     return [
       playerId && playerId === viewerId ? "is-self" : "",
@@ -191,6 +195,7 @@
 
   return {
     token,
+    logEntries,
     playerCardClasses,
     hostControls,
     bindHostControls,

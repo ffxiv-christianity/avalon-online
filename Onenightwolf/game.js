@@ -189,6 +189,9 @@ function joinRoom(room, name, requestedPlayerId = "") {
   if (room.players.length >= room.settings.playerCount) return { error: "房間人數已滿" };
   const clean = cleanName(name);
   if (!clean) return { error: "請輸入名字" };
+  if (room.players.some((player) => normalizedName(player.name) === normalizedName(clean))) {
+    return { error: "這個名字已經有人使用" };
+  }
   const player = makePlayer(clean);
   room.players.push(player);
   room.players.forEach((roomPlayer) => { roomPlayer.ready = false; });
@@ -1023,6 +1026,10 @@ function validCenterIndex(room, index) {
 
 function cleanName(value) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, 16);
+}
+
+function normalizedName(value) {
+  return cleanName(value).toLocaleLowerCase();
 }
 
 function touch(room) {

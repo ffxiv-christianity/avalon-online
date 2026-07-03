@@ -840,7 +840,8 @@ body.shared-readonly .shared-control-lock button {
 }
 
 .token.leader,
-.token.excalibur {
+.token.excalibur,
+.token.turn {
   background: var(--gold);
   color: #fff8e9;
 }
@@ -860,6 +861,10 @@ body.shared-readonly .shared-control-lock button {
 
 .token.excalibur::before {
   content: "劍";
+}
+
+.token.turn::before {
+  content: "輪";
 }
 
 .token.retired {
@@ -936,6 +941,13 @@ body.shared-readonly .shared-control-lock button {
 .result-card.fail {
   background: var(--evil-soft);
   color: var(--evil);
+}
+
+.result-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .mission-table {
@@ -1055,10 +1067,17 @@ body.shared-readonly .shared-control-lock button {
 .log-list {
   max-height: none;
   margin: 0;
-  padding-left: 20px;
+  padding-left: 0;
+  list-style-position: inside;
   overflow: auto;
   color: var(--muted);
   font-size: .87rem;
+}
+
+.log-list li {
+  padding-left: 1.65em;
+  text-indent: -1.65em;
+  overflow-wrap: anywhere;
 }
 
 .chat-panel {

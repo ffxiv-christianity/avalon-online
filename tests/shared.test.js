@@ -20,7 +20,7 @@ const {
   readLatestChat,
   mobileStatusSummary
 } = require("../Shared/public/room-ui");
-const { createActionRequest, SESSION_ERROR_CODES } = require("../Shared/public/client-state");
+const { createActionRequest, SESSION_ERROR_CODES, selectSession } = require("../Shared/public/client-state");
 const {
   ERROR_CODES,
   errorMessage,
@@ -145,6 +145,16 @@ assert.deepStrictEqual(actionRequest, {
   actionId: "tab-a:3"
 });
 assert.strictEqual(SESSION_ERROR_CODES.sessionReplaced, ERROR_CODES.sessionReplaced);
+const sessionStore = {
+  sessions: {
+    p1: { roomCode: "ROOM1", playerId: "p1", name: "Alice", lastUsedAt: 10 },
+    p2: { roomCode: "ROOM2", playerId: "p2", name: "Bob", lastUsedAt: 20 }
+  }
+};
+assert.strictEqual(selectSession(sessionStore, {}), null);
+assert.strictEqual(selectSession(sessionStore, { roomCode: "ROOM1" }).playerId, "p1");
+assert.strictEqual(selectSession(sessionStore, { roomCode: "ROOM1", playerId: "p2" }).playerId, "p1");
+assert.strictEqual(selectSession(sessionStore, { playerId: "p2" }).roomCode, "ROOM2");
 assert.strictEqual(
   errorMessage(ERROR_CODES.roomNotFound),
   "找不到這個房間，可能已經過期。"

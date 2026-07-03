@@ -555,7 +555,7 @@ function renderMissionTable() {
 }
 
 function renderLog() {
-  els.logList.innerHTML = snapshot.room.log.slice().reverse().map((entry) => `<li>${escapeHtml(entry)}</li>`).join("");
+  els.logList.innerHTML = SharedRoomUI.logEntries(snapshot.room.log, escapeHtml);
 }
 
 function renderChat(scrollState) {

@@ -6,10 +6,14 @@ const rootServer = require("../server");
 const avalon = require("../Avalon/server");
 const wolf = require("../Onenightwolf/server");
 const wolfGame = require("../Onenightwolf/game");
+const criminal = require("../CriminalDance/server");
+const criminalGame = require("../CriminalDance/game");
 
 const avalonRoom = avalon.makeRoom("AdminAvalon").room;
 const wolfCreated = wolfGame.makeRoom("AdminWolf", "ADMINW");
 wolf.rooms.set(wolfCreated.room.code, wolfCreated.room);
+const criminalCreated = criminalGame.makeRoom("AdminCriminal", "ADMINC");
+criminal.rooms.set(criminalCreated.room.code, criminalCreated.room);
 
 const stats = rootServer.combinedStats();
 assert(stats.labels);
@@ -18,13 +22,17 @@ assert.strictEqual(stats.labels.totals.rooms, "房間總數。");
 assert.strictEqual(stats.labels.room.connections, "WebSocket 連線數。");
 assert(stats.games.avalon.roomList.some((room) => room.code === avalonRoom.code));
 assert(stats.games.onenightwolf.roomList.some((room) => room.code === wolfCreated.room.code));
-assert.strictEqual(stats.totals.rooms, stats.games.avalon.rooms + stats.games.onenightwolf.rooms);
+assert(stats.games.criminaldance.roomList.some((room) => room.code === criminalCreated.room.code));
+assert.strictEqual(stats.totals.rooms, stats.games.avalon.rooms + stats.games.onenightwolf.rooms + stats.games.criminaldance.rooms);
 assert(stats.games.avalon.roomList.every((room) => !Object.hasOwn(room, "playerNames")));
 assert(stats.games.onenightwolf.roomList.every((room) => !Object.hasOwn(room, "playerNames")));
+assert(stats.games.criminaldance.roomList.every((room) => !Object.hasOwn(room, "playerNames")));
 assert(stats.games.avalon.realtime);
 assert(stats.games.onenightwolf.realtime);
+assert(stats.games.criminaldance.realtime);
 assert(stats.games.avalon.roomList.every((room) => room.realtime));
 assert(stats.games.onenightwolf.roomList.every((room) => room.realtime));
+assert(stats.games.criminaldance.roomList.every((room) => room.realtime));
 
 const originalHost = wolfCreated.player;
 const nextHost = wolfGame.joinRoom(wolfCreated.room, "BackupHost").player;
@@ -45,12 +53,14 @@ assert.strictEqual(wolfCreated.room.hostId, nextHost.id);
     const payload = await response.json();
     assert(payload.games.avalon);
     assert(payload.games.onenightwolf);
+    assert(payload.games.criminaldance);
     assert(payload.totals);
     assert.strictEqual(payload.labels.realtime.stateMessagesSent, "完整 state 次數。");
   } finally {
     await new Promise((resolve) => server.close(resolve));
     avalon.rooms.delete(avalonRoom.code);
     wolf.rooms.delete(wolfCreated.room.code);
+    criminal.rooms.delete(criminalCreated.room.code);
     delete process.env.ADMIN_TOKEN;
   }
   console.log("shared admin stats tests passed");

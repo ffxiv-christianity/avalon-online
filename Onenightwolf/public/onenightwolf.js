@@ -105,6 +105,10 @@
         location.href = "/";
         return;
       }
+      if (mode === "criminaldance") {
+        location.href = "/CriminalDance/";
+        return;
+      }
       applyModePresentation(mode);
       if (mode === "onenightwolf") connect();
     });
@@ -824,9 +828,7 @@
   }
 
   function logEntries() {
-    return snapshot.room.log.slice().reverse()
-      .map((entry) => `<li>${escapeHtml(entry)}</li>`)
-      .join("");
+    return SharedRoomUI.logEntries(snapshot.room.log, escapeHtml);
   }
 
   function enabledRoleCards() {
@@ -1515,8 +1517,10 @@
   function readSelectedSession() {
     const store = sessionStore();
     const tabPlayerId = sessionStorage.getItem(TAB_KEY);
-    if (tabPlayerId && store.sessions[tabPlayerId]) return store.sessions[tabPlayerId];
-    return SharedRoomClient.listSessions(store)[0] || null;
+    return SharedRoomClient.selectSession(store, {
+      roomCode: roomFromUrl(),
+      playerId: tabPlayerId
+    });
   }
 
   function showToast(message) {

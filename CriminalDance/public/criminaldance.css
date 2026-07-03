@@ -1,0 +1,745 @@
+.topbar .eyebrow,
+.rules-header .eyebrow {
+  color: var(--good);
+}
+
+.criminal-table {
+  display: grid;
+  gap: 12px;
+}
+
+.main-panel.criminal-main-your-turn {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(179, 122, 32, .72);
+  background:
+    linear-gradient(135deg, rgba(244, 226, 189, .72), rgba(255, 253, 248, .96) 34%, rgba(216, 238, 231, .52)),
+    rgba(255, 253, 248, .96);
+  box-shadow:
+    0 0 0 2px rgba(179, 122, 32, .18),
+    0 18px 44px rgba(179, 122, 32, .18);
+}
+
+.main-panel.criminal-main-your-turn::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--gold-strong), var(--evil), var(--gold));
+}
+
+.criminal-turn-badge {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(179, 122, 32, .48);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, .96);
+  color: var(--gold-strong);
+  padding: 7px 11px;
+  box-shadow: 0 10px 24px rgba(179, 122, 32, .24);
+  font-size: .9rem;
+  font-weight: 900;
+}
+
+.criminal-seat-grid,
+.criminal-choice-grid,
+.criminal-score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.criminal-hand {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.criminal-seat-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.criminal-seat,
+.criminal-card,
+.criminal-private,
+.criminal-result-row,
+.criminal-role-card {
+  min-width: 0;
+  border: 1px solid rgba(32, 40, 43, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 12px;
+}
+
+.criminal-seat.current {
+  border-color: rgba(255, 214, 128, 0.85);
+  box-shadow: 0 0 0 1px rgba(255, 214, 128, 0.2);
+}
+
+.criminal-seat-head,
+.criminal-result-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.criminal-seat-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+
+.criminal-seat-title strong,
+.criminal-card strong,
+.criminal-result-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.criminal-seat-number {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(32, 40, 43, .08);
+  color: var(--muted);
+  padding: 2px 6px;
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.seat-tone-1 { background: #e7f0d7; color: #516b21; }
+.seat-tone-2 { background: #dceeee; color: #23666b; }
+.seat-tone-3 { background: #e2e7f6; color: #3d528a; }
+.seat-tone-4 { background: #eee0f2; color: #70427d; }
+.seat-tone-5 { background: #f4dedc; color: #93413a; }
+.seat-tone-6 { background: #f4e8c8; color: #7c5a16; }
+.seat-tone-7 { background: #e3eadb; color: #486a3c; }
+.seat-tone-8 { background: #e7e1d8; color: #69533c; }
+
+.criminal-seat small,
+.criminal-card small,
+.criminal-private small {
+  color: var(--muted-text, #aeb8bc);
+}
+
+.criminal-played {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.criminal-pile {
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+  border: 1px solid rgba(32, 40, 43, .1);
+  border-radius: 8px;
+  background: rgba(255, 253, 248, .62);
+  padding: 7px;
+}
+
+.criminal-pile > span {
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 900;
+}
+
+.criminal-pile-public {
+  background: rgba(31, 93, 122, .06);
+}
+
+.criminal-pill,
+.criminal-deck-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+}
+
+.criminal-pill {
+  min-width: 0;
+  gap: 4px;
+}
+
+.criminal-pill.has-subtitle {
+  display: inline-grid;
+  gap: 1px;
+  border-radius: 8px;
+}
+
+.criminal-pill > span,
+.criminal-pill > small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.criminal-pill > small {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.criminal-public-card {
+  display: inline-grid;
+  min-width: 52px;
+  max-width: 100%;
+  gap: 2px;
+  border: 1px solid rgba(32, 40, 43, .14);
+  border-left: 5px solid var(--blue);
+  border-radius: 7px;
+  background: #fff;
+  padding: 6px 8px;
+  font-size: .82rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.criminal-public-card > span,
+.criminal-public-card > small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.criminal-public-card > small {
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 800;
+}
+
+.criminal-public-card > small .criminal-seat-number {
+  width: fit-content;
+  padding: 1px 6px;
+  font-size: .68rem;
+}
+
+.criminal-public-card.card-accomplice {
+  border-left-color: var(--evil);
+  background: var(--evil-soft);
+  color: var(--evil);
+}
+
+.criminal-public-card.card-inspector {
+  border-left-color: var(--blue);
+  background: #dcebf2;
+  color: var(--blue);
+}
+
+.criminal-role-list {
+  display: grid;
+  gap: 10px;
+}
+
+.criminal-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+.criminal-control-main,
+.criminal-action-info-block {
+  min-width: 0;
+}
+
+.criminal-control-main > section > h3,
+.criminal-action-info-block > h3 {
+  min-height: 24px;
+  margin: 0 0 10px;
+}
+
+[data-criminal-lobby-deck].criminal-role-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.criminal-deck-section {
+  display: grid;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .66);
+  padding: 10px;
+}
+
+.criminal-deck-section + .criminal-deck-section {
+  margin-top: 0;
+}
+
+.criminal-deck-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.criminal-deck-section-head h3 {
+  margin: 0;
+  font-size: .98rem;
+}
+
+.criminal-deck-section-head span {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.criminal-role-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-color: var(--line);
+  border-left: 5px solid var(--muted);
+  background: #fff;
+  padding: 10px;
+}
+
+.criminal-role-card.civilian-team {
+  border-left-color: var(--good);
+  background: var(--good-soft);
+}
+
+.criminal-role-card.civilian-team strong {
+  color: var(--good);
+}
+
+.criminal-role-card.civilian-team output {
+  color: var(--good);
+}
+
+.criminal-role-card.culprit-team {
+  border-left-color: var(--evil);
+  background: var(--evil-soft);
+}
+
+.criminal-role-card.culprit-team strong {
+  color: var(--evil);
+}
+
+.criminal-role-card.culprit-team output {
+  color: var(--evil);
+}
+
+.criminal-role-card.neutral-team {
+  border-left-color: #8a6b9c;
+  background: #f5eff7;
+}
+
+.criminal-role-card.neutral-team strong,
+.criminal-role-card.neutral-team output {
+  color: #684778;
+}
+
+.criminal-role-card > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.criminal-role-card span {
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.criminal-role-card output {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.criminal-card {
+  display: grid;
+  gap: 5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.criminal-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.criminal-card.selected {
+  border-color: rgba(126, 210, 255, 0.9);
+  background: rgba(126, 210, 255, 0.12);
+}
+
+.criminal-private {
+  border-color: rgba(126, 210, 255, 0.32);
+  align-self: start;
+}
+
+.criminal-private p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.criminal-private p:last-child {
+  margin-bottom: 0;
+}
+
+.criminal-opening-lightbox .identity-header .eyebrow {
+  color: var(--good);
+}
+
+.criminal-opening-lightbox .identity-clue-heading p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.criminal-action-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.criminal-turn-action {
+  border: 1px solid rgba(213, 173, 91, .32);
+  border-radius: 8px;
+  background: rgba(255, 253, 248, .68);
+  padding: 12px;
+}
+
+.criminal-turn-pulse {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border-radius: 50%;
+  background: var(--gold-strong);
+  box-shadow: 0 0 0 0 rgba(213, 173, 91, .45);
+  animation: criminal-turn-pulse 1.8s ease-out infinite;
+}
+
+@keyframes criminal-turn-pulse {
+  70% {
+    box-shadow: 0 0 0 10px rgba(213, 173, 91, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(213, 173, 91, 0);
+  }
+}
+
+.criminal-action-group {
+  display: grid;
+  gap: 10px;
+}
+
+.criminal-action-panel h3 {
+  margin: 0;
+}
+
+.criminal-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.criminal-score {
+  font-weight: 700;
+}
+
+.criminal-rules-table-wrap {
+  overflow-x: auto;
+  margin: 10px 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.criminal-rules-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: .9rem;
+}
+
+.criminal-rules-table caption {
+  caption-side: top;
+  padding: 10px 12px;
+  color: var(--ink);
+  font-weight: 900;
+  text-align: left;
+}
+
+.criminal-rules-table th,
+.criminal-rules-table td {
+  border-top: 1px solid var(--line);
+  padding: 9px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.criminal-rules-table th {
+  background: rgba(32, 40, 43, .045);
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.criminal-rules-table td:first-child {
+  font-weight: 800;
+}
+
+.criminal-rules-callout {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(213, 173, 91, .42);
+  border-left: 5px solid var(--gold);
+  border-radius: 8px;
+  background: rgba(213, 173, 91, .11);
+  padding: 11px 12px;
+}
+
+.criminal-rules-callout strong {
+  color: var(--gold-strong);
+}
+
+.criminal-rules-callout span {
+  color: var(--muted);
+  font-size: .92rem;
+  line-height: 1.5;
+}
+
+.criminal-rules-card-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.criminal-rules-card-counts > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--good);
+  border-radius: 8px;
+  background: #fff;
+  padding: 9px 10px;
+}
+
+.criminal-rules-card-counts > div:nth-child(2),
+.criminal-rules-card-counts > div:nth-child(4) {
+  border-left-color: var(--evil);
+}
+
+.criminal-rules-card-counts > div.total {
+  border-left-color: var(--gold);
+  background: rgba(213, 173, 91, .11);
+}
+
+.criminal-rules-card-counts strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.criminal-rules-card-counts span {
+  flex: 0 0 auto;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+@media (max-width: 920px) {
+  .criminal-seat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .criminal-control-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 14px;
+    padding-top: 10px;
+  }
+}
+
+@media (max-width: 560px) {
+  .criminal-table {
+    gap: 14px;
+  }
+
+  .criminal-choice-grid,
+  .criminal-score-grid,
+  .criminal-role-list,
+  [data-criminal-lobby-deck].criminal-role-list {
+    grid-template-columns: 1fr;
+  }
+
+  .criminal-seat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .criminal-seat,
+  .criminal-card,
+  .criminal-private,
+  .criminal-result-row,
+  .criminal-role-card {
+    padding: 10px;
+  }
+
+  .criminal-hand {
+    gap: 8px;
+  }
+
+  .criminal-card small {
+    font-size: .74rem;
+    line-height: 1.35;
+  }
+
+  .criminal-action-row > button {
+    flex: 1 1 140px;
+  }
+
+  .criminal-turn-badge {
+    top: 8px;
+    right: 8px;
+    padding: 6px 9px;
+    font-size: .82rem;
+  }
+
+  .rules-dialog {
+    width: min(100%, calc(100vw - 16px));
+    max-height: calc(100dvh - 16px);
+  }
+
+  .rules-content {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .criminal-rules-table-wrap {
+    overflow-x: visible;
+    margin: 8px 0 12px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+  }
+
+  .criminal-rules-table {
+    min-width: 460px;
+    font-size: .82rem;
+  }
+
+  .criminal-deck-count-table,
+  .criminal-score-table {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    border-collapse: separate;
+  }
+
+  .criminal-deck-count-table caption,
+  .criminal-score-table caption {
+    display: block;
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+    background: rgba(32, 40, 43, .045);
+    padding: 8px 10px;
+  }
+
+  .criminal-deck-count-table thead,
+  .criminal-score-table thead {
+    display: none;
+  }
+
+  .criminal-deck-count-table tbody,
+  .criminal-score-table tbody {
+    display: grid;
+    gap: 8px;
+  }
+
+  .criminal-deck-count-table tr,
+  .criminal-score-table tr {
+    display: grid;
+    gap: 5px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 9px 10px;
+  }
+
+  .criminal-deck-count-table td,
+  .criminal-score-table td {
+    display: grid;
+    grid-template-columns: minmax(70px, .34fr) minmax(0, 1fr);
+    gap: 8px;
+    border: 0;
+    padding: 0;
+    overflow-wrap: anywhere;
+    font-size: .84rem;
+    line-height: 1.45;
+  }
+
+  .criminal-deck-count-table td::before,
+  .criminal-score-table td::before {
+    color: var(--muted);
+    font-size: .74rem;
+    font-weight: 900;
+  }
+
+  .criminal-deck-count-table td:nth-child(1)::before { content: "人數"; }
+  .criminal-deck-count-table td:nth-child(2)::before { content: "必要卡牌"; }
+  .criminal-deck-count-table td:nth-child(3)::before { content: "隨機抽牌"; }
+  .criminal-deck-count-table td:nth-child(4)::before { content: "總張數"; }
+
+  .criminal-score-table td:nth-child(1)::before { content: "勝利方式"; }
+  .criminal-score-table td:nth-child(2)::before { content: "得分"; }
+
+  .criminal-rules-callout {
+    padding: 10px;
+  }
+
+  .criminal-rules-card-counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .criminal-rules-card-counts > div {
+    padding: 8px 9px;
+  }
+}
+
+@media (max-width: 380px) {
+  .criminal-hand {
+    grid-template-columns: 1fr;
+  }
+}

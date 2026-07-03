@@ -103,6 +103,14 @@ function testLobbyJoinReconnectAndStartedRoomRestrictions() {
   assert.strictEqual(room.players.length, 3);
 }
 
+function testDuplicatePlayerNamesRejected() {
+  const { room, players } = createRoomWithPlayers(3);
+  assert(joinRoom(room, "host").error.includes("名字"), "玩家名稱不可重複，大小寫不同也不可");
+  const reconnect = joinRoom(room, "host", players[1].id);
+  assert.ifError(reconnect.error);
+  assert.strictEqual(reconnect.player.id, players[1].id, "既有玩家重連不應被重複名稱檢查擋住");
+}
+
 function testReturnLobbyClearsTransientRoomStateButKeepsPlayers() {
   const { room, host, players } = createRoomWithPlayers(4);
   rollAndReady(room, players);
@@ -177,6 +185,7 @@ function testDoppelgangerUsesSharedRoleResolvers() {
 function run() {
   testHostSettingsResetReadyAndValidateCapacity();
   testLobbyJoinReconnectAndStartedRoomRestrictions();
+  testDuplicatePlayerNamesRejected();
   testReturnLobbyClearsTransientRoomStateButKeepsPlayers();
   testDoppelgangerUsesSharedRoleResolvers();
   console.log("One Night Werewolf room contract tests passed");

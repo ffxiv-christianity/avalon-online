@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#20282b">
+  <title>犯人在跳舞</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/shared/styles.css">
+  <link rel="stylesheet" href="/CriminalDance/criminaldance.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Criminal Dance</p>
+        <h1>犯人在跳舞</h1>
+      </div>
+      <div class="topbar-actions">
+        <div class="room-chip" id="connectionChip">請稍後</div>
+        <button class="ghost-button rules-button" id="openRulesButton" type="button">遊戲規則</button>
+      </div>
+    </header>
+
+    <section id="joinView" class="join-view" data-shell-view="join" data-game="criminaldance">
+      <div class="hero-panel">
+        <div class="hero-copy">
+          <p class="eyebrow">3～8 人推理派對</p>
+          <h2>犯人在跳舞 Criminal Dance</h2>
+          <ul class="hero-features">
+            <li>完整自動化手牌、回合、卡牌效果與分數</li>
+            <li>每位玩家只看到自己的手牌與私密情報</li>
+            <li>10 分制連續局，支援斷線重連</li>
+          </ul>
+        </div>
+        <form id="joinForm" class="join-form">
+          <label class="field">
+            <span>遊戲模式</span>
+            <select id="gameModeSelect">
+              <option value="avalon">阿瓦隆</option>
+              <option value="onenightwolf">一夜終極狼人</option>
+              <option value="criminaldance" selected>犯人在跳舞</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>你的名字</span>
+            <input id="nameInput" maxlength="16" required autocomplete="name">
+          </label>
+          <label class="field">
+            <span>房間代碼或邀請連結</span>
+            <input id="roomInput" maxlength="240" autocomplete="off" autocapitalize="characters" placeholder="貼上代碼或完整連結">
+          </label>
+          <div class="button-row">
+            <button class="primary-button" id="createRoomButton" type="button">建立房間</button>
+            <button class="secondary-button" id="joinRoomButton" type="submit">加入房間</button>
+            <button class="ghost-button hidden" id="rejoinRoomButton" type="button">重新連線</button>
+          </div>
+          <section class="recent-sessions hidden" id="recentSessions" aria-label="最近使用的房間">
+            <div class="recent-sessions-heading">
+              <strong>最近使用</strong>
+              <span>可直接回到原玩家身分</span>
+            </div>
+            <div class="recent-session-list" id="recentSessionList"></div>
+          </section>
+        </form>
+        <details class="changelog" open>
+          <summary>
+            <span>更新日誌</span>
+            <small>最新版本 2026/07/03</small>
+          </summary>
+          <ul>
+            <li><strong>2026/07/03</strong> First Release：犯人在跳舞遊戲正式發布。</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section id="criminalRoomView" class="room-view hidden" data-shell-view="room" data-game="criminaldance">
+      <section class="status-strip" id="statusStrip" data-shell-slot="status-strip" data-shell-panel="progress"></section>
+      <section class="mobile-status-summary" id="mobileStatusSummary" aria-label="遊戲狀態摘要" data-shell-slot="mobile-status-summary"></section>
+      <div class="game-layout" data-shell-layout="game">
+        <aside class="side-panel" data-shell-region="info-sidebar">
+          <nav class="info-tabs" id="infoTabs" aria-label="房間資訊" data-shell-nav="info-tabs">
+            <button class="info-tab active" data-info-tab="chat" type="button">聊天 <span class="tab-badge hidden" id="chatUnread">0</span></button>
+            <button class="info-tab" data-info-tab="roster" type="button">玩家 <span class="tab-badge hidden" id="rosterUnread">0</span></button>
+            <button class="info-tab" data-info-tab="roles" type="button">牌庫</button>
+            <button class="info-tab game-only-tab" data-info-tab="log" type="button">記錄</button>
+          </nav>
+          <section class="panel info-panel chat-panel active" data-info-panel="chat" data-shell-panel="chat">
+            <h2>聊天</h2>
+            <div class="chat-list" id="chatList" data-shell-slot="chat-list"></div>
+            <form class="chat-form" id="chatForm" autocomplete="off" data-shell-form="chat">
+              <input id="chatInput" name="criminal-chat-message" maxlength="240" autocomplete="off" placeholder="輸入訊息">
+              <button class="primary-button" type="submit">送出</button>
+            </form>
+          </section>
+          <section class="panel info-panel roster-panel" data-info-panel="roster" data-shell-panel="players">
+            <h2>玩家順序</h2>
+            <div class="roster" id="roster" data-shell-slot="player-list"></div>
+          </section>
+          <section class="panel info-panel deck-panel" data-info-panel="roles" data-shell-panel="deck">
+            <h2>牌庫</h2>
+            <div class="criminal-role-list" id="roleList" data-shell-slot="deck-list"></div>
+          </section>
+          <section class="panel info-panel game-only-panel log-panel" data-info-panel="log" data-shell-panel="log">
+            <h2>記錄</h2>
+            <ol class="log-list" id="logList" data-shell-slot="event-log"></ol>
+          </section>
+          <section class="panel room-panel desktop-room-panel" data-shell-panel="invite">
+            <div class="room-code-block">
+              <span>房間代碼</span>
+              <strong class="room-code-value">------</strong>
+            </div>
+            <button class="ghost-button" data-copy-link type="button">複製邀請連結</button>
+          </section>
+        </aside>
+
+        <section class="main-panel" id="mainPanel" data-shell-panel="main"></section>
+        <section class="panel room-panel mobile-room-panel" data-shell-panel="invite">
+          <div class="room-code-block">
+            <span>房間代碼</span>
+            <strong class="room-code-value">------</strong>
+          </div>
+          <button class="ghost-button" data-copy-link type="button">複製邀請連結</button>
+        </section>
+      </div>
+    </section>
+
+    <template id="criminalLobbyTemplate" data-shell-template="lobby" data-game="criminaldance">
+      <div data-template-slot="phase-header"></div>
+      <div class="lobby-grid" data-shell-layout="lobby">
+        <section class="section-block" data-shell-panel="your-status">
+          <h3>你的狀態</h3>
+          <div class="action-card">
+            <span class="ready-alert" data-criminal-ready-alert tabindex="0"></span>
+            <span class="ready-alert-popover" data-criminal-ready-popover role="tooltip"></span>
+            <div class="action-card-status">
+              <strong data-criminal-lobby-player-name></strong>
+              <p data-criminal-lobby-roll-status></p>
+            </div>
+            <div class="button-row">
+              <button class="secondary-button" data-criminal-roll type="button">擲 d100</button>
+              <button class="primary-button" data-criminal-ready type="button">準備</button>
+            </div>
+          </div>
+          <div class="validation-list" data-criminal-lobby-validation></div>
+          <div data-criminal-lobby-start-control></div>
+        </section>
+
+        <section class="section-block" data-shell-panel="host-settings">
+          <div class="section-heading">
+            <h3>房主設定</h3>
+          </div>
+          <div class="settings-grid" data-shell-slot="settings-grid">
+            <label class="field">
+              <span>遊戲人數</span>
+              <select id="playerCountSelect" data-criminal-player-count>
+                <option value="3">3 人</option>
+                <option value="4" selected>4 人</option>
+                <option value="5">5 人</option>
+                <option value="6">6 人</option>
+                <option value="7">7 人</option>
+                <option value="8">8 人</option>
+              </select>
+            </label>
+          </div>
+          <div class="settings-grid" data-shell-slot="expansion-settings">
+            <div class="field setting-option">
+              <label>
+                <input type="checkbox" data-criminal-expansion="inspector">
+                使用警部
+              </label>
+            </div>
+            <div class="field setting-option">
+              <label>
+                <input type="checkbox" data-criminal-expansion="boy">
+                使用少年
+              </label>
+            </div>
+          </div>
+          <h3>牌庫預覽</h3>
+          <div class="criminal-role-list" data-criminal-lobby-deck data-shell-panel="deck"></div>
+        </section>
+      </div>
+    </template>
+  </main>
+
+  <div class="rules-overlay hidden" id="rulesOverlay" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <article class="rules-dialog">
+      <header class="rules-header">
+        <div>
+          <p class="eyebrow">Criminal Dance</p>
+          <h2 id="rulesTitle">犯人在跳舞規則</h2>
+        </div>
+        <button class="ghost-button" id="closeRulesButton" type="button">關閉</button>
+      </header>
+      <div class="rules-content">
+        <section>
+          <h3>流程</h3>
+          <ol>
+            <li>房主設定人數與警部/少年，所有玩家擲 d100 並準備。</li>
+            <li>座位由擲骰大小順時針排序；點數高者在前，同點依系統同點亂數排序。</li>
+            <li>系統依人數建立本局牌庫；若啟用擴充，先替換卡牌，再洗牌並每人發 4 張。</li>
+            <li>持有第一發現者的玩家先出，第一回合必須打出第一發現者。</li>
+            <li>輪到的玩家打出一張合法手牌並執行效果。</li>
+            <li>偵探、神犬、警部或犯人觸發結局時計分；有人達 10 分時整場結束。</li>
+          </ol>
+        </section>
+        <section>
+          <h3>牌庫與擴充</h3>
+          <p>總共 32 張基本牌，並依玩家人數取出本局牌庫。每位玩家起始 4 張手牌。</p>
+          <div class="criminal-rules-card-counts" aria-label="基本牌數量">
+            <div><strong>第一發現者</strong><span>1</span></div>
+            <div><strong>犯人</strong><span>1</span></div>
+            <div><strong>不在場證明</strong><span>5</span></div>
+            <div><strong>共犯</strong><span>2</span></div>
+            <div><strong>偵探</strong><span>4</span></div>
+            <div><strong>目擊者</strong><span>3</span></div>
+            <div><strong>普通人</strong><span>2</span></div>
+            <div><strong>神犬</strong><span>1</span></div>
+            <div><strong>情報交換</strong><span>4</span></div>
+            <div><strong>謠言</strong><span>5</span></div>
+            <div><strong>交易</strong><span>4</span></div>
+            <div class="total"><strong>合計</strong><span>32</span></div>
+          </div>
+          <div class="criminal-rules-table-wrap">
+            <table class="criminal-rules-table criminal-deck-count-table">
+              <caption>依人數建立本局牌庫</caption>
+              <thead>
+                <tr>
+                  <th>人數</th>
+                  <th>必要卡牌</th>
+                  <th>隨機卡池抽牌</th>
+                  <th>總張數</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>3</td><td>第一發現者 1、犯人 1、偵探 1、不在場證明 1</td><td>8</td><td>12</td></tr>
+                <tr><td>4</td><td>第一發現者 1、犯人 1、偵探 1、不在場證明 1、共犯 1</td><td>11</td><td>16</td></tr>
+                <tr><td>5</td><td>第一發現者 1、犯人 1、偵探 1、不在場證明 2、共犯 1</td><td>14</td><td>20</td></tr>
+                <tr><td>6</td><td>第一發現者 1、犯人 1、偵探 2、不在場證明 2、共犯 2</td><td>16</td><td>24</td></tr>
+                <tr><td>7</td><td>第一發現者 1、犯人 1、偵探 2、不在場證明 3、共犯 2</td><td>19</td><td>28</td></tr>
+                <tr><td>8</td><td>替換後的全部 32 張牌</td><td>0</td><td>32</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="criminal-rules-callout">
+            <strong>擴充替換順序</strong>
+            <span>使用警部時，警部替換神犬。使用少年時，少年替換 1 張目擊者。替換完成後，才建立本局牌庫、洗牌、發牌。</span>
+          </div>
+        </section>
+        <section>
+          <h3>卡牌效果</h3>
+          <dl class="rules-role-list">
+            <div class="good"><dt>第一發現者</dt><dd>持有者成為起始玩家。第一回合只能打出第一發現者，無效果。</dd></div>
+            <div class="evil"><dt>犯人 <span>犯人陣營</span></dt><dd>持有犯人牌的玩家是犯人。只有犯人是最後一張手牌時才能打出；打出後本局立即結束，犯人陣營獲勝。</dd></div>
+            <div class="good"><dt>不在場證明</dt><dd>若犯人同時持有犯人與不在場證明，偵探指定時不會抓到犯人。不在場證明打出無效果。</dd></div>
+            <div class="evil"><dt>共犯 <span>犯人陣營</span></dt><dd>打出後成為犯人陣營。共犯在手上沒有身份效果，只有打出後才共同勝負。</dd></div>
+            <div class="good"><dt>偵探</dt><dd>手牌 3 張以下才可打出。指定一位玩家，若對方持有犯人且沒有不在場證明，本局立即結束。</dd></div>
+            <div class="good"><dt>目擊者</dt><dd>指定一位玩家，只有使用者私下看到該玩家所有手牌。公開記錄不顯示手牌內容。</dd></div>
+            <div class="good"><dt>普通人</dt><dd>無效果。</dd></div>
+            <div class="good"><dt>神犬</dt><dd>指定一位有手牌的玩家。該玩家自己選一張棄掉；若棄掉犯人，本局立即結束。若不是犯人，神犬牌交給該玩家。</dd></div>
+            <div class="good"><dt>情報交換</dt><dd>所有有手牌玩家同時選擇一張效果開始時持有的手牌，面朝下傳給左邊玩家。剛收到的牌不能在同次效果再傳出。</dd></div>
+            <div class="good"><dt>謠言</dt><dd>由打出謠言的玩家開始，依座位順時針向右手邊玩家抽一張牌。抽到的牌先放在桌前，不立刻收入手牌；直到所有人都抽過一張後，才一起加入手牌。沒有手牌的玩家也參加。</dd></div>
+            <div class="good"><dt>交易</dt><dd>指定一位有手牌玩家。雙方各自秘密選一張手牌，同時交換。</dd></div>
+            <div class="good"><dt>警部 <span>擴充</span></dt><dd>擴充牌。手牌 3 張以下才可打出，放在指定玩家面前。本局結束時若該玩家是犯人，警部使用者以警部抓到犯人的方式獲勝。</dd></div>
+            <div class="good"><dt>少年 <span>擴充</span></dt><dd>擴充牌。開局時，持有少年者知道初始犯人牌在哪位玩家手上；之後犯人移動不會更新情報。打出無效果。</dd></div>
+          </dl>
+        </section>
+        <section>
+          <h3>得分</h3>
+          <div class="criminal-rules-table-wrap">
+            <table class="criminal-rules-table criminal-score-table">
+              <caption>本局結算</caption>
+              <thead>
+                <tr>
+                  <th>勝利方式</th>
+                  <th>得分</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>偵探抓到犯人</td><td>偵探 +2；其他非犯人陣營 +1。</td></tr>
+                <tr><td>神犬或警部抓到犯人</td><td>使用者 +3；其他非犯人陣營 +1。</td></tr>
+                <tr><td>犯人打出犯人</td><td>犯人與已打出共犯的玩家 +2。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section>
+          <h3>整場結束</h3>
+          <p>每局結算後累加分數。任一玩家達到 10 分時整場結束。</p>
+          <p>若多人同時達到 10 分，最高分者獲勝，最高分相同則並列勝利。</p>
+        </section>
+      </div>
+    </article>
+  </div>
+
+  <script src="/shared/client-state.js"></script>
+  <script src="/shared/room-ui.js"></script>
+  <script>
+    document.getElementById("gameModeSelect")?.addEventListener("change", (event) => {
+      if (event.target.value === "avalon") window.location.href = "/";
+      if (event.target.value === "onenightwolf") window.location.href = "/Onenightwolf/";
+    });
+  </script>
+  <script src="/CriminalDance/criminaldance.js"></script>
+</body>
+</html>
