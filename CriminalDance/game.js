@@ -517,9 +517,9 @@ function completeInformationExchange(room) {
   });
   moves.forEach(({ from, card }) => removeCard(from.hand, card));
   moves.forEach(({ to, card }) => to.hand.push(card));
-  moves.forEach(({ from, to }) => {
-    setPrivateActionInfo(from, actionPhaseKey(room, "information_exchange"), `順時針給 ${playerSeatLabel(room, to)} 一張牌。`);
-    setPrivateActionInfo(to, actionPhaseKey(room, "information_exchange"), `從逆時針 ${playerSeatLabel(room, from)} 收到一張牌。`);
+  moves.forEach(({ from, to, card }) => {
+    setPrivateActionInfo(from, actionPhaseKey(room, "information_exchange"), `順時針給 ${playerSeatLabel(room, to)}「${cardName(card)}」。`);
+    setPrivateActionInfo(to, actionPhaseKey(room, "information_exchange"), `從逆時針 ${playerSeatLabel(room, from)} 收到「${cardName(card)}」。`);
   });
   addLog(room, "所有玩家完成情報交換。");
   setPublicActionInfo(room, actionPhaseKey(room, "information_exchange"), "所有玩家完成情報交換。");
@@ -588,7 +588,8 @@ function completeRumor(room, pending) {
       return;
     }
     player.hand.push(card);
-    setPrivateActionInfo(player, actionPhaseKey(room, "rumor"), `逆時針從 ${playerSeatLabel(room, source)} 抽到一張牌。`);
+    setPrivateActionInfo(player, actionPhaseKey(room, "rumor"), `逆時針從 ${playerSeatLabel(room, source)} 抽到「${cardName(card)}」。`);
+    setPrivateActionInfo(source, actionPhaseKey(room, "rumor"), `${playerSeatLabel(room, player)} 從你這裡抽走「${cardName(card)}」。`);
   });
   addLog(room, "所有玩家完成謠言抽牌。");
   room.phase = "playing";
@@ -648,8 +649,8 @@ function tradeSelect(room, actor, card) {
   actor.hand.push(actorCard);
   addLog(room, `${initiator.name} 和 ${actor.name} 完成交易。`);
   setPublicActionInfo(room, actionPhaseKey(room, "trade"), `${playerSeatLabel(room, initiator)} 和 ${playerSeatLabel(room, actor)} 完成交易。`);
-  setPrivateActionInfo(initiator, actionPhaseKey(room, "trade"), `你和 ${playerSeatLabel(room, actor)} 交換了一張牌。`);
-  setPrivateActionInfo(actor, actionPhaseKey(room, "trade"), `你和 ${playerSeatLabel(room, initiator)} 交換了一張牌。`);
+  setPrivateActionInfo(initiator, actionPhaseKey(room, "trade"), `你交給 ${playerSeatLabel(room, actor)}「${cardName(actorCard)}」，收到「${cardName(card)}」。`);
+  setPrivateActionInfo(actor, actionPhaseKey(room, "trade"), `你交給 ${playerSeatLabel(room, initiator)}「${cardName(card)}」，收到「${cardName(actorCard)}」。`);
   room.phase = "playing";
   room.pendingAction = null;
   advanceTurn(room);
@@ -895,8 +896,18 @@ function openingInfo(room, player) {
 
 function advanceTurn(room) {
   const currentIndex = room.players.findIndex((player) => player.id === room.currentPlayerId);
-  room.currentPlayerId = room.players[(currentIndex + 1 + room.players.length) % room.players.length].id;
+  const startIndex = currentIndex >= 0 ? currentIndex : -1;
+  const nextPlayer = nextPlayerWithHand(room, startIndex);
+  if (nextPlayer) room.currentPlayerId = nextPlayer.id;
   room.turnNumber += 1;
+}
+
+function nextPlayerWithHand(room, startIndex) {
+  for (let offset = 1; offset <= room.players.length; offset += 1) {
+    const player = room.players[(startIndex + offset + room.players.length) % room.players.length];
+    if (player.hand.length) return player;
+  }
+  return null;
 }
 
 function currentCulprit(room) {

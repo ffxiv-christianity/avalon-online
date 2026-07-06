@@ -76,9 +76,180 @@
   padding: 12px;
 }
 
-.criminal-seat.current {
-  border-color: rgba(255, 214, 128, 0.85);
-  box-shadow: 0 0 0 1px rgba(255, 214, 128, 0.2);
+.criminal-seat {
+  --seat-danger: #b93c43;
+  --seat-danger-soft: rgba(185, 60, 67, .22);
+  --seat-gold: #d5ad5b;
+  --seat-gold-soft: rgba(213, 173, 91, .34);
+  --seat-blue: #287aa3;
+  --seat-blue-soft: rgba(40, 122, 163, .24);
+  --seat-green: #4f8f64;
+  --seat-green-soft: rgba(79, 143, 100, .24);
+  position: relative;
+  overflow: visible;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+.criminal-seat > * {
+  position: relative;
+  z-index: 1;
+}
+
+.criminal-seat::before,
+.criminal-seat::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.criminal-seat.seat-accomplice {
+  border-color: rgba(185, 60, 67, .78);
+  box-shadow: inset 0 0 0 2px var(--seat-danger-soft);
+}
+
+.criminal-seat.seat-inspector-target {
+  border-color: rgba(40, 122, 163, .78);
+  box-shadow: inset 0 0 0 2px var(--seat-blue-soft);
+}
+
+.criminal-seat.seat-dog-target {
+  border-color: rgba(213, 173, 91, .88);
+  animation: criminal-seat-dog-pulse 1.35s ease-in-out infinite;
+}
+
+.criminal-seat.seat-detective-scan::before {
+  opacity: 1;
+  background: linear-gradient(0deg, rgba(40, 122, 163, .34), rgba(40, 122, 163, .13) 45%, transparent 72%);
+  transform-origin: bottom;
+  animation: criminal-seat-detective-scan .8s ease-out both;
+}
+
+.criminal-seat.seat-detective-miss::after {
+  border: 2px solid rgba(79, 143, 100, .88);
+  box-shadow: 0 0 0 3px rgba(79, 143, 100, .12), inset 0 0 20px var(--seat-green-soft);
+  animation: criminal-seat-detective-miss .9s .8s ease-out both;
+}
+
+.criminal-seat.seat-culprit-reveal {
+  border-color: rgba(42, 31, 31, .78);
+  background:
+    linear-gradient(135deg, rgba(255, 253, 248, .82), rgba(148, 39, 45, .06)),
+    rgba(255, 255, 255, 0.72);
+}
+
+.criminal-seat.seat-culprit-reveal::after {
+  border: 2px solid rgba(42, 31, 31, .8);
+  box-shadow:
+    0 0 0 2px rgba(185, 60, 67, .14),
+    0 8px 22px rgba(42, 31, 31, .16),
+    inset 0 0 0 1px rgba(148, 39, 45, .28),
+    inset 0 0 18px rgba(185, 60, 67, .14);
+  animation: criminal-seat-culprit-reveal .28s ease-out both;
+}
+
+.criminal-seat.seat-detective-scan.seat-culprit-reveal::after {
+  animation-delay: .8s;
+}
+
+.criminal-seat.seat-round-win-civilian {
+  border-color: rgba(79, 143, 100, .88);
+  box-shadow: inset 0 0 0 2px rgba(79, 143, 100, .18);
+}
+
+.criminal-seat.seat-round-win-culprit {
+  border-color: rgba(185, 60, 67, .88);
+  box-shadow: inset 0 0 0 2px rgba(185, 60, 67, .18);
+}
+
+.criminal-seat.seat-round-win-authority {
+  border-color: rgba(40, 122, 163, .88);
+  box-shadow: inset 0 0 0 2px rgba(40, 122, 163, .18);
+}
+
+.criminal-result-table {
+  margin-bottom: 16px;
+}
+
+@keyframes criminal-seat-detective-scan {
+  from {
+    clip-path: inset(100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@keyframes criminal-seat-detective-miss {
+  0% {
+    opacity: 0;
+    transform: scale(.98);
+  }
+
+  28%,
+  72% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.01);
+  }
+}
+
+@keyframes criminal-seat-culprit-reveal {
+  0% {
+    opacity: 0;
+    box-shadow:
+      0 0 0 0 rgba(31, 23, 23, 0),
+      0 0 0 0 rgba(185, 60, 67, 0),
+      0 0 0 rgba(31, 23, 23, 0),
+      inset 0 0 0 1px rgba(31, 23, 23, .18),
+      inset 0 0 10px rgba(185, 60, 67, .08);
+  }
+
+  100% {
+    opacity: 1;
+    box-shadow:
+      0 0 0 2px rgba(185, 60, 67, .14),
+      0 8px 22px rgba(42, 31, 31, .16),
+      inset 0 0 0 1px rgba(148, 39, 45, .28),
+      inset 0 0 18px rgba(185, 60, 67, .14);
+  }
+}
+
+@keyframes criminal-seat-dog-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(213, 173, 91, .18), inset 0 0 0 1px rgba(213, 173, 91, .16);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgba(213, 173, 91, .18), inset 0 0 18px rgba(213, 173, 91, .2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .criminal-seat.seat-dog-target,
+  .criminal-seat.seat-detective-scan::before,
+  .criminal-seat.seat-detective-miss::after,
+  .criminal-seat.seat-culprit-reveal::after {
+    animation: none;
+  }
+
+  .criminal-seat.seat-detective-scan::before {
+    opacity: .42;
+  }
+
+  .criminal-seat.seat-detective-miss::after,
+  .criminal-seat.seat-culprit-reveal::after {
+    opacity: 1;
+  }
 }
 
 .criminal-seat-head,
@@ -95,6 +266,7 @@
   align-items: center;
   min-width: 0;
   gap: 6px;
+  overflow-wrap: anywhere;
 }
 
 .criminal-seat-title strong,
@@ -131,7 +303,7 @@
 .criminal-seat small,
 .criminal-card small,
 .criminal-private small {
-  color: var(--muted-text, #aeb8bc);
+  color: var(--muted);
 }
 
 .criminal-played {
@@ -261,6 +433,7 @@
 .criminal-control-main,
 .criminal-action-info-block {
   min-width: 0;
+  max-width: 100%;
 }
 
 .criminal-control-main > section > h3,
@@ -380,6 +553,26 @@
   text-align: left;
 }
 
+.criminal-card strong {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.criminal-card-icon {
+  flex: 0 0 auto;
+  font: inherit;
+  line-height: inherit;
+}
+
+.criminal-card small {
+  font-size: .84rem;
+  line-height: 1.42;
+}
+
 .criminal-card:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -393,15 +586,16 @@
 .criminal-private {
   border-color: rgba(126, 210, 255, 0.32);
   align-self: start;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .criminal-private p {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
+  font-size: .95rem;
+  min-width: 0;
   margin: 0 0 6px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .criminal-private p:last-child {
@@ -459,6 +653,7 @@
 
 .criminal-action-panel h3 {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .criminal-action-row {
@@ -470,6 +665,7 @@
 
 .criminal-score {
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .criminal-rules-table-wrap {
@@ -620,7 +816,7 @@
   }
 
   .criminal-card small {
-    font-size: .74rem;
+    font-size: .8rem;
     line-height: 1.35;
   }
 

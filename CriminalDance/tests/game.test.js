@@ -274,8 +274,11 @@ function testInformationExchangeUsesSnapshot() {
   assert(players[3].hand.includes("culprit"));
   assert(players[0].hand.includes("ordinary"));
   assert(players[0].actionInfo.messages.some((message) => message.includes(`順時針給 #2 ${players[1].name}`)));
+  assert(players[0].actionInfo.messages.some((message) => message.includes("「不在場證明」")));
   assert(players[0].actionInfo.messages.some((message) => message.includes("所有玩家完成情報交換")));
   assert(players[1].actionInfo.messages.some((message) => message.includes(`從逆時針 #1 ${players[0].name}`)));
+  assert(players[1].actionInfo.messages.some((message) => message.includes("收到「不在場證明」")));
+  assert(!room.log.some((message) => message.includes("不在場證明")));
 }
 
 function testRumorUsesSnapshot() {
@@ -309,8 +312,12 @@ function testRumorUsesSnapshot() {
   assert(players[3].hand.includes("culprit"), "player D should draw from player C's original snapshot");
   assert(players[0].actionInfo.messages.some((message) => message.includes(`逆時針的 #4 ${players[3].name} 沒有可抽的牌`)));
   assert(players[1].actionInfo.messages.some((message) => message.includes(`逆時針從 #1 ${players[0].name}`)));
+  assert(players[1].actionInfo.messages.some((message) => message.includes("抽到「不在場證明」")));
+  assert(players[0].actionInfo.messages.some((message) => message.includes(`#2 ${players[1].name} 從你這裡抽走「不在場證明」`)));
+  assert(players[3].actionInfo.messages.some((message) => message.includes("抽到「犯人」")));
   assert(!players[0].actionInfo.messages.some((message) => message.includes(`順時針給 #2 ${players[1].name}`)));
   assert(!players[0].actionInfo.messages.some((message) => message.includes("所有玩家完成謠言抽牌")));
+  assert(!room.log.some((message) => message.includes("不在場證明") || message.includes("犯人")));
 }
 
 function testRumorConfirmationOrderDoesNotAffectSnapshot() {
@@ -366,6 +373,21 @@ function testSimpleCardsAndPublicCards() {
   assert.deepStrictEqual(players[0].publicCards, []);
 }
 
+function testTurnSkipsPlayersWithoutHand() {
+  const { room, players } = setup(4);
+  setHands(room, [
+    ["ordinary"],
+    [],
+    ["alibi"],
+    ["culprit"]
+  ]);
+  forceTurn(room, players[0]);
+  assert.strictEqual(applyRoomAction(room, players[0], "playCard", { card: "ordinary" }), null);
+  assert.strictEqual(room.phase, "playing");
+  assert.strictEqual(room.currentPlayerId, players[2].id);
+  assert.strictEqual(applyRoomAction(room, players[1], "playCard", { card: "ordinary" }), "還沒輪到你。");
+}
+
 function testTradeRules() {
   const { room, players } = setup(4);
   setHands(room, [
@@ -381,6 +403,9 @@ function testTradeRules() {
   assert.strictEqual(applyRoomAction(room, players[1], "tradeSelect", { card: "culprit" }), null);
   assert(players[0].hand.includes("culprit"));
   assert(players[1].hand.includes("alibi"));
+  assert(players[0].actionInfo.messages.some((message) => message.includes("交給") && message.includes("「不在場證明」") && message.includes("收到「犯人」")));
+  assert(players[1].actionInfo.messages.some((message) => message.includes("交給") && message.includes("「犯人」") && message.includes("收到「不在場證明」")));
+  assert(!room.log.some((message) => message.includes("不在場證明")));
 }
 
 function testInspectorPriorityAndMatchEnd() {
@@ -435,6 +460,7 @@ function runSuite() {
   testRumorUsesSnapshot();
   testRumorConfirmationOrderDoesNotAffectSnapshot();
   testSimpleCardsAndPublicCards();
+  testTurnSkipsPlayersWithoutHand();
   testTradeRules();
   testInspectorPriorityAndMatchEnd();
   testNextRoundAndResetMatch();

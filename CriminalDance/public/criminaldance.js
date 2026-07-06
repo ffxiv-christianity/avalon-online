@@ -19,6 +19,21 @@
     inspector: "警部",
     boy: "少年"
   };
+  const CARD_ICONS = {
+    first_discoverer: "🔍",
+    culprit: "🎭",
+    alibi: "🧾",
+    accomplice: "🔗",
+    detective: "🔎",
+    witness: "👁️",
+    ordinary: "🙂",
+    dog: "🐾",
+    information_exchange: "➡️",
+    rumor: "💬",
+    trade: "🔄",
+    inspector: "👮",
+    boy: "👦"
+  };
   const CARD_HELP = {
     first_discoverer: "持有者先出，第一回合必須打出。",
     culprit: "最後一張手牌時可打出並讓犯人陣營得分。",
@@ -415,7 +430,7 @@
       ...player.publicCards
     ];
     return `
-      <article class="criminal-seat ${player.id === snapshot.room.currentPlayerId ? "current" : ""}">
+      <article class="${seatAnimationClasses(player)}">
         <div class="criminal-seat-head">
           <div class="criminal-seat-title">
             <span class="criminal-seat-number seat-tone-${(player.index % 8) + 1}">#${player.index + 1}</span>
@@ -455,6 +470,57 @@
     `;
   }
 
+  function seatAnimationClasses(player) {
+    return [
+      "criminal-seat",
+      ...persistentSeatClasses(player),
+      ...pendingSeatClasses(player),
+      culpritRevealClass(player),
+      roundResultSeatClass(player)
+    ].filter(Boolean).join(" ");
+  }
+
+  function persistentSeatClasses(player) {
+    const classes = [];
+    if (player.tableCards.includes("accomplice")) classes.push("seat-accomplice");
+    if (inspectorTargetIds().has(player.id)) classes.push("seat-inspector-target");
+    return classes;
+  }
+
+  function pendingSeatClasses(player) {
+    const pending = snapshot.room.pendingAction;
+    if (pending?.type === "detectiveResult" && pending.targetId === player.id) {
+      return [
+        "seat-detective-scan",
+        pending.caught ? "seat-culprit-reveal" : "seat-detective-miss"
+      ];
+    }
+    if (pending?.type === "dogDiscard" && pending.targetId === player.id) return ["seat-dog-target"];
+    return [];
+  }
+
+  function culpritRevealClass(player) {
+    const result = snapshot.room.roundResult;
+    return result?.culpritId === player.id ? "seat-culprit-reveal" : "";
+  }
+
+  function roundResultSeatClass(player) {
+    const result = snapshot.room.roundResult;
+    if (!result?.roundScores?.[player.id]) return "";
+    if (result.type === "culprit") return "seat-round-win-culprit";
+    if (result.type === "detective") return "seat-round-win-civilian";
+    if (result.type === "dog" || result.type === "inspector") return "seat-round-win-authority";
+    return "";
+  }
+
+  function inspectorTargetIds() {
+    return new Set(snapshot.room.players.flatMap((player) => (
+      player.publicCards
+        .filter((item) => item.card === "inspector" && item.targetId)
+        .map((item) => item.targetId)
+    )));
+  }
+
   function renderActionInfo() {
     const messages = snapshot.you.actionInfo?.messages || [];
     return `
@@ -477,7 +543,7 @@
       <div class="identity-overlay">
         <section class="identity-lightbox good criminal-opening-lightbox" role="dialog" aria-modal="true" aria-label="開場資訊">
           <header class="identity-header">
-            <span class="role-icon good">${hasFirstDiscoverer ? "始" : "少"}</span>
+            <span class="role-icon good">${hasFirstDiscoverer ? cardIcon("first_discoverer") : cardIcon("boy")}</span>
             <div>
               <p class="eyebrow">Criminal Dance</p>
               <h2>開場發動能力</h2>
@@ -513,7 +579,7 @@
         <div class="criminal-hand">
           ${snapshot.you.hand.map((card, index) => `
             <button class="criminal-card ${selectedCardIndex === index ? "selected" : ""}" data-card="${card.id}" data-card-index="${index}" type="button" ${isTurn && isPlayable(card.id) ? "" : "disabled"}>
-              <strong>${escapeHtml(card.name)}</strong>
+              <strong><span class="criminal-card-icon" aria-hidden="true">${escapeHtml(cardIcon(card.id))}</span>${escapeHtml(card.name)}</strong>
               <small>${cardHelp(card.id)}</small>
             </button>
           `).join("")}
@@ -639,6 +705,11 @@
     const result = snapshot.room.roundResult;
     page.mainPanel.innerHTML = `
       ${phaseHeader("本局結算", resultTitle(result.type))}
+      <section class="criminal-table criminal-result-table">
+        <div class="criminal-seat-grid">
+          ${snapshot.room.players.map(renderSeat).join("")}
+        </div>
+      </section>
       <div class="criminal-score-grid">
         ${snapshot.room.players.map((player) => `
           <div class="criminal-result-row">
@@ -655,6 +726,11 @@
     const result = snapshot.room.matchResult;
     page.mainPanel.innerHTML = `
       ${phaseHeader("整場結束", `勝利者：${result.winners.map((player) => player.name).join("、")}`)}
+      <section class="criminal-table criminal-result-table">
+        <div class="criminal-seat-grid">
+          ${snapshot.room.players.map(renderSeat).join("")}
+        </div>
+      </section>
       <div class="criminal-score-grid">
         ${snapshot.room.players.map((player) => `
           <div class="criminal-result-row">
@@ -1025,6 +1101,10 @@
     return CARD_NAMES[card] || card;
   }
 
+  function cardIcon(card) {
+    return CARD_ICONS[card] || "□";
+  }
+
   function nameById(playerId) {
     return snapshot.room.players.find((player) => player.id === playerId)?.name || "未知玩家";
   }
@@ -1039,8 +1119,8 @@
   }
 
   function renderSeatBadges(value) {
-    return escapeHtml(value).replace(/#([1-8])/g, (_, number) => (
-      `<span class="criminal-seat-number seat-tone-${number}">#${number}</span>`
+    return escapeHtml(value).replace(/#([1-8])(\s+)?/g, (_, number, trailingSpace) => (
+      `<span class="criminal-seat-number seat-tone-${number}">#${number}</span>${trailingSpace ? "&nbsp;" : ""}`
     ));
   }
 

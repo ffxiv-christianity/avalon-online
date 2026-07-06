@@ -537,6 +537,7 @@ body.shared-readonly .shared-control-lock button {
   display: block;
   margin-top: 4px;
   font-size: 1.08rem;
+  overflow-wrap: anywhere;
 }
 
 .mobile-status-summary {
@@ -738,6 +739,7 @@ body.shared-readonly .shared-control-lock button {
   color: var(--muted);
   font-size: .82rem;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .mini-action {
@@ -1117,6 +1119,11 @@ body.shared-readonly .shared-control-lock button {
 .chat-message strong {
   font-size: .92rem;
   color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.chat-message span {
+  overflow-wrap: anywhere;
 }
 
 .chat-line,
@@ -1148,6 +1155,7 @@ body.shared-readonly .shared-control-lock button {
 .phase-header p {
   color: var(--muted);
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .lobby-grid {
@@ -1251,6 +1259,7 @@ body.shared-readonly .shared-control-lock button {
 .action-card-status {
   min-width: 0;
   padding-right: 38px;
+  overflow-wrap: anywhere;
 }
 
 .ready-alert {
@@ -1310,6 +1319,7 @@ body.shared-readonly .shared-control-lock button {
   padding: 10px;
   font-size: .88rem;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .validation.error {

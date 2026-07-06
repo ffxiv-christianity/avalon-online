@@ -17,6 +17,31 @@ const criminalPage = fs.readFileSync(path.join(root, "CriminalDance", "public", 
 const criminalScript = fs.readFileSync(path.join(root, "CriminalDance", "public", "criminaldance.js"), "utf8");
 const criminalStyles = fs.readFileSync(path.join(root, "CriminalDance", "public", "criminaldance.css"), "utf8");
 
+function cssRulesForSelector(css, selector) {
+  const rules = [];
+  const rulePattern = /([^{}]+)\{([^{}]*)\}/g;
+  let match;
+  while ((match = rulePattern.exec(css)) !== null) {
+    const selectors = match[1].split(",").map((item) => item.trim());
+    if (selectors.includes(selector)) rules.push(match[2]);
+  }
+  return rules;
+}
+
+function assertCssRuleIncludes(css, selector, declaration) {
+  assert(
+    cssRulesForSelector(css, selector).some((rule) => rule.includes(declaration)),
+    `${selector} must include ${declaration}`
+  );
+}
+
+function assertCssRuleExcludes(css, selector, declaration) {
+  assert(
+    cssRulesForSelector(css, selector).every((rule) => !rule.includes(declaration)),
+    `${selector} must not include ${declaration}`
+  );
+}
+
 const avalonMainStart = avalonPage.indexOf('<main class="app-shell">');
 const avalonMainEnd = avalonPage.indexOf("</main>");
 assert(!avalonPage.includes('id="wolfRoomView"'), "Avalon index should not embed the One Night Wolf room shell");
@@ -29,6 +54,64 @@ assert(criminalPage.includes('window.location.href = "/Onenightwolf/"'), "Crimin
 assert(criminalPage.includes('href="/favicon.svg?v=2"'), "CriminalDance must use the shared favicon");
 assert(criminalPage.includes('href="/assets/icons/apple-touch-icon.png"'), "CriminalDance must use the shared apple touch icon");
 assert(criminalStyles.includes(".criminal-opening-lightbox .identity-header .eyebrow"), "CriminalDance opening lightbox eyebrow must use game color");
+assert(criminalScript.includes("const CARD_ICONS"), "CriminalDance hand card icon library is missing");
+assert.strictEqual((criminalScript.match(/criminal-card-icon/g) || []).length, 1, "CriminalDance card icons should render only in the hand cards");
+assert(criminalScript.includes("&nbsp;"), "CriminalDance seat badges must keep the seat number attached to the following player name");
+[
+  "seatAnimationClasses",
+  "persistentSeatClasses",
+  "pendingSeatClasses",
+  "culpritRevealClass",
+  "roundResultSeatClass",
+  "inspectorTargetIds"
+].forEach((helper) => assert(criminalScript.includes(helper), `CriminalDance seat animation helper is missing: ${helper}`));
+assert(criminalScript.includes("criminal-result-table"), "CriminalDance result screens must keep the player seat matrix visible for result pulses");
+
+[
+  ".status-card strong",
+  ".player-name-line strong",
+  ".player-meta",
+  ".log-list li",
+  ".chat-message strong",
+  ".chat-message span",
+  ".phase-header p",
+  ".action-card-status",
+  ".validation",
+  ".notice"
+].forEach((selector) => assertCssRuleIncludes(sharedStyles, selector, "overflow-wrap: anywhere"));
+[
+  ".criminal-action-info-block",
+  ".criminal-private",
+  ".criminal-private p",
+  ".criminal-seat-title",
+  ".criminal-card strong",
+  ".criminal-action-panel h3",
+  ".criminal-score"
+].forEach((selector) => assertCssRuleIncludes(criminalStyles, selector, selector === ".criminal-action-info-block" ? "max-width: 100%" : "overflow-wrap: anywhere"));
+assertCssRuleExcludes(criminalStyles, ".criminal-private p", "display: flex");
+[
+  ".criminal-seat.seat-accomplice",
+  ".criminal-seat.seat-inspector-target",
+  ".criminal-seat.seat-dog-target",
+  ".criminal-seat.seat-detective-scan::before",
+  ".criminal-seat.seat-detective-miss::after",
+  ".criminal-seat.seat-culprit-reveal::after",
+  ".criminal-seat.seat-round-win-civilian",
+  ".criminal-seat.seat-round-win-culprit",
+  ".criminal-seat.seat-round-win-authority"
+].forEach((selector) => assert(cssRulesForSelector(criminalStyles, selector).length > 0, `CriminalDance seat animation style is missing: ${selector}`));
+[
+  ".criminal-seat.seat-round-win-civilian",
+  ".criminal-seat.seat-round-win-culprit",
+  ".criminal-seat.seat-round-win-authority"
+].forEach((selector) => assertCssRuleIncludes(criminalStyles, selector, "border-color"));
+[
+  "criminal-seat-detective-scan",
+  "criminal-seat-detective-miss",
+  "criminal-seat-culprit-reveal",
+  "criminal-seat-dog-pulse",
+  "prefers-reduced-motion: reduce"
+].forEach((token) => assert(criminalStyles.includes(token), `CriminalDance seat animation token is missing: ${token}`));
 
 [
   "遊戲模式",
