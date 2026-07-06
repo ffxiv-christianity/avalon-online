@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "onenightwolf-sessions";
   const TAB_KEY = "onenightwolf-tab-player";
-  const AVALON_PAGE_TITLE = "阿瓦隆線上版";
+  const AVALON_PAGE_TITLE = "阿瓦隆 Avalon";
   const WOLF_PAGE_TITLE = "一夜終極狼人";
   const CLIENT_INSTANCE_ID = crypto.randomUUID();
   const isDirectPage = location.pathname.toLowerCase().startsWith("/onenightwolf");
@@ -90,7 +90,7 @@
       hidden: page.rejoinButton.classList.contains("hidden"),
       text: page.rejoinButton.textContent
     };
-    page.mode.dataset.avalonTitle = page.siteTitle?.textContent || "阿瓦隆線上版";
+    page.mode.dataset.avalonTitle = page.siteTitle?.textContent || "阿瓦隆 Avalon";
     page.mode.dataset.avalonEyebrow = page.siteEyebrow?.textContent || "Avalon Online Host";
     page.mode.dataset.avalonHero = page.heroTitle?.textContent || "阿瓦隆 The Resistance: Avalon";
     page.mode.dataset.avalonHeroEyebrow = page.heroEyebrow?.textContent || "多人即時房間";

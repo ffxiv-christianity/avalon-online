@@ -10,29 +10,36 @@ const wolfServer = fs.readFileSync(path.join(root, "Onenightwolf", "server.js"),
 const wolfGame = fs.readFileSync(path.join(root, "Onenightwolf", "game.js"), "utf8");
 const criminalServer = fs.readFileSync(path.join(root, "CriminalDance", "server.js"), "utf8");
 const criminalGame = fs.readFileSync(path.join(root, "CriminalDance", "game.js"), "utf8");
+const loveServer = fs.readFileSync(path.join(root, "LoveLetter", "server.js"), "utf8");
+const loveGame = fs.readFileSync(path.join(root, "LoveLetter", "game.js"), "utf8");
 const rootServer = fs.readFileSync(path.join(root, "server.js"), "utf8");
 const frameworkContract = fs.readFileSync(path.join(root, "COMMON_ROOM_FRAMEWORK.md"), "utf8");
 
-[avalonServer, wolfServer, wolfGame, criminalServer, criminalGame].forEach((source) => {
+[avalonServer, wolfServer, wolfGame, criminalServer, criminalGame, loveServer, loveGame].forEach((source) => {
   assert(!source.includes("Math.random"), "Game code must not use Math.random");
 });
 
 assert(avalonServer.includes("../Shared/server/random"));
 assert(wolfGame.includes("../Shared/server/random"));
 assert(criminalGame.includes("../Shared/server/random"));
+assert(loveGame.includes("../Shared/server/random"));
 assert(avalonServer.includes("../Shared/server/room-actions"));
 assert(wolfGame.includes("../Shared/server/room-actions"));
 assert(criminalGame.includes("../Shared/server/room-actions"));
+assert(loveGame.includes("../Shared/server/room-actions"));
 assert(rootServer.includes("./Shared/server/admin"));
 assert(rootServer.includes("./Shared/server/static"));
 assert(avalonServer.includes("../Shared/server/realtime-contract"));
 assert(wolfServer.includes("../Shared/server/realtime-contract"));
 assert(criminalServer.includes("../Shared/server/realtime-contract"));
+assert(loveServer.includes("../Shared/server/realtime-contract"));
 assert(rootServer.includes("./CriminalDance/server"));
+assert(rootServer.includes("./LoveLetter/server"));
 
 assert(!/function\s+shuffle\s*\(/.test(avalonServer));
 assert(!/function\s+shuffle\s*\(/.test(wolfGame));
 assert(!/function\s+shuffle\s*\(/.test(criminalGame));
+assert(!/function\s+shuffle\s*\(/.test(loveGame));
 assert(!/function\s+serveAdminStats\s*\(/.test(avalonServer));
 assert(!fs.existsSync(path.join(root, "Avalon", "public", "styles.css")));
 assert(!fs.existsSync(path.join(root, "Avalon", "public", "client-state.js")));
@@ -44,6 +51,8 @@ assert(!fs.existsSync(path.join(root, "Avalon", "public", "client-state.js")));
   "新遊戲完成標準",
   "遊戲可推進性契約",
   "每個狀態都有出口",
+  "玩家矩陣也屬於固定 template 框架",
+  "是否需要玩家矩陣、是否需要手牌區",
   "私密角色",
   "快速重連",
   "d100",

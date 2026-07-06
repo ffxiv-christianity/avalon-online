@@ -4,11 +4,15 @@ https://avalon-online-lhem.onrender.com/
 
 - `Avalon/`：阿瓦隆
 - `Onenightwolf/`：一夜終極狼人
+- `CriminalDance/`：犯人在跳舞
+- `LoveLetter/`：情書
 
 公開網址：
 
 - `/`、`/?room=XXXXXX`：阿瓦隆
 - `/Onenightwolf/`、`/Onenightwolf/?room=XXXXXX`：一夜終極狼人
+- `/CriminalDance/`、`/CriminalDance/?room=XXXXXX`：犯人在跳舞
+- `/LoveLetter/`、`/LoveLetter/?room=XXXXXX`：情書
 
 根目錄的 `server.js` 負責共用 Render service 的 HTTP 與 WebSocket 路由。阿瓦隆首頁可以在不重新整理、也不立即改變網址的情況下切換到一夜狼人大廳；成功建立或加入房間後，才會更新為一夜狼人的房間網址。
 

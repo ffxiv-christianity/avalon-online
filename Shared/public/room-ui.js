@@ -6,7 +6,7 @@
   let toastTimer = null;
 
   function token(kind, label) {
-    return `<span class="token ${kind}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}"></span>`;
+    return `<span class="token template-player-token ${kind}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}"></span>`;
   }
 
   function logEntries(entries = [], escape = escapeHtml) {

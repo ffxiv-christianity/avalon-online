@@ -202,6 +202,9 @@ function testDetectiveAlibiWitnessPrivacy() {
     ["ordinary"]
   ]);
   forceTurn(room, players[0]);
+  const blockedDetective = makeView(room, players[0].id).you.playableCards.find((card) => card.id === "detective");
+  assert.strictEqual(blockedDetective.playable, false);
+  assert(blockedDetective.reason.includes("3 張以下"));
   assert(applyRoomAction(room, players[0], "playCard", { card: "detective", targetId: players[1].id }).includes("3 張以下"));
 }
 

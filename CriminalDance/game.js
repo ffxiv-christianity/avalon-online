@@ -819,11 +819,15 @@ function makeView(room, playerId) {
         messages: [...you.actionInfo.messages]
       } : null,
       openingInfo: openingInfo(room, you),
-      playableCards: you.hand.map((card) => ({
-        id: card,
-        name: cardName(card),
-        playable: !validatePlayableCard(room, you, card)
-      })),
+      playableCards: you.hand.map((card) => {
+        const reason = validatePlayableCard(room, you, card);
+        return {
+          id: card,
+          name: cardName(card),
+          playable: !reason,
+          reason
+        };
+      }),
       pendingAction: privatePendingAction(room, you.id)
     } : null,
     cards: CARD_DEFS

@@ -827,10 +827,33 @@ body.shared-readonly .shared-control-lock button {
   gap: 5px;
   align-items: center;
   justify-content: flex-end;
+  justify-self: end;
+  width: 78px;
   max-width: 78px;
+  min-width: 34px;
 }
 
-.token,
+.token {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 7px;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.template-seat-number.seat-tone-1 { background: #e7f0d7; color: #516b21; }
+.template-seat-number.seat-tone-2 { background: #dceeee; color: #23666b; }
+.template-seat-number.seat-tone-3 { background: #e2e7f6; color: #3d528a; }
+.template-seat-number.seat-tone-4 { background: #eee0f2; color: #70427d; }
+.template-seat-number.seat-tone-5 { background: #f4dedc; color: #93413a; }
+.template-seat-number.seat-tone-6 { background: #f4e8c8; color: #7c5a16; }
+.template-seat-number.seat-tone-7 { background: #e3eadb; color: #486a3c; }
+.template-seat-number.seat-tone-8 { background: #e7e1d8; color: #69533c; }
+
 .role-icon {
   display: inline-grid;
   place-items: center;
@@ -2424,13 +2447,16 @@ body.modal-open {
   }
 
   .player-card {
-    grid-template-columns: 30px minmax(0, 1fr);
+    grid-template-columns: 30px minmax(0, 1fr) auto;
   }
 
   .token-stack {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    max-width: none;
+    grid-column: auto;
+    justify-content: flex-end;
+    justify-self: end;
+    width: 65px;
+    max-width: 65px;
+    min-width: 30px;
   }
 
   .seat,

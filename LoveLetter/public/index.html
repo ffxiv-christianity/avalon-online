@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#20282b">
+  <title>情書 Love Letter</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/shared/styles.css">
+  <link rel="stylesheet" href="/LoveLetter/loveletter.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Love Letter 2019</p>
+        <h1>情書</h1>
+      </div>
+      <div class="topbar-actions">
+        <div class="room-chip" id="connectionChip">請稍後</div>
+        <button class="ghost-button rules-button" id="openRulesButton" type="button">遊戲規則</button>
+      </div>
+    </header>
+
+    <section id="joinView" class="join-view" data-shell-view="join" data-game="loveletter">
+      <div class="hero-panel">
+        <div class="hero-copy">
+          <p class="eyebrow">2～6 人手牌推理</p>
+          <h2>情書 Love Letter</h2>
+          <ul class="hero-features">
+            <li>2019 第二版 21 張牌完整自動化</li>
+            <li>Server 管理手牌、出局、保護、得分與結算</li>
+            <li>支援斷線重連與多分頁接管</li>
+          </ul>
+        </div>
+        <form id="joinForm" class="join-form">
+          <label class="field">
+            <span>遊戲模式</span>
+            <select id="gameModeSelect">
+              <option value="avalon">阿瓦隆</option>
+              <option value="onenightwolf">一夜終極狼人</option>
+              <option value="criminaldance">犯人在跳舞</option>
+              <option value="loveletter" selected>情書</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>你的名字</span>
+            <input id="nameInput" maxlength="16" required autocomplete="name">
+          </label>
+          <label class="field">
+            <span>房間代碼或邀請連結</span>
+            <input id="roomInput" maxlength="240" autocomplete="off" autocapitalize="characters" placeholder="貼上代碼或完整連結">
+          </label>
+          <div class="button-row">
+            <button class="primary-button" id="createRoomButton" type="button">建立房間</button>
+            <button class="secondary-button" id="joinRoomButton" type="submit">加入房間</button>
+            <button class="ghost-button hidden" id="rejoinRoomButton" type="button">重新連線</button>
+          </div>
+          <section class="recent-sessions hidden" id="recentSessions" aria-label="最近使用的房間">
+            <div class="recent-sessions-heading">
+              <strong>最近使用</strong>
+              <span>可直接回到原玩家身分</span>
+            </div>
+            <div class="recent-session-list" id="recentSessionList"></div>
+          </section>
+        </form>
+        <details class="changelog" open>
+          <summary>
+            <span>更新日誌</span>
+            <small>最新版本 2026/07/06 v2</small>
+          </summary>
+          <ul>
+            <li><strong>2026/07/06 v2</strong> First Release：新增情書 Love Letter 2019 第二版。</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section id="loveLetterRoomView" class="room-view hidden" data-shell-view="room" data-game="loveletter">
+      <section class="status-strip" id="statusStrip" data-shell-slot="status-strip" data-shell-panel="progress"></section>
+      <section class="mobile-status-summary" id="mobileStatusSummary" aria-label="遊戲狀態摘要" data-shell-slot="mobile-status-summary"></section>
+      <div class="game-layout" data-shell-layout="game">
+        <aside class="side-panel" data-shell-region="info-sidebar">
+          <nav class="info-tabs" id="infoTabs" aria-label="房間資訊" data-shell-nav="info-tabs">
+            <button class="info-tab active" data-info-tab="chat" type="button">聊天 <span class="tab-badge hidden" id="chatUnread">0</span></button>
+            <button class="info-tab" data-info-tab="roster" type="button">玩家 <span class="tab-badge hidden" id="rosterUnread">0</span></button>
+            <button class="info-tab" data-info-tab="roles" type="button">牌庫</button>
+            <button class="info-tab game-only-tab" data-info-tab="log" type="button">記錄</button>
+          </nav>
+          <section class="panel info-panel chat-panel active" data-info-panel="chat" data-shell-panel="chat">
+            <h2>聊天</h2>
+            <div class="chat-list" id="chatList" data-shell-slot="chat-list"></div>
+            <form class="chat-form" id="chatForm" autocomplete="off" data-shell-form="chat">
+              <input id="chatInput" name="loveletter-chat-message" maxlength="240" autocomplete="off" placeholder="輸入訊息">
+              <button class="primary-button" type="submit">送出</button>
+            </form>
+          </section>
+          <section class="panel info-panel roster-panel" data-info-panel="roster" data-shell-panel="players">
+            <h2>玩家順序</h2>
+            <div class="roster" id="roster" data-shell-slot="player-list"></div>
+          </section>
+          <section class="panel info-panel deck-panel" data-info-panel="roles" data-shell-panel="deck">
+            <h2>牌庫</h2>
+            <div class="love-card-list" id="roleList" data-shell-slot="deck-list"></div>
+          </section>
+          <section class="panel info-panel game-only-panel log-panel" data-info-panel="log" data-shell-panel="log">
+            <h2>記錄</h2>
+            <ol class="log-list" id="logList" data-shell-slot="event-log"></ol>
+          </section>
+          <section class="panel room-panel desktop-room-panel" data-shell-panel="invite">
+            <div class="room-code-block">
+              <span>房間代碼</span>
+              <strong class="room-code-value">------</strong>
+            </div>
+            <button class="ghost-button" data-copy-link type="button">複製邀請連結</button>
+          </section>
+        </aside>
+
+        <section class="main-panel" id="mainPanel" data-shell-panel="main"></section>
+        <section class="panel room-panel mobile-room-panel" data-shell-panel="invite">
+          <div class="room-code-block">
+            <span>房間代碼</span>
+            <strong class="room-code-value">------</strong>
+          </div>
+          <button class="ghost-button" data-copy-link type="button">複製邀請連結</button>
+        </section>
+      </div>
+    </section>
+
+    <template id="loveLetterLobbyTemplate" data-shell-template="lobby" data-game="loveletter">
+      <div data-template-slot="phase-header"></div>
+      <div class="lobby-grid" data-shell-layout="lobby">
+        <section class="section-block" data-shell-panel="your-status">
+          <h3>你的狀態</h3>
+          <div class="action-card">
+            <div class="action-card-status">
+              <strong data-love-lobby-player-name></strong>
+              <p data-love-lobby-roll-status></p>
+            </div>
+            <div class="button-row">
+              <button class="secondary-button" data-love-roll type="button">擲 d100</button>
+              <button class="primary-button" data-love-ready type="button">準備</button>
+            </div>
+          </div>
+          <div class="validation-list" data-love-lobby-validation></div>
+          <div data-love-lobby-start-control></div>
+        </section>
+
+        <section class="section-block" data-shell-panel="host-settings">
+          <div class="section-heading">
+            <h3>房主設定</h3>
+          </div>
+          <div class="settings-grid" data-shell-slot="settings-grid">
+            <label class="field">
+              <span>遊戲人數</span>
+              <select id="playerCountSelect" data-love-player-count>
+                <option value="2">2 人</option>
+                <option value="3">3 人</option>
+                <option value="4" selected>4 人</option>
+                <option value="5">5 人</option>
+                <option value="6">6 人</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>目標分數</span>
+              <input id="targetScoreInput" data-love-target-score type="number" min="1" max="9" step="1">
+            </label>
+            <div class="field setting-option">
+              <label>
+                <input type="checkbox" checked disabled>
+                2019 第二版牌庫
+              </label>
+            </div>
+          </div>
+          <h3>牌庫預覽</h3>
+          <div class="love-card-list" data-love-lobby-deck data-shell-panel="deck"></div>
+        </section>
+      </div>
+    </template>
+  </main>
+
+  <div class="rules-overlay hidden" id="rulesOverlay" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <article class="rules-dialog">
+      <header class="rules-header">
+        <div>
+          <p class="eyebrow">Love Letter 2019</p>
+          <h2 id="rulesTitle">情書規則</h2>
+        </div>
+        <button class="ghost-button" id="closeRulesButton" type="button">關閉</button>
+      </header>
+      <div class="rules-content">
+        <section>
+          <h3>流程</h3>
+          <ol>
+            <li>房主設定 2～6 人與目標分數，所有玩家擲 d100 並準備。</li>
+            <li>每局洗 21 張牌，暗置 1 張不用；2 人局再公開移除 3 張。</li>
+            <li>每人起始 1 張手牌，輪到時抽 1 張，再打出 1 張並執行效果。</li>
+            <li>只剩一位未出局玩家，或牌庫耗盡時，本局結束並得分。</li>
+          </ol>
+        </section>
+        <section>
+          <h3>牌庫</h3>
+          <div class="love-rules-card-counts">
+            <div><strong class="love-numbered-label"><span class="love-card-number">0</span><span class="love-card-name">間諜</span></strong><span>2</span></div>
+            <div><strong class="love-numbered-label"><span class="love-card-number">1</span><span class="love-card-name">衛兵</span></strong><span>6</span></div>
+            <div><strong class="love-numbered-label"><span class="love-card-number">2</span><span class="love-card-name">神父</span></strong><span>2</span></div>
+            <div><strong class="love-numbered-label"><span class="love-card-number">3</span><span class="love-card-name">男爵</span></strong><span>2</span></div>
+            <div><strong class="love-numbered-label"><span class="love-card-number">4</span><span class="love-card-name">侍女</span></strong><span>2</span></div>
+            <div><strong class="love-numbered-label"><span class="love-card-number">5</span><span class="love-card-name">王子</span></strong><span>2</span></div>
+            <div><strong class="love-numbered-label"><span class="love-card-number">6</span><span class="love-card-name">大臣</span></strong><span>2</span></div>
+            <div><strong class="love-numbered-label"><span class="love-card-number">7</span><span class="love-card-name">國王</span></strong><span>1</span></div>
+            <div><strong class="love-numbered-label"><span class="love-card-number">8</span><span class="love-card-name">伯爵夫人</span></strong><span>1</span></div>
+            <div><strong class="love-numbered-label"><span class="love-card-number">9</span><span class="love-card-name">公主</span></strong><span>1</span></div>
+          </div>
+        </section>
+        <section>
+          <h3>卡牌效果</h3>
+          <dl class="rules-role-list">
+            <div><dt class="love-numbered-label"><span class="love-card-number">0</span><span class="love-card-name">間諜</span></dt><dd>無立即效果。本局只有一位玩家打出或棄掉過間諜時，該玩家額外 +1 分。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">1</span><span class="love-card-name">衛兵</span></dt><dd>指定未受保護的其他玩家，猜一張非衛兵牌；猜中則對方出局。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">2</span><span class="love-card-name">神父</span></dt><dd>指定未受保護的其他玩家，私下查看對方手牌。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">3</span><span class="love-card-name">男爵</span></dt><dd>指定未受保護的其他玩家，私下比手牌數值，較低者出局，平手無事。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">4</span><span class="love-card-name">侍女</span></dt><dd>保護自己直到下一次自己的回合開始。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">5</span><span class="love-card-name">王子</span></dt><dd>指定任一未受保護玩家或自己，該玩家棄手牌並從牌庫抽一張；若牌庫已空，改拿開局時暗置的蓋牌；若棄公主則出局。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">6</span><span class="love-card-name">大臣</span></dt><dd>最多抽 2 張，從手中保留 1 張，其餘依序放回牌庫底。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">7</span><span class="love-card-name">國王</span></dt><dd>指定未受保護的其他玩家，交換手牌。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">8</span><span class="love-card-name">伯爵夫人</span></dt><dd>無效果；若同時持有國王或王子，必須打出伯爵夫人。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">9</span><span class="love-card-name">公主</span></dt><dd>打出或被棄掉時立刻出局。</dd></div>
+          </dl>
+        </section>
+        <section>
+          <h3>勝利條件</h3>
+          <p>本局在牌庫耗盡或只剩一位玩家仍在局內時結束。牌庫耗盡時，所有未出局玩家公開手牌並比較數值，最高者獲勝；若最高數值平手，平手玩家都獲勝。若只剩一位玩家，該玩家獲勝。</p>
+          <p>本局勝者 +1 分；若只有一位玩家在本局打出或棄掉過間諜，該玩家額外 +1 分。預設目標分數為 2 人 6 分、3 人 5 分、4 人 4 分、5/6 人 3 分，房主可調整。</p>
+        </section>
+      </div>
+    </article>
+  </div>
+
+  <script src="/shared/client-state.js"></script>
+  <script src="/shared/room-ui.js"></script>
+  <script>
+    document.getElementById("gameModeSelect")?.addEventListener("change", (event) => {
+      if (event.target.value === "avalon") window.location.href = "/";
+      if (event.target.value === "onenightwolf") window.location.href = "/Onenightwolf/";
+      if (event.target.value === "criminaldance") window.location.href = "/CriminalDance/";
+    });
+  </script>
+  <script src="/LoveLetter/loveletter.js"></script>
+</body>
+</html>

@@ -217,7 +217,7 @@ assert(script.includes('lastRoomPhase !== "lobby" && room.phase === "lobby"'));
 assert(script.includes("unreadRosterCount = 0;"));
 assert(script.includes('game: "onenightwolf"'));
 assert(script.includes('gameLabel(item.game || "onenightwolf")'));
-assert(script.includes('const AVALON_PAGE_TITLE = "阿瓦隆線上版"'));
+assert(script.includes('const AVALON_PAGE_TITLE = "阿瓦隆 Avalon"'));
 assert(script.includes('const WOLF_PAGE_TITLE = "一夜終極狼人"'));
 assert(script.includes("document.title = wolf ? WOLF_PAGE_TITLE : AVALON_PAGE_TITLE"));
 assert(script.includes("document.title = WOLF_PAGE_TITLE"));

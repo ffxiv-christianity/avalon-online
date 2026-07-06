@@ -1,0 +1,598 @@
+.love-card-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body:has([data-game="loveletter"]) .eyebrow {
+  color: #d04f7f;
+}
+
+.love-role-card,
+.love-seat,
+.love-action-panel,
+.love-private,
+.love-result-row {
+  border: 1px solid rgba(32, 40, 43, 0.14);
+  border-radius: 8px;
+  background: #fffdf8;
+}
+
+.love-role-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+}
+
+.love-role-card strong,
+.love-role-card > div > span,
+.love-private p,
+.love-seat-title strong,
+.love-card strong,
+.love-card small,
+.love-result-row span {
+  overflow-wrap: anywhere;
+}
+
+.love-role-card > div > span {
+  display: block;
+  color: #596468;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.love-numbered-label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.love-card-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.love-role-card output {
+  color: #933f35;
+  font-weight: 800;
+}
+
+.love-table {
+  display: grid;
+  gap: 16px;
+}
+
+.main-panel.love-main-your-turn {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(147, 63, 53, .64);
+  background:
+    linear-gradient(135deg, rgba(242, 232, 216, .76), rgba(255, 253, 248, .96) 34%, rgba(216, 238, 231, .42)),
+    rgba(255, 253, 248, .96);
+  box-shadow:
+    0 0 0 2px rgba(147, 63, 53, .13),
+    0 12px 28px rgba(32, 40, 43, .08);
+}
+
+.main-panel.love-main-your-turn::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #933f35, #d5ad5b, #3a7c78);
+}
+
+.love-seat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.love-table-zones {
+  display: grid;
+  grid-template-columns: minmax(120px, .8fr) minmax(120px, .8fr) minmax(0, 2fr);
+  gap: 10px;
+}
+
+.love-zone-card {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 72px;
+  border: 1px solid rgba(32, 40, 43, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10px;
+}
+
+.love-zone-card > span {
+  color: #647174;
+  font-size: .76rem;
+  font-weight: 900;
+}
+
+.love-zone-card > strong {
+  color: #243035;
+  font-size: 1rem;
+}
+
+.love-seat {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 12px;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.love-seat.is-protected {
+  border-color: #3a7c78;
+  box-shadow: inset 0 0 0 1px rgba(58, 124, 120, 0.25);
+}
+
+.love-seat.is-eliminated {
+  border-color: rgba(70, 58, 52, 0.42);
+  background: #d8d0c6;
+  box-shadow: inset 0 0 0 1px rgba(70, 58, 52, 0.18);
+  color: #342f2c;
+}
+
+.love-seat.is-eliminated .love-pile {
+  border-color: rgba(70, 58, 52, 0.24);
+  background: rgba(239, 233, 225, 0.82);
+}
+
+.love-seat-head,
+.love-seat-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.love-seat-head {
+  justify-content: space-between;
+}
+
+.love-seat-title {
+  overflow-wrap: anywhere;
+}
+
+.love-seat-title strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.love-score-hearts {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  color: #933f35;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.love-score-heart-text,
+.love-score-gain {
+  color: #b83e56;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1rem;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.love-score-gain {
+  color: #3a7c78;
+}
+
+.love-score-count {
+  color: #55352c;
+  font-size: .84rem;
+  font-weight: 900;
+}
+
+.love-seat-number {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(32, 40, 43, .08);
+  color: #647174;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 2px 6px;
+}
+
+.love-seat small,
+.love-played small {
+  color: #647174;
+}
+
+.love-pile {
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+  border: 1px solid rgba(32, 40, 43, .1);
+  border-radius: 8px;
+  background: rgba(255, 253, 248, .62);
+  padding: 7px;
+}
+
+.love-pile > span {
+  color: #647174;
+  font-size: .76rem;
+  font-weight: 900;
+}
+
+.love-played {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 30px;
+}
+
+.love-mini-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: #f2e8d8;
+  color: #55352c;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 4px 8px 4px 4px;
+}
+
+.love-mini-card > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.love-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.42fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.love-action-panel,
+.love-private {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.love-action-info-block {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.love-action-panel > h3,
+.love-action-info-block > h3 {
+  min-height: 24px;
+  margin: 0 0 10px;
+}
+
+.love-hand {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.love-card {
+  display: grid;
+  gap: 6px;
+  min-height: 132px;
+  border: 1px solid rgba(32, 40, 43, 0.16);
+  border-radius: 8px;
+  background: #fffaf0;
+  color: #243035;
+  cursor: pointer;
+  padding: 12px;
+  text-align: left;
+}
+
+.love-card-number {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  aspect-ratio: 1 / 1;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #933f35;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0;
+}
+
+.love-card strong {
+  font-size: 1.08rem;
+}
+
+.love-card small {
+  color: #647174;
+  font-size: .84rem;
+  line-height: 1.42;
+}
+
+.love-card:hover,
+.love-card.selected,
+.love-target-grid .selected {
+  border-color: #933f35;
+  box-shadow: 0 0 0 2px rgba(147, 63, 53, 0.16);
+}
+
+.love-card.disabled,
+.love-card:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+  background: #f0ece5;
+  border-color: rgba(32, 40, 43, .1);
+  box-shadow: none;
+}
+
+.love-selected-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.love-target-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.love-target-grid .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border-color: rgba(147, 63, 53, 0.28);
+  color: #243035;
+}
+
+.love-target-grid .secondary-button.selected {
+  background: transparent;
+}
+
+.love-guess-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.love-guess-card {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(32, 40, 43, 0.16);
+  border-radius: 8px;
+  background: #fffaf0;
+  color: #243035;
+  cursor: pointer;
+  padding: 7px;
+  text-align: left;
+}
+
+.love-guess-card > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.love-guess-card:hover,
+.love-guess-card.selected {
+  border-color: #933f35;
+  box-shadow: 0 0 0 2px rgba(147, 63, 53, 0.16);
+}
+
+.love-private {
+  align-self: start;
+  max-width: 100%;
+  border-color: rgba(126, 210, 255, 0.32);
+  background: rgba(255, 255, 255, 0.72);
+  overflow-wrap: anywhere;
+}
+
+.love-private p {
+  font-size: .95rem;
+  margin: 0;
+  min-width: 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.love-private p + p {
+  margin-top: 6px;
+}
+
+.love-result {
+  display: grid;
+  gap: 16px;
+}
+
+.love-result-table + .love-result {
+  margin-top: 22px;
+}
+
+.love-score-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.love-result-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+}
+
+.love-turn-badge {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(147, 63, 53, .42);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, .94);
+  color: #933f35;
+  font-weight: 800;
+  padding: 7px 11px;
+  box-shadow: 0 8px 18px rgba(32, 40, 43, .12);
+}
+
+.love-turn-pulse {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: #933f35;
+  animation: love-turn-pulse 900ms ease-in-out infinite;
+}
+
+@keyframes love-turn-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+.love-rules-card-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.love-rules-card-counts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid rgba(32, 40, 43, 0.12);
+  border-radius: 8px;
+  background: #fffdf8;
+  padding: 10px;
+}
+
+.love-rules-card-counts .love-numbered-label,
+.rules-role-list .love-numbered-label {
+  font-size: 1.02rem;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.rules-role-list .love-numbered-label {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 7px;
+  font-size: 1.13rem;
+  line-height: 1.25;
+}
+
+.rules-role-list .love-numbered-label .love-card-name {
+  font-size: 1.13rem;
+}
+
+.rules-role-list .love-numbered-label .love-card-number {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+  font-size: .9rem;
+}
+
+.rules-role-list dd {
+  margin: 0;
+  font-size: .94rem;
+  line-height: 1.58;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .love-turn-pulse,
+  .love-seat {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 930px) {
+  .love-table-zones {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .love-zone-wide {
+    grid-column: 1 / -1;
+  }
+
+  .love-seat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .love-control-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .love-turn-badge {
+    top: 8px;
+    right: 8px;
+    padding: 6px 9px;
+    font-size: .82rem;
+  }
+
+  .love-table-zones {
+    grid-template-columns: 1fr;
+  }
+
+  .love-zone-wide {
+    grid-column: auto;
+  }
+
+  .love-card-list,
+  .love-hand {
+    grid-template-columns: 1fr;
+  }
+
+  .love-seat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .love-card {
+    min-height: 112px;
+  }
+
+  .love-card small {
+    font-size: .8rem;
+    line-height: 1.35;
+  }
+
+  .love-result-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 380px) {
+  .love-action-panel,
+  .love-private,
+  .love-seat {
+    padding: 10px;
+  }
+}

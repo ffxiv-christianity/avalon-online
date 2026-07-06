@@ -41,6 +41,7 @@
               <option value="avalon">阿瓦隆</option>
               <option value="onenightwolf">一夜終極狼人</option>
               <option value="criminaldance" selected>犯人在跳舞</option>
+              <option value="loveletter">情書</option>
             </select>
           </label>
           <label class="field">
@@ -67,9 +68,10 @@
         <details class="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/07/06</small>
+            <small>最新版本 2026/07/06 v2</small>
           </summary>
           <ul>
+            <li><strong>2026/07/06 v2</strong> 修正bug；手牌新增額外說明。</li>
             <li><strong>2026/07/06</strong> 新增手牌icon與動畫效果；修正一些bug。</li>
             <li><strong>2026/07/03</strong> First Release：犯人在跳舞遊戲正式發布。</li>
           </ul>
@@ -303,6 +305,7 @@
     document.getElementById("gameModeSelect")?.addEventListener("change", (event) => {
       if (event.target.value === "avalon") window.location.href = "/";
       if (event.target.value === "onenightwolf") window.location.href = "/Onenightwolf/";
+      if (event.target.value === "loveletter") window.location.href = "/LoveLetter/";
     });
   </script>
   <script src="/CriminalDance/criminaldance.js"></script>

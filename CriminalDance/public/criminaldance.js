@@ -354,7 +354,7 @@
   function renderChat(scrollState) {
     page.chatList.innerHTML = snapshot.room.chat.map((entry) => `
       <div class="chat-message ${entry.playerId === "system" ? "system" : ""}">
-        ${entry.playerId === "system" ? "" : `<strong>${escapeHtml(entry.name)}</strong>`}
+        ${entry.playerId === "system" ? "" : `<strong>${escapeHtml(entry.name)}:</strong>`}
         <span>${escapeHtml(entry.message)}</span>
       </div>
     `).join("");
@@ -409,11 +409,11 @@
     page.mainPanel.innerHTML = `
       ${showTurnPrompt ? renderTurnBadge() : ""}
       ${phaseHeader(phaseLabel(snapshot.room.phase), mainSubtitle())}
-      <section class="criminal-table">
-        <div class="criminal-seat-grid">
+      <section class="criminal-table template-game-main-table">
+        <div class="criminal-seat-grid template-game-player-matrix">
           ${snapshot.room.players.map(renderSeat).join("")}
         </div>
-        <div class="criminal-control-row">
+        <div class="criminal-control-row template-game-control-row">
           <div class="criminal-control-main">
             ${pending ? renderPendingAction(pending) : renderPublicPendingAction(publicPending) || renderHandControls()}
           </div>
@@ -433,7 +433,7 @@
       <article class="${seatAnimationClasses(player)}">
         <div class="criminal-seat-head">
           <div class="criminal-seat-title">
-            <span class="criminal-seat-number seat-tone-${(player.index % 8) + 1}">#${player.index + 1}</span>
+            <span class="criminal-seat-number template-seat-number seat-tone-${(player.index % 8) + 1}">#${player.index + 1}</span>
             <strong title="${escapeHtml(player.name)}">${escapeHtml(player.name)}</strong>
           </div>
           <span>${player.score} 分</span>
@@ -465,7 +465,7 @@
     return `
       <span class="${isPublic ? "criminal-public-card" : "criminal-pill"} card-${item.card} ${item.targetId ? "has-subtitle" : ""}">
         <span>${cardName(item.card)}</span>
-        ${targetLabel ? `<small title="${escapeHtml(target.name)}"><span class="criminal-seat-number seat-tone-${(target.index % 8) + 1}">${escapeHtml(targetLabel)}</span></small>` : ""}
+        ${targetLabel ? `<small title="${escapeHtml(target.name)}"><span class="criminal-seat-number template-seat-number seat-tone-${(target.index % 8) + 1}">${escapeHtml(targetLabel)}</span></small>` : ""}
       </span>
     `;
   }
@@ -524,7 +524,7 @@
   function renderActionInfo() {
     const messages = snapshot.you.actionInfo?.messages || [];
     return `
-      <section class="criminal-action-info-block">
+      <section class="criminal-action-info-block template-game-action-info-block">
         <h3>行動資訊</h3>
         <div class="criminal-private">
           ${messages.length
@@ -574,13 +574,13 @@
   function renderHandControls() {
     const isTurn = snapshot.room.phase === "playing" && snapshot.room.currentPlayerId === snapshot.you.id;
     return `
-      <section>
+      <section class="template-game-hand-panel">
         <h3>你的手牌</h3>
         <div class="criminal-hand">
           ${snapshot.you.hand.map((card, index) => `
             <button class="criminal-card ${selectedCardIndex === index ? "selected" : ""}" data-card="${card.id}" data-card-index="${index}" type="button" ${isTurn && isPlayable(card.id) ? "" : "disabled"}>
               <strong><span class="criminal-card-icon" aria-hidden="true">${escapeHtml(cardIcon(card.id))}</span>${escapeHtml(card.name)}</strong>
-              <small>${cardHelp(card.id)}</small>
+              <small>${escapeHtml(cardDescription(card.id, isTurn))}</small>
             </button>
           `).join("")}
         </div>
@@ -600,7 +600,7 @@
             <div class="criminal-choice-grid">
               ${snapshot.room.players.filter((player) => player.id !== snapshot.you.id).map((player) => `
                 <button class="criminal-card ${selectedTargetId === player.id ? "selected" : ""}" data-target="${player.id}" type="button" ${targetDisabled(player) ? "disabled" : ""}>
-                  <strong><span class="criminal-seat-number seat-tone-${(player.index % 8) + 1}">#${player.index + 1}</span> ${escapeHtml(player.name)}</strong>
+                  <strong><span class="criminal-seat-number template-seat-number seat-tone-${(player.index % 8) + 1}">#${player.index + 1}</span> ${escapeHtml(player.name)}</strong>
                   <small>${player.handCount} 張手牌</small>
                 </button>
               `).join("")}
@@ -628,7 +628,7 @@
   function renderPendingAction(pending) {
     if (pending.type === "rumorDraw") {
       return `
-        <section class="criminal-action-panel criminal-turn-action">
+        <section class="criminal-action-panel template-game-hand-panel criminal-turn-action">
           <div class="notice">
             <strong>謠言輪到你抽牌。</strong>
             <p>請逆時針從 ${renderSeatBadges(playerLabelById(pending.sourceId))} 抽一張牌。抽到的牌會先放在桌前，所有人完成後才加入手牌。</p>
@@ -685,7 +685,7 @@
 
   function renderCardSelection(title, action, cards, highlightTurn = false) {
     return `
-      <section class="criminal-action-panel ${highlightTurn ? "criminal-turn-action" : ""}">
+      <section class="criminal-action-panel template-game-hand-panel ${highlightTurn ? "criminal-turn-action" : ""}">
         <h3>${renderSeatBadges(title)}</h3>
         <div class="criminal-hand">
           ${cards.map((card, index) => `
@@ -705,8 +705,8 @@
     const result = snapshot.room.roundResult;
     page.mainPanel.innerHTML = `
       ${phaseHeader("本局結算", resultTitle(result.type))}
-      <section class="criminal-table criminal-result-table">
-        <div class="criminal-seat-grid">
+      <section class="criminal-table template-game-main-table criminal-result-table">
+        <div class="criminal-seat-grid template-game-player-matrix">
           ${snapshot.room.players.map(renderSeat).join("")}
         </div>
       </section>
@@ -726,8 +726,8 @@
     const result = snapshot.room.matchResult;
     page.mainPanel.innerHTML = `
       ${phaseHeader("整場結束", `勝利者：${result.winners.map((player) => player.name).join("、")}`)}
-      <section class="criminal-table criminal-result-table">
-        <div class="criminal-seat-grid">
+      <section class="criminal-table template-game-main-table criminal-result-table">
+        <div class="criminal-seat-grid template-game-player-matrix">
           ${snapshot.room.players.map(renderSeat).join("")}
         </div>
       </section>
@@ -1015,7 +1015,16 @@
   }
 
   function isPlayable(card) {
-    return snapshot.you.playableCards.find((item) => item.id === card)?.playable;
+    return playableCardState(card)?.playable;
+  }
+
+  function playableCardState(card) {
+    return snapshot.you.playableCards.find((item) => item.id === card);
+  }
+
+  function cardDescription(card, isTurn) {
+    const state = playableCardState(card);
+    return isTurn && state?.playable === false && state.reason ? state.reason : cardHelp(card);
   }
 
   function targetDisabled(player) {
@@ -1120,13 +1129,13 @@
 
   function renderSeatBadges(value) {
     return escapeHtml(value).replace(/#([1-8])(\s+)?/g, (_, number, trailingSpace) => (
-      `<span class="criminal-seat-number seat-tone-${number}">#${number}</span>${trailingSpace ? "&nbsp;" : ""}`
+      `<span class="criminal-seat-number template-seat-number seat-tone-${number}">#${number}</span>${trailingSpace ? "&nbsp;" : ""}`
     ));
   }
 
   function renderTurnBadge() {
     return `
-      <div class="criminal-turn-badge" role="status" aria-live="polite">
+      <div class="criminal-turn-badge template-game-turn-badge" role="status" aria-live="polite">
         <span class="criminal-turn-pulse" aria-hidden="true"></span>
         <strong>現在換你</strong>
       </div>

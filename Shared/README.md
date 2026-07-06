@@ -21,4 +21,4 @@
 2. 不得在遊戲資料夾複製 Shared 函式後自行修改。
 3. 遊戲專屬角色、階段、勝負與外觀留在遊戲資料夾。
 4. 修改 Shared 後必須執行根目錄 `npm test`。
-5. 新遊戲必須加入 `tests/ui-contract.test.js` 與後台的 `games` 註冊表。
+5. 新遊戲必須加入 `tests/ui-contract.test.js`、`tests/architecture.test.js`、`tests/server-stats.test.js` 與後台的 `games` 註冊表。
