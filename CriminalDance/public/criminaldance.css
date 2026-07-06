@@ -262,6 +262,7 @@
 }
 
 .criminal-seat-title {
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   min-width: 0;
@@ -275,6 +276,12 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.criminal-seat-head > span,
+.criminal-result-row strong {
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
@@ -665,6 +672,7 @@
 
 .criminal-score {
   font-weight: 700;
+  white-space: nowrap;
   overflow-wrap: anywhere;
 }
 

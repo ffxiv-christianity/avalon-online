@@ -46,8 +46,10 @@ assert(script.includes('CARD_HELP[card.id] || "")} ${chancellorKeepId'), "Chance
 assert(script.includes("love-action-info-block"), "LoveLetter action info must use a CriminalDance-style info block");
 assert(script.includes("renderSeatBadges"), "LoveLetter action info must render #N messages with shared seat badges");
 assert(script.includes("renderScoreHearts"), "LoveLetter score display must render affection hearts");
-assert(script.includes('statusCard("愛心", scoreHeartsText(highScore))'), "LoveLetter status score must use affection hearts");
+assert(script.includes('statusCard("芳心", scoreHeartsText(highScore))'), "LoveLetter status score must use affection hearts");
 assert(!script.includes("${player.score} 分"), "LoveLetter player scores must not render as plain points");
+assert(script.includes("rosterScoreHearts(player)"), "LoveLetter roster scores must use the compact roster score renderer");
+assert(script.includes("function rosterScoreHearts"), "LoveLetter roster must hide zero score counts and show hearts only");
 ["template-game-player-matrix", "template-game-hand-panel", "template-game-action-info-block", "template-game-turn-badge"].forEach((className) => {
   assert(script.includes(className), `LoveLetter shared game template class is missing: ${className}`);
 });
@@ -66,8 +68,9 @@ assert(page.includes("只剩一位玩家，該玩家獲勝"), "LoveLetter rules 
 });
 
 const styles = fs.readFileSync(path.join(root, "public", "loveletter.css"), "utf8");
-assert(styles.includes('body:has([data-game="loveletter"]) .eyebrow'), "LoveLetter eyebrow color must be scoped to the LoveLetter page");
-assert(styles.includes("color: #d04f7f"), "LoveLetter eyebrow must use the pink game color");
+assert(page.includes('class="eyebrow love-brand-mark">Love Letter 2019'), "LoveLetter pink brand color must only be applied to the English brand mark");
+assert(!styles.includes('body:has([data-game="loveletter"]) .eyebrow'), "LoveLetter must not tint every eyebrow pink");
+assert(styles.includes(".love-brand-mark") && styles.includes("color: #d04f7f"), "LoveLetter brand mark must use the pink game color");
 assert(styles.includes(".love-card-list"));
 assert(styles.includes("grid-template-columns: repeat(2, minmax(0, 1fr))"), "LoveLetter deck preview must render two cards per row");
 assert(styles.includes(".love-seat-grid"));

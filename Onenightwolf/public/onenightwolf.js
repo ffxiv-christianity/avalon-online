@@ -175,6 +175,9 @@
       page.mode.value = inviteMode;
       applyModePresentation(inviteMode);
     });
+    page.nameInput.addEventListener("input", () => {
+      if (page.mode.value === "onenightwolf") syncWolfRejoin();
+    });
 
     document.addEventListener("click", (event) => {
       if (page.mode.value !== "onenightwolf") return;
@@ -548,6 +551,7 @@
       const message = JSON.parse(event.data);
       lastMessageAt = Date.now();
       if (message.type === "joined") {
+        enterWolfRoomShell();
         hasControl = true;
         SharedRoomUI.clearControlLock();
         hadRoomConnection = true;
@@ -585,6 +589,7 @@
         return;
       }
       if (message.type === "state") {
+        enterWolfRoomShell();
         lastMessageAt = Date.now();
         lastVersion = message.room.version || lastVersion;
         snapshot = message;
@@ -608,6 +613,17 @@
         showToast(message.message);
       }
     });
+  }
+
+  function enterWolfRoomShell() {
+    if (page.mode.value !== "onenightwolf") {
+      page.mode.value = "onenightwolf";
+      applyModePresentation("onenightwolf");
+    }
+    document.body.classList.add("room-active", "wolf-mode");
+    page.joinView.classList.add("hidden");
+    page.avalonRoomView?.classList.add("hidden");
+    page.roomView.classList.remove("hidden");
   }
 
   function connectAndSend(payload) {
@@ -1508,9 +1524,20 @@
   function findRoomSession(roomCode) {
     if (!roomCode) return null;
     const tabPlayerId = sessionStorage.getItem(TAB_KEY);
+    const name = page.nameInput.value.trim();
     const store = sessionStore();
-    return SharedRoomClient.selectSession(store, { roomCode, playerId: tabPlayerId })
-      || SharedRoomClient.listSessions(store).find((session) => session.roomCode === roomCode)
+    const sessions = SharedRoomClient.listSessions(store);
+    const normalizedRoom = roomCode.toUpperCase();
+    const normalizedName = name.toLocaleLowerCase();
+    const namedSession = name
+      ? sessions.find((session) => (
+        session.roomCode.toUpperCase() === normalizedRoom
+        && String(session.name || "").toLocaleLowerCase() === normalizedName
+      ))
+      : null;
+    return namedSession
+      || SharedRoomClient.selectSession(store, { roomCode, playerId: tabPlayerId })
+      || sessions.find((session) => session.roomCode === roomCode)
       || null;
   }
 

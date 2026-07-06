@@ -8,6 +8,7 @@ const CLIENT_INSTANCE_ID = crypto.randomUUID();
 let socket = null;
 let snapshot = null;
 let hasControl = true;
+let hadRoomConnection = false;
 let actionSequence = 0;
 let session = readSession();
 let lastStateAt = 0;
@@ -66,6 +67,17 @@ function connect() {
   socket.addEventListener("open", () => {
     lastMessageAt = Date.now();
     setConnection("已連線");
+    if (hadRoomConnection && session?.roomCode && session?.playerId) {
+      sendRaw({
+        type: "joinRoom",
+        roomCode: session.roomCode,
+        playerId: session.playerId,
+        name: session.name || ""
+      });
+      startStaleWatcher();
+      updateJoinControls();
+      return;
+    }
     requestFullSync();
     startStaleWatcher();
     updateJoinControls();
@@ -80,6 +92,7 @@ function connect() {
     const message = JSON.parse(event.data);
     if (message.type === "joined") {
       hasControl = true;
+      hadRoomConnection = true;
       SharedRoomUI.clearControlLock();
       session = {
         roomCode: message.roomCode,
@@ -1371,10 +1384,21 @@ function showToast(message) {
 function readSession(selection = {}) {
   try {
     const store = sessionStore();
+    const roomCode = selection.roomCode || new URLSearchParams(location.search).get("room") || "";
+    const name = selection.name || "";
+    const normalizedRoom = roomCode.toUpperCase();
+    const normalizedName = name.trim().toLocaleLowerCase();
+    const namedSession = normalizedName
+      ? AvalonClientState.listSessions(store).find((item) => (
+        item.roomCode.toUpperCase() === normalizedRoom
+        && String(item.name || "").toLocaleLowerCase() === normalizedName
+      ))
+      : null;
+    if (namedSession) return namedSession;
     return AvalonClientState.selectSession(store, {
-      roomCode: selection.roomCode || new URLSearchParams(location.search).get("room") || "",
+      roomCode,
       playerId: selection.playerId || readTabPlayerId() || new URLSearchParams(location.search).get("player") || "",
-      name: selection.name || ""
+      name
     });
   } catch {
     return null;

@@ -2,6 +2,13 @@
 
 這是本網站開發新遊戲、修改共用 UI 與審查程式結構時的主要依據。
 
+## 重新連線規格
+
+- 加入房間後，client 需要保存 `roomCode`、`playerId`、玩家名稱與最近使用時間。
+- 目前分頁使用的 `playerId` 放在 `sessionStorage`，最近使用玩家身分放在 `localStorage`，避免分享網址洩漏玩家 ID。
+- 同一瀏覽器可保存同房間的多個玩家身分；當玩家名稱輸入欄變更時，UI 需要即時以「房號 + 精準名稱」優先挑選重新連線目標，再 fallback 到目前分頁的 `playerId` 或最近 session。
+- WebSocket 斷線重開後，若該分頁曾成功進入房間，client 需要自動送出 `joinRoom` 並帶入保存的 `playerId`，再同步完整狀態。
+
 ## 1. 名詞
 
 - **共用（Shared）**：遊戲在執行時引用 `Shared/` 的同一份程式或資源。修改 Shared 會影響所有遊戲。

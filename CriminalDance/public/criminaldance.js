@@ -89,6 +89,7 @@
   let snapshot = null;
   let lastVersion = 0;
   let hasControl = true;
+  let hadRoomConnection = false;
   let actionSequence = 0;
   let selectedSession = readSelectedSession();
   let activeInfoTab = "chat";
@@ -105,6 +106,7 @@
   let selectedPendingAction = null;
   let selectedPendingCard = null;
   let selectedPendingCardIndex = null;
+  let lastMainRenderKey = null;
 
   const page = {};
 
@@ -154,6 +156,15 @@
     socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/criminaldance`);
     socket.addEventListener("open", () => {
       setConnection("已連線");
+      if (hadRoomConnection && selectedSession?.roomCode && selectedSession?.playerId) {
+        sendRaw({
+          type: "joinRoom",
+          roomCode: selectedSession.roomCode,
+          playerId: selectedSession.playerId,
+          name: selectedSession.name || ""
+        });
+        return;
+      }
       requestSync();
     });
     socket.addEventListener("close", () => {
@@ -164,6 +175,7 @@
       const message = JSON.parse(event.data);
       if (message.type === "joined") {
         hasControl = true;
+        hadRoomConnection = true;
         SharedRoomUI.clearControlLock();
         selectedSession = {
           roomCode: message.roomCode,
@@ -233,7 +245,7 @@
       sendRaw({ type: "joinRoom", roomCode, name });
     });
     page.rejoinButton.addEventListener("click", () => {
-      const saved = selectedSession || findRoomSession(parseRoomCode(page.roomInput.value) || roomFromUrl());
+      const saved = findRoomSession(parseRoomCode(page.roomInput.value) || roomFromUrl()) || selectedSession;
       if (!saved) return;
       sendRaw({ type: "joinRoom", roomCode: saved.roomCode, playerId: saved.playerId, name: saved.name || "" });
     });
@@ -249,6 +261,7 @@
       sendRaw({ type: "joinRoom", roomCode: saved.roomCode, playerId: saved.playerId, name: saved.name || "" });
     });
     page.roomInput.addEventListener("input", syncRejoin);
+    page.nameInput.addEventListener("input", syncRejoin);
     page.chatForm.addEventListener("submit", (event) => {
       event.preventDefault();
       const message = page.chatInput.value.trim();
@@ -294,7 +307,48 @@
     renderDecks();
     renderLog();
     renderChat(chatScrollState);
+    renderMainIfChanged();
+  }
+
+  function renderMainIfChanged() {
+    const nextKey = mainRenderKey();
+    if (nextKey === lastMainRenderKey) return;
+    lastMainRenderKey = nextKey;
     renderMain();
+  }
+
+  function mainRenderKey() {
+    return JSON.stringify({
+      roomCode: snapshot.room.code,
+      phase: snapshot.room.phase,
+      settings: snapshot.room.settings,
+      currentPlayerId: snapshot.room.currentPlayerId,
+      startingPlayerId: snapshot.room.startingPlayerId,
+      turnNumber: snapshot.room.turnNumber,
+      pendingAction: snapshot.room.pendingAction,
+      roundResult: snapshot.room.roundResult,
+      matchResult: snapshot.room.matchResult,
+      players: snapshot.room.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        ready: player.ready,
+        roll: player.roll,
+        score: player.score,
+        handCount: player.handCount,
+        tableCards: player.tableCards,
+        publicCards: player.publicCards,
+        index: player.index
+      })),
+      you: {
+        id: snapshot.you.id,
+        isHost: snapshot.you.isHost,
+        hand: snapshot.you.hand,
+        actionInfo: snapshot.you.actionInfo,
+        openingInfo: snapshot.you.openingInfo,
+        playableCards: snapshot.you.playableCards,
+        pendingAction: snapshot.you.pendingAction
+      }
+    });
   }
 
   function renderStatus() {
@@ -1238,9 +1292,20 @@
   function findRoomSession(roomCode) {
     if (!roomCode) return null;
     const tabPlayerId = sessionStorage.getItem(TAB_KEY);
+    const name = page.nameInput.value.trim();
     const store = sessionStore();
-    return SharedRoomClient.selectSession(store, { roomCode, playerId: tabPlayerId })
-      || SharedRoomClient.listSessions(store).find((session) => session.roomCode === roomCode)
+    const sessions = SharedRoomClient.listSessions(store);
+    const normalizedRoom = roomCode.toUpperCase();
+    const normalizedName = name.toLocaleLowerCase();
+    const namedSession = name
+      ? sessions.find((session) => (
+        session.roomCode.toUpperCase() === normalizedRoom
+        && String(session.name || "").toLocaleLowerCase() === normalizedName
+      ))
+      : null;
+    return namedSession
+      || SharedRoomClient.selectSession(store, { roomCode, playerId: tabPlayerId })
+      || sessions.find((session) => session.roomCode === roomCode)
       || null;
   }
 

@@ -110,7 +110,7 @@ assert(sharedStyles.includes("width: 65px"), "Shared mobile player token stack m
 assert(loveScript.includes("template-seat-number seat-tone-"), "LoveLetter seat numbers must apply shared seat tone colors");
 assert(loveScript.includes("renderSeatBadges"), "LoveLetter action info must render #N messages with shared seat badges");
 assert(loveScript.includes("renderScoreHearts"), "LoveLetter score display must render affection hearts");
-assert(loveScript.includes('statusCard("愛心", scoreHeartsText(highScore))'), "LoveLetter status score must use affection hearts");
+assert(loveScript.includes('statusCard("芳心", scoreHeartsText(highScore))'), "LoveLetter status score must use affection hearts");
 assert(!loveScript.includes("${player.score} 分"), "LoveLetter player scores must not render as plain points");
 assert(lovePage.includes("若牌庫已空，改拿開局時暗置的蓋牌"), "LoveLetter rules must explain Prince drawing the setup burn card");
 assert(lovePage.includes("<h3>勝利條件</h3>"), "LoveLetter rules must include victory conditions");
@@ -123,7 +123,6 @@ assert(lovePage.includes("牌庫耗盡時，所有未出局玩家公開手牌並
 
 [
   ".status-card strong",
-  ".player-name-line strong",
   ".player-meta",
   ".log-list li",
   ".chat-message strong",
@@ -133,6 +132,15 @@ assert(lovePage.includes("牌庫耗盡時，所有未出局玩家公開手牌並
   ".validation",
   ".notice"
 ].forEach((selector) => assertCssRuleIncludes(sharedStyles, selector, "overflow-wrap: anywhere"));
+[
+  "overflow: hidden",
+  "text-overflow: ellipsis",
+  "white-space: nowrap"
+].forEach((declaration) => assertCssRuleIncludes(sharedStyles, ".player-name-line strong", declaration));
+[
+  "overflow-y: scroll",
+  "scrollbar-gutter: stable"
+].forEach((declaration) => assertCssRuleIncludes(sharedStyles, ".chat-list", declaration));
 [
   ".criminal-action-info-block",
   ".criminal-private",
@@ -159,7 +167,8 @@ assertCssRuleIncludes(loveStyles, ".rules-role-list dd", "font-size: .94rem");
 assertCssRuleIncludes(loveStyles, ".love-result-table + .love-result", "margin-top: 22px");
 assertCssRuleIncludes(loveStyles, ".love-score-hearts", "white-space: nowrap");
 assertCssRuleIncludes(loveStyles, ".love-score-heart-text", "font-size: 1rem");
-assertCssRuleIncludes(loveStyles, 'body:has([data-game="loveletter"]) .eyebrow', "color: #d04f7f");
+assertCssRuleIncludes(loveStyles, ".love-brand-mark", "color: #d04f7f");
+assert(!loveStyles.includes('body:has([data-game="loveletter"]) .eyebrow'), "LoveLetter must not tint every eyebrow pink");
 assertCssRuleExcludes(criminalStyles, ".criminal-private p", "display: flex");
 [
   ".criminal-seat.seat-accomplice",
@@ -437,6 +446,17 @@ assert(avalonScript.includes("createActionRequest"), "Avalon must use shared act
 assert(wolfScript.includes("createActionRequest"), "One Night Wolf must use shared action requests");
 assert(criminalScript.includes("createActionRequest"), "CriminalDance must use shared action requests");
 assert(loveScript.includes("createActionRequest"), "LoveLetter must use shared action requests");
+[avalonScript, wolfScript, criminalScript, loveScript].forEach((script, index) => {
+  const label = ["Avalon", "One Night Wolf", "CriminalDance", "LoveLetter"][index];
+  assert(script.includes("hadRoomConnection"), `${label} must remember whether this tab had joined a room before reconnecting`);
+  assert(script.includes('type: "joinRoom"'), `${label} must rejoin with the saved player session after socket reconnect`);
+  assert(script.includes('nameInput.addEventListener("input"'), `${label} must update the rejoin target while the player name changes`);
+  assert(script.includes("namedSession"), `${label} must prefer an exact typed player name when choosing a rejoin session`);
+});
+assert(!criminalScript.includes("const saved = selectedSession || findRoomSession"), "CriminalDance rejoin clicks must prefer the current name/room inputs over the stale selected session");
+assert(!loveScript.includes("const saved = selectedSession || findRoomSession"), "LoveLetter rejoin clicks must prefer the current name/room inputs over the stale selected session");
+assert(wolfScript.includes("function enterWolfRoomShell"), "One Night Wolf must enter the wolf room shell after joining or receiving wolf state");
+assert(wolfScript.includes("page.joinView.classList.add(\"hidden\")"), "One Night Wolf must hide the join view after a successful join");
 assert(avalonScript.includes("showControlLock"), "Avalon must support multi-tab takeover");
 assert(wolfScript.includes("showControlLock"), "One Night Wolf must support multi-tab takeover");
 assert(criminalScript.includes("showControlLock"), "CriminalDance must support multi-tab takeover");

@@ -59,6 +59,7 @@
   let snapshot = null;
   let lastVersion = 0;
   let hasControl = true;
+  let hadRoomConnection = false;
   let actionSequence = 0;
   let selectedSession = readSelectedSession();
   let activeInfoTab = "chat";
@@ -121,6 +122,15 @@
     socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws/loveletter`);
     socket.addEventListener("open", () => {
       setConnection("已連線");
+      if (hadRoomConnection && selectedSession?.roomCode && selectedSession?.playerId) {
+        sendRaw({
+          type: "joinRoom",
+          roomCode: selectedSession.roomCode,
+          playerId: selectedSession.playerId,
+          name: selectedSession.name || ""
+        });
+        return;
+      }
       requestSync();
     });
     socket.addEventListener("close", () => {
@@ -131,6 +141,7 @@
       const message = JSON.parse(event.data);
       if (message.type === "joined") {
         hasControl = true;
+        hadRoomConnection = true;
         SharedRoomUI.clearControlLock();
         selectedSession = {
           roomCode: message.roomCode,
@@ -200,7 +211,7 @@
       sendRaw({ type: "joinRoom", roomCode, name });
     });
     page.rejoinButton.addEventListener("click", () => {
-      const saved = selectedSession || findRoomSession(parseRoomCode(page.roomInput.value) || roomFromUrl());
+      const saved = findRoomSession(parseRoomCode(page.roomInput.value) || roomFromUrl()) || selectedSession;
       if (!saved) return;
       sendRaw({ type: "joinRoom", roomCode: saved.roomCode, playerId: saved.playerId, name: saved.name || "" });
     });
@@ -216,6 +227,7 @@
       sendRaw({ type: "joinRoom", roomCode: saved.roomCode, playerId: saved.playerId, name: saved.name || "" });
     });
     page.roomInput.addEventListener("input", syncRejoin);
+    page.nameInput.addEventListener("input", syncRejoin);
     page.chatForm.addEventListener("submit", (event) => {
       event.preventDefault();
       const message = page.chatInput.value.trim();
@@ -273,12 +285,12 @@
       statusCard("階段", phaseLabel(room.phase)),
       statusCard("目前玩家", current?.name || "未開始"),
       statusCard("房主", host?.name || "未指定"),
-      statusCard("愛心", scoreHeartsText(highScore))
+      statusCard("芳心", scoreHeartsText(highScore))
     ].join("");
     page.mobileStatusSummary.innerHTML = SharedRoomUI.mobileStatusSummary([
       { label: "階段", value: phaseLabel(room.phase) },
       { label: "玩家", value: current?.name || "未開始" },
-      { label: "愛心", value: scoreHeartsText(highScore) }
+      { label: "芳心", value: scoreHeartsText(highScore) }
     ]);
   }
 
@@ -293,7 +305,7 @@
         <div>
           <div class="player-name-line"><strong>${escapeHtml(player.name)}</strong></div>
           <div class="player-meta">
-            ${player.roll ? `d100: ${player.roll}` : "未擲骰"}${player.ready ? " · 已準備" : ""} · ${player.online ? "在線" : "離線"} · ${renderScoreHearts(player.score)}
+            ${player.roll ? `d100: ${player.roll}` : "未擲骰"}${player.ready ? " · 已準備" : ""} · ${player.online ? "在線" : "離線"}${rosterScoreHearts(player)}
           </div>
           ${SharedRoomUI.hostControls({
             viewerIsHost: snapshot.you.isHost,
@@ -808,6 +820,11 @@
     return `<span class="love-score-hearts">${gainText}<span class="love-score-heart-text">${escapeHtml(hearts)}</span><span class="love-score-count">${current}/${target}</span></span>`;
   }
 
+  function rosterScoreHearts(player) {
+    const hearts = "♥".repeat(Number(player.score) || 0);
+    return hearts ? ` · <span class="love-score-hearts love-roster-score"><span class="love-score-heart-text">${escapeHtml(hearts)}</span></span>` : "";
+  }
+
   function mainSubtitle() {
     if (snapshot.room.phase === "pendingChancellor") return "等待大臣選擇保留的牌。";
     return snapshot.room.currentPlayerId === snapshot.you.id ? "輪到你抽牌後出牌。" : `等待 ${nameById(snapshot.room.currentPlayerId)} 出牌。`;
@@ -932,9 +949,20 @@
   function findRoomSession(roomCode) {
     if (!roomCode) return null;
     const tabPlayerId = sessionStorage.getItem(TAB_KEY);
+    const name = page.nameInput.value.trim();
     const store = sessionStore();
-    return SharedRoomClient.selectSession(store, { roomCode, playerId: tabPlayerId })
-      || SharedRoomClient.listSessions(store).find((session) => session.roomCode === roomCode)
+    const sessions = SharedRoomClient.listSessions(store);
+    const normalizedRoom = roomCode.toUpperCase();
+    const normalizedName = name.toLocaleLowerCase();
+    const namedSession = name
+      ? sessions.find((session) => (
+        session.roomCode.toUpperCase() === normalizedRoom
+        && String(session.name || "").toLocaleLowerCase() === normalizedName
+      ))
+      : null;
+    return namedSession
+      || SharedRoomClient.selectSession(store, { roomCode, playerId: tabPlayerId })
+      || sessions.find((session) => session.roomCode === roomCode)
       || null;
   }
 

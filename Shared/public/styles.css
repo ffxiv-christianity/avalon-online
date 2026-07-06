@@ -691,6 +691,10 @@ body.shared-readonly .shared-control-lock button {
   padding: 9px;
 }
 
+.player-card > div:not(.seat):not(.token-stack) {
+  min-width: 0;
+}
+
 .player-name-line {
   display: flex;
   min-width: 0;
@@ -700,7 +704,9 @@ body.shared-readonly .shared-control-lock button {
 
 .player-name-line strong {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-card.is-self {
@@ -736,6 +742,7 @@ body.shared-readonly .shared-control-lock button {
 }
 
 .player-meta {
+  min-width: 0;
   color: var(--muted);
   font-size: .82rem;
   line-height: 1.35;
@@ -1116,8 +1123,10 @@ body.shared-readonly .shared-control-lock button {
   min-height: 0;
   align-content: start;
   gap: 4px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: scroll;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line);
   border-radius: 7px;
