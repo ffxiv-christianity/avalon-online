@@ -477,11 +477,13 @@
 
   function renderSelectedCardControls(card) {
     const targets = targetIdsForCard(card.id).map((targetId) => playerById(targetId)).filter(Boolean);
-    const needsTarget = ["guard", "priest", "baron", "prince", "king"].includes(card.id);
-    const needsGuess = card.id === "guard";
+    const guardWithoutTargets = card.id === "guard" && targets.length === 0;
+    const needsTarget = ["guard", "priest", "baron", "prince", "king"].includes(card.id) && !guardWithoutTargets;
+    const needsGuess = card.id === "guard" && !guardWithoutTargets;
     return `
       <div class="love-selected-panel">
         <h3>打出 ${escapeHtml(card.name)}</h3>
+        ${guardWithoutTargets ? `<p class="notice">所有其他玩家都受保護，衛兵可以打出但無效果。</p>` : ""}
         ${needsTarget ? `
           <div class="love-target-grid">
             ${targets.length ? targets.map((player) => `
@@ -689,7 +691,7 @@
   function canConfirmSelected(card) {
     if (!card) return false;
     if (["priest", "baron", "prince", "king"].includes(card.id)) return Boolean(selectedTargetId);
-    if (card.id === "guard") return Boolean(selectedTargetId && selectedGuessCardId);
+    if (card.id === "guard") return targetIdsForCard("guard").length === 0 || Boolean(selectedTargetId && selectedGuessCardId);
     return true;
   }
 

@@ -323,6 +323,7 @@ function validatePlayableCard(actor, card) {
 
 function validatePlayPayload(room, actor, card, payload) {
   if (card === "guard") {
+    if (legalOpponentTargets(room, actor).length === 0) return null;
     if (!targetableOpponent(room, actor.id, payload.targetId)) return "請指定一位未受保護的其他玩家。";
     if (!CARD_DEFS[payload.guessCardId] || payload.guessCardId === "guard") return "衛兵必須猜一張非衛兵的牌。";
   }
@@ -341,6 +342,10 @@ function applyCardEffect(room, actor, cardInstance, payload) {
   const card = cardInstance.card;
   if (card === "spy" || card === "countess") return null;
   if (card === "guard") {
+    if (legalOpponentTargets(room, actor).length === 0) {
+      publishPublicActionInfo(room, actionPhaseKey(room, "guard"), `${playerSeatLabel(room, actor)} 打出衛兵，但沒有可指定的目標，無效果。`);
+      return null;
+    }
     const target = playerById(room, payload.targetId);
     const phaseKey = actionPhaseKey(room, "guard");
     const guessed = cardName(payload.guessCardId);
@@ -607,9 +612,7 @@ function privatePendingAction(room, targetPlayerId) {
 }
 
 function legalTargetsForView(room, actor) {
-  const opponentTargets = room.players
-    .filter((player) => targetableOpponent(room, actor.id, player.id))
-    .map((player) => player.id);
+  const opponentTargets = legalOpponentTargets(room, actor).map((player) => player.id);
   return {
     guard: opponentTargets,
     priest: opponentTargets,
@@ -617,6 +620,10 @@ function legalTargetsForView(room, actor) {
     king: opponentTargets,
     prince: room.players.filter((player) => !player.eliminated && (player.id === actor.id || !player.protected)).map((player) => player.id)
   };
+}
+
+function legalOpponentTargets(room, actor) {
+  return room.players.filter((player) => targetableOpponent(room, actor.id, player.id));
 }
 
 function targetableOpponent(room, actorId, targetPlayerId) {

@@ -196,6 +196,22 @@ function testCountessAndGuard() {
   assert.strictEqual(players[1].eliminated, false);
   const guardMissView = makeView(room, players[2].id);
   assert(guardMissView.you.actionInfo.messages.some((message) => message.includes("#1 P1 猜 #2 P2 是 神父：未猜中")));
+
+  setHands(room, [
+    ["guard", "spy"],
+    ["princess"],
+    ["priest"]
+  ]);
+  room.deck = [inst("spy"), inst("spy")];
+  players[1].protected = true;
+  players[2].protected = true;
+  forceTurn(room, players[0]);
+  assert.deepStrictEqual(makeView(room, players[0].id).you.legalTargets.guard, []);
+  assert.strictEqual(playFirst(room, players[0]), null);
+  assert.strictEqual(players[1].eliminated, false);
+  assert.strictEqual(players[2].eliminated, false);
+  const guardNoTargetView = makeView(room, players[0].id);
+  assert(guardNoTargetView.you.actionInfo.messages.some((message) => message.includes("打出衛兵，但沒有可指定的目標，無效果")));
 }
 
 function testPriestBaronAndPrivacy() {
@@ -266,6 +282,18 @@ function testHandmaidPrinceKing() {
   assert.strictEqual(players[0].protected, true);
   forceTurn(room, players[1]);
   assert(playFirst(room, players[1], { targetId: players[0].id }).includes("未受保護"));
+
+  setHands(room, [
+    ["prince", "spy"],
+    ["guard"],
+    ["baron"]
+  ]);
+  room.deck = [inst("spy"), inst("spy")];
+  players[1].protected = true;
+  players[2].protected = true;
+  forceTurn(room, players[0]);
+  assert.deepStrictEqual(makeView(room, players[0].id).you.legalTargets.prince, [players[0].id]);
+  assert.strictEqual(playFirst(room, players[0], { targetId: players[1].id }), "不能指定受侍女保護的玩家。");
 
   setHands(room, [
     ["spy", "guard"],
