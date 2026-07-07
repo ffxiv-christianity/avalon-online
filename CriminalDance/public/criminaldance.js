@@ -389,8 +389,8 @@
           })}
         </div>
         <div class="token-stack">
-          ${player.id === snapshot.room.hostId ? SharedRoomUI.token("host", "房主") : ""}
           ${player.id === snapshot.room.currentPlayerId ? SharedRoomUI.token("turn", "目前回合") : ""}
+          ${player.id === snapshot.room.hostId ? SharedRoomUI.token("host", "房主") : ""}
         </div>
       </article>
     `).join("");

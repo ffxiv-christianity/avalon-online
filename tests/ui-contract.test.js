@@ -20,6 +20,7 @@ const lovePage = fs.readFileSync(path.join(root, "LoveLetter", "public", "index.
 const loveScript = fs.readFileSync(path.join(root, "LoveLetter", "public", "loveletter.js"), "utf8");
 const loveStyles = fs.readFileSync(path.join(root, "LoveLetter", "public", "loveletter.css"), "utf8");
 const loveGame = fs.readFileSync(path.join(root, "LoveLetter", "game.js"), "utf8");
+const loveMobileStyles = loveStyles.slice(loveStyles.indexOf("@media (max-width: 560px)"), loveStyles.indexOf("@media (max-width: 380px)"));
 
 function cssRulesForSelector(css, selector) {
   const rules = [];
@@ -105,8 +106,16 @@ assertCssRuleIncludes(sharedStyles, ".token", "font-size: 1rem");
 assertCssRuleIncludes(sharedStyles, ".token-stack", "justify-self: end");
 assertCssRuleIncludes(sharedStyles, ".token-stack", "justify-content: flex-end");
 assertCssRuleIncludes(sharedStyles, ".token-stack", "width: 78px");
-assert(sharedStyles.includes("grid-template-columns: 30px minmax(0, 1fr) auto"), "Shared mobile player cards must keep the token column on the right");
+assert(sharedStyles.includes("grid-template-columns: 34px minmax(0, 1fr) 78px"), "Shared player cards must reserve a fixed right-side token column");
+assert(sharedStyles.includes("grid-template-columns: 30px minmax(0, 1fr) 65px"), "Shared mobile player cards must reserve a fixed right-side token column");
 assert(sharedStyles.includes("width: 65px"), "Shared mobile player token stack must keep enough right-side width for two tokens");
+const loveRosterTokenFunction = loveScript.slice(loveScript.indexOf("function renderRosterTokens"), loveScript.indexOf("function showRosterStateTokens"));
+assert(!loveRosterTokenFunction.includes('SharedRoomUI.token("info"'), "LoveLetter roster must not duplicate protected state tokens from the player matrix");
+assert(!loveRosterTokenFunction.includes('SharedRoomUI.token("danger"'), "LoveLetter roster must not duplicate eliminated state tokens from the player matrix");
+assert(loveRosterTokenFunction.indexOf('SharedRoomUI.token("turn", "目前回合")') < loveRosterTokenFunction.indexOf('SharedRoomUI.token("host", "房主")'), "LoveLetter roster must render host token at the far right after turn token");
+assert(criminalScript.indexOf('player.id === snapshot.room.currentPlayerId ? SharedRoomUI.token("turn", "目前回合")') < criminalScript.indexOf('player.id === snapshot.room.hostId ? SharedRoomUI.token("host", "房主")'), "CriminalDance roster must render host token at the far right after state tokens");
+assert(loveScript.includes("function showRosterStateTokens()"), "LoveLetter roster must gate non-host player tokens by phase");
+assert(loveScript.includes('snapshot.room.phase !== "roundResult" && snapshot.room.phase !== "matchResult"'), "LoveLetter result roster must hide all non-host tokens");
 assert(loveScript.includes("template-seat-number seat-tone-"), "LoveLetter seat numbers must apply shared seat tone colors");
 assert(loveScript.includes("renderSeatBadges"), "LoveLetter action info must render #N messages with shared seat badges");
 assert(loveScript.includes("renderScoreHearts"), "LoveLetter score display must render affection hearts");
@@ -169,6 +178,8 @@ assertCssRuleIncludes(loveStyles, ".love-score-hearts", "white-space: nowrap");
 assertCssRuleIncludes(loveStyles, ".love-score-heart-text", "font-size: 1rem");
 assertCssRuleIncludes(loveStyles, ".love-brand-mark", "color: #d04f7f");
 assert(!loveStyles.includes('body:has([data-game="loveletter"]) .eyebrow'), "LoveLetter must not tint every eyebrow pink");
+assert(loveMobileStyles.includes(".love-table-zones") && loveMobileStyles.includes("grid-template-columns: repeat(2, minmax(0, 1fr))"), "LoveLetter mobile table zones must keep draw and burn piles on one row");
+assert(loveMobileStyles.includes(".love-zone-wide") && loveMobileStyles.includes("grid-column: 1 / -1"), "LoveLetter public burn zone must span the full mobile row");
 assertCssRuleExcludes(criminalStyles, ".criminal-private p", "display: flex");
 [
   ".criminal-seat.seat-accomplice",

@@ -81,7 +81,8 @@ function makePlayer(name) {
     discardPile: [],
     eliminated: false,
     protected: false,
-    actionInfo: null
+    actionInfo: null,
+    pendingDrawActionPhaseKey: null
   };
 }
 
@@ -280,7 +281,11 @@ function beginTurn(room, playerId) {
   if (!next) return endRoundByRemaining(room);
   next.protected = false;
   room.currentPlayerId = next.id;
-  if (!drawFromDeckToPlayer(room, next)) return endRoundByDeck(room);
+  const phaseKey = next.pendingDrawActionPhaseKey && next.actionInfo?.phaseKey === next.pendingDrawActionPhaseKey
+    ? next.pendingDrawActionPhaseKey
+    : null;
+  next.pendingDrawActionPhaseKey = null;
+  if (!drawFromDeckToPlayer(room, next, { phaseKey })) return endRoundByDeck(room);
   room.phase = "playing";
 }
 
@@ -408,12 +413,14 @@ function applyCardEffect(room, actor, cardInstance, payload) {
   if (card === "king") {
     const target = playerById(room, payload.targetId);
     const actorHand = actor.hand;
-    actor.hand = target.hand;
+    const targetHand = target.hand;
+    actor.hand = targetHand;
     target.hand = actorHand;
     const phaseKey = actionPhaseKey(room, "king");
     publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 與 ${playerSeatLabel(room, target)} 交換了手牌。`);
-    setPrivateActionInfo(actor, phaseKey, `你和 ${target.name} 交換了手牌。`);
-    setPrivateActionInfo(target, phaseKey, `你和 ${actor.name} 交換了手牌。`);
+    setPrivateActionInfo(actor, phaseKey, `你用 ${cardsLabel(actorHand)} 和 ${playerSeatLabel(room, target)} 交換了 ${cardsLabel(targetHand)}。`);
+    setPrivateActionInfo(target, phaseKey, `你用 ${cardsLabel(targetHand)} 和 ${playerSeatLabel(room, actor)} 交換了 ${cardsLabel(actorHand)}。`);
+    target.pendingDrawActionPhaseKey = phaseKey;
     return null;
   }
   if (card === "princess") {
@@ -631,11 +638,11 @@ function targetableOpponent(room, actorId, targetPlayerId) {
   return Boolean(target && target.id !== actorId && !target.eliminated && !target.protected);
 }
 
-function drawFromDeckToPlayer(room, player) {
+function drawFromDeckToPlayer(room, player, { phaseKey = null } = {}) {
   const card = drawFromDeck(room);
   if (!card) return false;
   player.hand.push(card);
-  setDrawActionInfo(room, player, card);
+  setDrawActionInfo(room, player, card, phaseKey || drawPhaseKey(room));
   return true;
 }
 
@@ -683,6 +690,7 @@ function resetPlayerRoundState(player) {
   player.eliminated = false;
   player.protected = false;
   player.actionInfo = null;
+  player.pendingDrawActionPhaseKey = null;
   player.ready = false;
 }
 
@@ -730,6 +738,10 @@ function removeCardInstance(cards, uid) {
 
 function cardName(card) {
   return CARD_DEFS[card]?.name || card;
+}
+
+function cardsLabel(cards) {
+  return cards.map((item) => cardName(item.card)).join("、") || "沒有手牌";
 }
 
 function actionPhaseKey(room, card) {

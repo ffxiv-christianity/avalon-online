@@ -68,6 +68,7 @@ assert(page.includes("只剩一位玩家，該玩家獲勝"), "LoveLetter rules 
 });
 
 const styles = fs.readFileSync(path.join(root, "public", "loveletter.css"), "utf8");
+const mobileStyles = styles.slice(styles.indexOf("@media (max-width: 560px)"), styles.indexOf("@media (max-width: 380px)"));
 assert(page.includes('class="eyebrow love-brand-mark">Love Letter 2019'), "LoveLetter pink brand color must only be applied to the English brand mark");
 assert(!styles.includes('body:has([data-game="loveletter"]) .eyebrow'), "LoveLetter must not tint every eyebrow pink");
 assert(styles.includes(".love-brand-mark") && styles.includes("color: #d04f7f"), "LoveLetter brand mark must use the pink game color");
@@ -77,6 +78,9 @@ assert(styles.includes(".love-seat-grid"));
 assert(styles.includes("grid-template-columns: repeat(3, minmax(0, 1fr))"), "LoveLetter player matrix must render a 3x2 desktop layout for up to 6 players");
 assert(styles.includes(".love-pile"), "LoveLetter player matrix must use pile blocks like CriminalDance");
 assert(styles.includes(".love-table-zones"), "LoveLetter main view must use extra space for draw and burn zones");
+assert(styles.includes("@media (max-width: 560px)"), "LoveLetter must include mobile table-zone rules");
+assert(mobileStyles.includes(".love-table-zones") && mobileStyles.includes("grid-template-columns: repeat(2, minmax(0, 1fr))"), "LoveLetter mobile table zones must keep draw and burn piles on one row");
+assert(mobileStyles.includes(".love-zone-wide") && mobileStyles.includes("grid-column: 1 / -1"), "LoveLetter public burn zone must span the full mobile row");
 assert(styles.includes(".love-target-grid .secondary-button.selected"), "LoveLetter target selection must use a local selected style");
 assert(styles.includes("background: transparent"), "LoveLetter target selection must not fill the selected target background");
 assert(styles.includes(".rules-role-list .love-numbered-label"), "LoveLetter rules card names must have a dedicated larger style");

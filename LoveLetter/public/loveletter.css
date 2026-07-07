@@ -557,11 +557,11 @@
   }
 
   .love-table-zones {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .love-zone-wide {
-    grid-column: auto;
+    grid-column: 1 / -1;
   }
 
   .love-card-list,

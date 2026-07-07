@@ -314,15 +314,21 @@
             phase: snapshot.room.phase
           })}
         </div>
-        <div class="token-stack">
-          ${player.id === snapshot.room.hostId ? SharedRoomUI.token("host", "房主") : ""}
-          ${player.id === snapshot.room.currentPlayerId ? SharedRoomUI.token("turn", "目前回合") : ""}
-          ${player.protected ? SharedRoomUI.token("info", "保護") : ""}
-          ${player.eliminated ? SharedRoomUI.token("danger", "出局") : ""}
-        </div>
+        <div class="token-stack">${renderRosterTokens(player)}</div>
       </article>
     `).join("");
     SharedRoomUI.bindHostControls(page.roster, sendAction);
+  }
+
+  function renderRosterTokens(player) {
+    return [
+      showRosterStateTokens() && player.id === snapshot.room.currentPlayerId ? SharedRoomUI.token("turn", "目前回合") : "",
+      player.id === snapshot.room.hostId ? SharedRoomUI.token("host", "房主") : ""
+    ].join("");
+  }
+
+  function showRosterStateTokens() {
+    return snapshot.room.phase !== "roundResult" && snapshot.room.phase !== "matchResult";
   }
 
   function renderDecks() {

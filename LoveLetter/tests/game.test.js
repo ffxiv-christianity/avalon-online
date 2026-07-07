@@ -361,7 +361,12 @@ function testHandmaidPrinceKing() {
   assert.strictEqual(playFirst(room, players[0], { targetId: players[1].id }), null);
   assert.strictEqual(players[0].hand[0].card, "guard");
   assert.strictEqual(players[1].hand[0].card, "spy");
+  const kingActorView = makeView(room, players[0].id);
+  const kingTargetView = makeView(room, players[1].id);
   const kingOtherView = makeView(room, players[2].id);
+  assert(kingActorView.you.actionInfo.messages.some((message) => message.includes("你用 間諜 和 #2 P2 交換了 衛兵")));
+  assert(kingTargetView.you.actionInfo.messages.some((message) => message.includes("你用 衛兵 和 #1 P1 交換了 間諜")));
+  assert(kingTargetView.you.actionInfo.messages.some((message) => message.includes("你從牌庫抽到了")));
   assert(kingOtherView.you.actionInfo.messages.some((message) => message.includes("#1 P1 與 #2 P2 交換了手牌")));
 }
 
