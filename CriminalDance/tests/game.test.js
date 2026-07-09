@@ -257,6 +257,23 @@ function testDogRules() {
   assert.strictEqual(applyRoomAction(room, players[1], "dogDiscard", { card: "culprit" }), null);
   assert.strictEqual(room.phase, "roundResult");
   assert.strictEqual(room.roundResult.roundScores[players[0].id], 3);
+
+  setHands(room, [
+    ["accomplice"],
+    ["dog"],
+    ["culprit"],
+    ["ordinary"]
+  ]);
+  forceTurn(room, players[0]);
+  assert.strictEqual(applyRoomAction(room, players[0], "playCard", { card: "accomplice" }), null);
+  forceTurn(room, players[0]);
+  players[0].hand = ["dog"];
+  assert.strictEqual(applyRoomAction(room, players[0], "playCard", { card: "dog", targetId: players[2].id }), null);
+  assert.strictEqual(applyRoomAction(room, players[2], "dogDiscard", { card: "culprit" }), null);
+  assert.strictEqual(room.phase, "roundResult");
+  assert.strictEqual(room.roundResult.roundScores[players[0].id], 0);
+  assert.strictEqual(room.roundResult.roundScores[players[1].id], 1);
+  assert.strictEqual(room.roundResult.roundScores[players[2].id], 0);
 }
 
 function testInformationExchangeUsesSnapshot() {
@@ -409,6 +426,21 @@ function testTradeRules() {
   assert(players[0].actionInfo.messages.some((message) => message.includes("交給") && message.includes("「不在場證明」") && message.includes("收到「犯人」")));
   assert(players[1].actionInfo.messages.some((message) => message.includes("交給") && message.includes("「犯人」") && message.includes("收到「不在場證明」")));
   assert(!room.log.some((message) => message.includes("不在場證明")));
+
+  setHands(room, [
+    ["trade"],
+    ["culprit"],
+    ["ordinary"],
+    ["ordinary"]
+  ]);
+  forceTurn(room, players[0]);
+  const tradeOnlyView = makeView(room, players[0].id);
+  assert.strictEqual(tradeOnlyView.you.playableCards.find((card) => card.id === "trade").playable, true);
+  assert.strictEqual(applyRoomAction(room, players[0], "playCard", { card: "trade" }), null);
+  assert.strictEqual(room.phase, "playing");
+  assert(players[0].tableCards.includes("trade"));
+  assert.strictEqual(players[0].hand.length, 0);
+  assert(players[0].actionInfo.messages.some((message) => message.includes("交易無效果")));
 }
 
 function testInspectorPriorityAndMatchEnd() {
@@ -428,6 +460,26 @@ function testInspectorPriorityAndMatchEnd() {
   assert.strictEqual(room.roundResult.type, "inspector");
   assert.strictEqual(room.roundResult.roundScores[players[0].id], 3);
   assert.deepStrictEqual(room.matchResult.winners.map((player) => player.id), [players[0].id]);
+
+  const accompliceInspector = setup(4);
+  const accompliceRoom = accompliceInspector.room;
+  const accomplicePlayers = accompliceInspector.players;
+  setHands(accompliceRoom, [
+    ["accomplice"],
+    ["inspector", "ordinary", "ordinary"],
+    ["culprit"],
+    ["ordinary"]
+  ]);
+  forceTurn(accompliceRoom, accomplicePlayers[1]);
+  accomplicePlayers[1].tableCards.push("accomplice");
+  assert.strictEqual(applyRoomAction(accompliceRoom, accomplicePlayers[1], "playCard", { card: "inspector", targetId: accomplicePlayers[2].id }), null);
+  forceTurn(accompliceRoom, accomplicePlayers[2]);
+  assert.strictEqual(applyRoomAction(accompliceRoom, accomplicePlayers[2], "playCard", { card: "culprit" }), null);
+  assert.strictEqual(accompliceRoom.phase, "roundResult");
+  assert.strictEqual(accompliceRoom.roundResult.type, "inspector");
+  assert.strictEqual(accompliceRoom.roundResult.roundScores[accomplicePlayers[1].id], 0);
+  assert.strictEqual(accompliceRoom.roundResult.roundScores[accomplicePlayers[0].id], 1);
+  assert.strictEqual(accompliceRoom.roundResult.roundScores[accomplicePlayers[2].id], 0);
 }
 
 function testNextRoundAndResetMatch() {
@@ -440,6 +492,7 @@ function testNextRoundAndResetMatch() {
   ]);
   forceTurn(room, players[0]);
   assert.strictEqual(applyRoomAction(room, players[0], "playCard", { card: "culprit" }), null);
+  assert.strictEqual(applyRoomAction(room, host, "resetMatch"), "整場結束後才能返回大廳。");
   assert.strictEqual(applyRoomAction(room, host, "nextRound"), null);
   assert.strictEqual(room.phase, "playing");
   assert.strictEqual(room.players.length, 4);

@@ -33,6 +33,12 @@ assert(!script.includes("page.roomView.innerHTML"));
 assert(script.includes("/ws/criminaldance"));
 assert(script.includes("SharedRoomClient.createActionRequest"));
 assert(script.includes("SharedRoomUI.bindHostControls"));
+assert(script.includes("你沒有可交換的其他手牌"), "CriminalDance trade-only hand must explain no-effect play");
+assert(script.includes("hasGiveOptions ? Boolean(selectedTargetId && selectedGiveCard) : true"), "CriminalDance trade-only hand must be confirmable without a target or give card");
+assert(page.includes("非犯人陣營的使用者 +3"), "CriminalDance rules must clarify dog/inspector scoring is only for non-culprit-team users");
+assert(page.includes("若使用者已打出共犯，屬於犯人陣營，不加分"), "CriminalDance rules must clarify accomplice users do not score dog/inspector points");
+assert(page.includes("打出後，本局結算時視為犯人陣營"), "CriminalDance accomplice rules must clarify round-scoped culprit-team status");
+assert(page.includes("犯人陣營包含目前持有犯人的玩家，以及本局已打出共犯的玩家"), "CriminalDance scoring rules must define culprit team membership");
 
 const created = game.makeRoom("Host", "CDSTAT");
 const duplicateJoin = game.joinRoom(created.room, "host");

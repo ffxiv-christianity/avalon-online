@@ -217,6 +217,7 @@ function nextRound(room, actor) {
 
 function resetMatch(room, actor) {
   if (actor.id !== room.hostId) return "只有房主可以重置整場遊戲。";
+  if (room.phase !== "matchResult") return "整場結束後才能返回大廳。";
   room.players.forEach((player) => {
     player.score = 0;
     player.ready = false;
@@ -498,9 +499,15 @@ function endRoundByDeck(room) {
   if (contenders.length <= 1) return endRoundByRemaining(room);
   const high = Math.max(...contenders.map(highestHandValue));
   const winners = contenders.filter((player) => highestHandValue(player) === high);
+  const winnerIds = winners.map((player) => player.id);
+  appendPublicActionInfo(
+    room,
+    actionPhaseKey(room, "deck_empty"),
+    `牌庫耗盡，公開所有未出局玩家手牌。${winners.map((player) => playerSeatLabel(room, player)).join("、")} 點數最大，本局得分。`
+  );
   return endRound(room, {
     type: "deckEmpty",
-    winnerIds: winners.map((player) => player.id),
+    winnerIds,
     reason: "牌庫耗盡，比較手牌數值。"
   });
 }
@@ -522,6 +529,7 @@ function endRound(room, outcome) {
     reason: outcome.reason,
     winnerIds: outcome.winnerIds,
     spyBonusPlayerId: spyPlayers.length === 1 ? spyPlayers[0].id : null,
+    revealedHands: revealedHandsForRound(room, outcome.winnerIds),
     roundScores,
     totalScores: Object.fromEntries(room.players.map((player) => [player.id, player.score])),
     reachedMatchEnd: matchWinners.length > 0
@@ -534,6 +542,16 @@ function endRound(room, outcome) {
   room.currentPlayerId = null;
   room.phase = matchWinners.length ? "matchResult" : "roundResult";
   addLog(room, roundResultText(room));
+}
+
+function revealedHandsForRound(room, winnerIds = []) {
+  const winners = new Set(winnerIds);
+  return room.players.map((player) => ({
+    playerId: player.id,
+    cards: player.hand.map(publicCard),
+    highestValue: highestHandValue(player),
+    isWinner: winners.has(player.id)
+  }));
 }
 
 function eliminatePlayer(room, player, message) {
@@ -776,6 +794,11 @@ function setPublicActionInfo(room, phaseKey, messages) {
 function publishPublicActionInfo(room, phaseKey, message) {
   addLog(room, message);
   setPublicActionInfo(room, phaseKey, message);
+}
+
+function appendPublicActionInfo(room, fallbackPhaseKey, message) {
+  addLog(room, message);
+  room.players.forEach((player) => appendActionInfo(player, player.actionInfo?.phaseKey || fallbackPhaseKey, message));
 }
 
 function setPrivateActionInfo(player, phaseKey, messages) {

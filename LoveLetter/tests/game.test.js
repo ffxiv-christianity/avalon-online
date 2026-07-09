@@ -437,7 +437,10 @@ function testRoundEndScoringAndSpy() {
   assert.strictEqual(playFirst(room, players[0], { targetId: players[1].id, guessCardId: "princess" }), null);
   assert.strictEqual(room.phase, "roundResult");
   assert.strictEqual(room.roundResult.roundScores[players[0].id], 2, "winner gets 1 plus solo spy bonus");
+  assert.strictEqual(room.roundResult.revealedHands.length, 2, "all settlements must reveal remaining hands");
+  assert(room.roundResult.revealedHands.some((entry) => entry.playerId === players[0].id && entry.cards.some((card) => card.id === "spy")));
   assert.strictEqual(applyRoomAction(room, players[1], "nextRound"), "只有房主可以開始下一局。");
+  assert.strictEqual(applyRoomAction(room, players[0], "resetMatch"), "整場結束後才能返回大廳。");
   assert.strictEqual(applyRoomAction(room, players[0], "nextRound"), null);
   assert.strictEqual(room.phase, "playing");
   assert.strictEqual(room.roundStartPlayerId, players[0].id);
@@ -458,6 +461,23 @@ function testDeckEmptyTieAndMatchEnd() {
   assert.strictEqual(room.phase, "matchResult");
   assert.deepStrictEqual(room.roundResult.winnerIds.sort(), [players[1].id, players[2].id].sort());
   assert.strictEqual(highestHandValue(players[1]), 7);
+  assert.deepStrictEqual(
+    room.roundResult.revealedHands.map((entry) => ({
+      playerId: entry.playerId,
+      highestValue: entry.highestValue,
+      cards: entry.cards.map((card) => card.id),
+      isWinner: entry.isWinner
+    })),
+    [
+      { playerId: players[0].id, highestValue: -1, cards: [], isWinner: false },
+      { playerId: players[1].id, highestValue: 7, cards: ["king"], isWinner: true },
+      { playerId: players[2].id, highestValue: 7, cards: ["king"], isWinner: true }
+    ],
+    "settlement must publicly reveal every player's remaining hand and comparison value"
+  );
+  const view = makeView(room, players[0].id);
+  assert.deepStrictEqual(view.room.roundResult.revealedHands, room.roundResult.revealedHands);
+  assert(view.you.actionInfo.messages.some((message) => message.includes("公開所有未出局玩家手牌")));
 }
 
 function testPrincessAndNoWinnerEdgeCases() {
@@ -487,6 +507,8 @@ function testPrincessAndNoWinnerEdgeCases() {
 function testResetMatch() {
   const { room, host, players } = setup(3);
   players[0].score = 3;
+  room.phase = "roundResult";
+  assert.strictEqual(applyRoomAction(room, host, "resetMatch"), "整場結束後才能返回大廳。");
   room.phase = "matchResult";
   assert.strictEqual(applyRoomAction(room, host, "resetMatch"), null);
   assert.strictEqual(room.phase, "lobby");

@@ -9,6 +9,143 @@
     return `<span class="token template-player-token ${kind}" title="${escapeAttribute(label)}" aria-label="${escapeAttribute(label)}"></span>`;
   }
 
+  function rosterTokens({
+    player,
+    hostId = "",
+    currentPlayerId = "",
+    phase = "",
+    resultPhases = ["roundResult", "matchResult", "result"],
+    stateTokens = []
+  } = {}) {
+    if (!player) return "";
+    const hideStateTokens = resultPhases.includes(phase);
+    const tokens = [];
+    if (!hideStateTokens && currentPlayerId && player.id === currentPlayerId) {
+      tokens.push(token("turn", "目前回合"));
+    }
+    if (!hideStateTokens) {
+      stateTokens.forEach((item) => {
+        if (item?.show) tokens.push(token(item.kind, item.label));
+      });
+    }
+    if (player.id === hostId) tokens.push(token("host", "房主"));
+    return tokens.join("");
+  }
+
+  function playerMatrix({ players = [], renderSeat, className = "" } = {}) {
+    const classes = ["template-game-player-matrix", className].filter(Boolean).join(" ");
+    return `<div class="${classes}">${players.map((player, index) => renderSeat(player, index)).join("")}</div>`;
+  }
+
+  function seatNumber(index, className = "") {
+    const seatIndex = Math.max(0, Number(index) || 0);
+    const seat = seatIndex + 1;
+    const classes = [className, "template-seat-number", `seat-tone-${((seatIndex % 8) + 1)}`].filter(Boolean).join(" ");
+    return `<span class="${classes}">#${seat}</span>`;
+  }
+
+  function actionInfoBlock({
+    messages = [],
+    title = "行動資訊",
+    emptyText = "目前沒有行動資訊。",
+    className = "",
+    bodyClassName = "",
+    renderMessage = escapeHtml
+  } = {}) {
+    const classes = [className, "template-game-action-info-block"].filter(Boolean).join(" ");
+    const bodyClasses = bodyClassName || "template-game-action-info-body";
+    const rows = messages.length
+      ? messages.map((message) => `<p>${renderMessage(message)}</p>`).join("")
+      : `<p>${escapeHtml(emptyText)}</p>`;
+    return `
+      <section class="${classes}">
+        <h3>${escapeHtml(title)}</h3>
+        <div class="${bodyClasses}">
+          ${rows}
+        </div>
+      </section>
+    `;
+  }
+
+  function handPanel({
+    title = "你的手牌",
+    titleHtml = "",
+    className = "",
+    stateClassName = "",
+    gridClassName = "",
+    items = [],
+    renderItem,
+    emptyText = "目前沒有手牌。",
+    footer = ""
+  } = {}) {
+    const classes = [className, "template-game-hand-panel", stateClassName].filter(Boolean).join(" ");
+    const heading = titleHtml || escapeHtml(title);
+    const content = items.length
+      ? items.map((item, index) => renderItem(item, index)).join("")
+      : `<p class="notice">${escapeHtml(emptyText)}</p>`;
+    return `
+      <section class="${classes}">
+        <h3>${heading}</h3>
+        <div class="${gridClassName}">
+          ${content}
+        </div>
+        ${footer}
+      </section>
+    `;
+  }
+
+  function resultRows({
+    players = [],
+    renderScore,
+    getRemainingItems = () => [],
+    renderRemainingItem = escapeHtml,
+    isWinner = () => false,
+    playerName = (player) => player?.name || "",
+    playerTitle = (player) => playerName(player),
+    emptyRemainingText = "無",
+    remainingLabel = "剩餘項目",
+    rowClassName = "",
+    playerClassName = "",
+    remainingClassName = "",
+    scoreClassName = ""
+  } = {}) {
+    return players.map((player, index) => {
+      const name = playerName(player, index);
+      const title = playerTitle(player, index);
+      const remainingItems = getRemainingItems(player, index) || [];
+      const rowClasses = [
+        "template-result-row",
+        rowClassName,
+        isWinner(player, index) ? "is-winner" : ""
+      ].filter(Boolean).join(" ");
+      const playerClasses = ["template-result-player", playerClassName].filter(Boolean).join(" ");
+      const remainingClasses = ["template-result-remaining", remainingClassName].filter(Boolean).join(" ");
+      const scoreClasses = ["template-result-score", scoreClassName].filter(Boolean).join(" ");
+      return `
+        <div class="${rowClasses}">
+          <div class="${playerClasses}">
+            <span class="template-result-player-name" title="${escapeAttribute(title)}">${escapeHtml(name)}</span>
+            <div class="${remainingClasses}" aria-label="${escapeAttribute(remainingLabel)}">
+              ${remainingItems.length
+                ? remainingItems.map((item, itemIndex) => renderRemainingItem(item, itemIndex, player, index)).join("")
+                : `<small>${escapeHtml(emptyRemainingText)}</small>`}
+            </div>
+          </div>
+          <strong class="${scoreClasses}">${renderScore ? renderScore(player, index) : ""}</strong>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function cardStateClasses({ className = "", selected = false, disabled = false, extra = "" } = {}) {
+    return [
+      className,
+      selected ? "selected" : "",
+      disabled ? "disabled" : "",
+      extra
+    ].filter(Boolean).join(" ");
+  }
+
   function logEntries(entries = [], escape = escapeHtml) {
     return entries.slice().reverse().map((entry) => `<li>${escape(entry)}</li>`).join("");
   }
@@ -195,6 +332,13 @@
 
   return {
     token,
+    rosterTokens,
+    playerMatrix,
+    seatNumber,
+    actionInfoBlock,
+    handPanel,
+    resultRows,
+    cardStateClasses,
     logEntries,
     playerCardClasses,
     hostControls,

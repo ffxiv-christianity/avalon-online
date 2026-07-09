@@ -14,6 +14,12 @@ const {
   connectionStatusText,
   formatCountUnit,
   playerCardClasses,
+  rosterTokens,
+  playerMatrix,
+  seatNumber,
+  actionInfoBlock,
+  handPanel,
+  cardStateClasses,
   captureScroll,
   restoreScroll,
   updateChatUnread,
@@ -79,6 +85,57 @@ assert.strictEqual(
   playerCardClasses({ playerId: "P2", viewerId: "P1", online: false, retired: true }),
   "offline retired"
 );
+const activeRosterTokens = rosterTokens({
+  player: { id: "host" },
+  hostId: "host",
+  currentPlayerId: "host",
+  phase: "playing",
+  stateTokens: [{ kind: "danger", label: "出局", show: true }]
+});
+assert(activeRosterTokens.indexOf("turn") < activeRosterTokens.indexOf("danger"));
+assert(activeRosterTokens.indexOf("danger") < activeRosterTokens.indexOf("host"));
+assert.strictEqual(
+  rosterTokens({
+    player: { id: "host" },
+    hostId: "host",
+    currentPlayerId: "host",
+    phase: "matchResult",
+    stateTokens: [{ kind: "danger", label: "出局", show: true }]
+  }),
+  '<span class="token template-player-token host" title="房主" aria-label="房主"></span>'
+);
+assert(playerMatrix({
+  players: [{ id: "P1" }],
+  className: "game-seat-grid",
+  renderSeat: (player) => `<article>${player.id}</article>`
+}).includes('class="template-game-player-matrix game-seat-grid"'));
+assert(seatNumber(2, "game-seat-number").includes('class="game-seat-number template-seat-number seat-tone-3"'));
+const actionInfoHtml = actionInfoBlock({
+  messages: ["#1 Alice"],
+  className: "game-action-info",
+  bodyClassName: "game-private",
+  renderMessage: (message) => message.replace("#1", "<b>#1</b>")
+});
+assert(actionInfoHtml.includes('class="game-action-info template-game-action-info-block"'));
+assert(actionInfoHtml.includes('class="game-private"'));
+assert(actionInfoHtml.includes("<p><b>#1</b> Alice</p>"));
+assert(actionInfoBlock().includes("目前沒有行動資訊。"));
+const handPanelHtml = handPanel({
+  titleHtml: "<b>你的手牌</b>",
+  className: "game-hand-panel",
+  stateClassName: "is-active",
+  gridClassName: "game-hand",
+  items: [{ id: "card-a" }],
+  renderItem: (card) => `<button>${card.id}</button>`,
+  footer: '<div class="button-row"></div>'
+});
+assert(handPanelHtml.includes('class="game-hand-panel template-game-hand-panel is-active"'));
+assert(handPanelHtml.includes("<h3><b>你的手牌</b></h3>"));
+assert(handPanelHtml.includes('class="game-hand"'));
+assert(handPanelHtml.includes("<button>card-a</button>"));
+assert(handPanelHtml.includes('<div class="button-row"></div>'));
+assert(handPanel().includes("目前沒有手牌。"));
+assert.strictEqual(cardStateClasses({ className: "card", selected: true, disabled: true, extra: "card-spy" }), "card selected disabled card-spy");
 const readingHistory = { scrollHeight: 1000, clientHeight: 300, scrollTop: 200 };
 assert.deepStrictEqual(captureScroll(readingHistory), { atBottom: false, scrollTop: 200 });
 restoreScroll(readingHistory, { atBottom: false, scrollTop: 200 });

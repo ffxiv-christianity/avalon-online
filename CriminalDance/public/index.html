@@ -68,9 +68,10 @@
         <details class="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/07/06 v3</small>
+            <small>最新版本 2026/07/09</small>
           </summary>
           <ul>
+            <li><strong>2026/07/09</strong> 改善遊戲邏輯與主遊戲 UI；修正只剩交易時可打出但無效果；修正已打出共犯的玩家用神犬或警部抓到犯人時不加分；補強規則說明、行動資訊與新型主遊戲框架呈現。</li>
             <li><strong>2026/07/06 v3</strong> 改善重新連線功能；改善動畫效果</li>
             <li><strong>2026/07/06 v2</strong> 修正bug；手牌新增額外說明。</li>
             <li><strong>2026/07/06</strong> 新增手牌icon與動畫效果；修正一些bug。</li>
@@ -260,20 +261,21 @@
             <div class="good"><dt>第一發現者</dt><dd>持有者成為起始玩家。第一回合只能打出第一發現者，無效果。</dd></div>
             <div class="evil"><dt>犯人 <span>犯人陣營</span></dt><dd>持有犯人牌的玩家是犯人。只有犯人是最後一張手牌時才能打出；打出後本局立即結束，犯人陣營獲勝。</dd></div>
             <div class="good"><dt>不在場證明</dt><dd>若犯人同時持有犯人與不在場證明，偵探指定時不會抓到犯人。不在場證明打出無效果。</dd></div>
-            <div class="evil"><dt>共犯 <span>犯人陣營</span></dt><dd>打出後成為犯人陣營。共犯在手上沒有身份效果，只有打出後才共同勝負。</dd></div>
+            <div class="evil"><dt>共犯 <span>犯人陣營</span></dt><dd>打出後，本局結算時視為犯人陣營。共犯在手上沒有身份效果，只有打出後才共同勝負。</dd></div>
             <div class="good"><dt>偵探</dt><dd>手牌 3 張以下才可打出。指定一位玩家，若對方持有犯人且沒有不在場證明，本局立即結束。</dd></div>
             <div class="good"><dt>目擊者</dt><dd>指定一位玩家，只有使用者私下看到該玩家所有手牌。公開記錄不顯示手牌內容。</dd></div>
             <div class="good"><dt>普通人</dt><dd>無效果。</dd></div>
-            <div class="good"><dt>神犬</dt><dd>指定一位有手牌的玩家。該玩家自己選一張棄掉；若棄掉犯人，本局立即結束。若不是犯人，神犬牌交給該玩家。</dd></div>
+            <div class="good"><dt>神犬</dt><dd>指定一位有手牌的玩家。該玩家自己選一張棄掉；若棄掉犯人，本局立即結束，非犯人陣營計分。若神犬使用者已打出共犯，視為犯人陣營，不會獲得神犬抓到犯人的 +3 分。若棄掉的不是犯人，神犬牌交給該玩家。</dd></div>
             <div class="good"><dt>情報交換</dt><dd>所有有手牌玩家同時選擇一張效果開始時持有的手牌，面朝下傳給左邊玩家。剛收到的牌不能在同次效果再傳出。</dd></div>
             <div class="good"><dt>謠言</dt><dd>由打出謠言的玩家開始，依座位順時針向右手邊玩家抽一張牌。抽到的牌先放在桌前，不立刻收入手牌；直到所有人都抽過一張後，才一起加入手牌。沒有手牌的玩家也參加。</dd></div>
             <div class="good"><dt>交易</dt><dd>指定一位有手牌玩家。雙方各自秘密選一張手牌，同時交換。</dd></div>
-            <div class="good"><dt>警部 <span>擴充</span></dt><dd>擴充牌。手牌 3 張以下才可打出，放在指定玩家面前。本局結束時若該玩家是犯人，警部使用者以警部抓到犯人的方式獲勝。</dd></div>
+            <div class="good"><dt>警部 <span>擴充</span></dt><dd>擴充牌。手牌 3 張以下才可打出，放在指定玩家面前。本局結束時若該玩家是犯人，依警部抓到犯人的方式結算；但警部使用者若已打出共犯，視為犯人陣營，不會獲得 +3 分。</dd></div>
             <div class="good"><dt>少年 <span>擴充</span></dt><dd>擴充牌。開局時，持有少年者知道初始犯人牌在哪位玩家手上；之後犯人移動不會更新情報。打出無效果。</dd></div>
           </dl>
         </section>
         <section>
           <h3>得分</h3>
+          <p>本局結算時，犯人陣營包含目前持有犯人的玩家，以及本局已打出共犯的玩家。</p>
           <div class="criminal-rules-table-wrap">
             <table class="criminal-rules-table criminal-score-table">
               <caption>本局結算</caption>
@@ -285,7 +287,7 @@
               </thead>
               <tbody>
                 <tr><td>偵探抓到犯人</td><td>偵探 +2；其他非犯人陣營 +1。</td></tr>
-                <tr><td>神犬或警部抓到犯人</td><td>使用者 +3；其他非犯人陣營 +1。</td></tr>
+                <tr><td>神犬或警部抓到犯人</td><td>非犯人陣營的使用者 +3；其他非犯人陣營 +1。若使用者已打出共犯，屬於犯人陣營，不加分。</td></tr>
                 <tr><td>犯人打出犯人</td><td>犯人與已打出共犯的玩家 +2。</td></tr>
               </tbody>
             </table>

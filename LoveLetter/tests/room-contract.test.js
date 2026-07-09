@@ -40,21 +40,30 @@ assert(page.includes('class="love-card-number">0</span><span class="love-card-na
 assert(script.includes('${cardNumberBadge(card.value)}'), "LoveLetter hand cards must use the shared number badge helper");
 assert(script.includes("love-guess-card") && script.includes("data-guess-card-id"), "Guard guesses must use styled card buttons instead of plain option labels");
 assert(script.includes("isPlayableNow(card.uid, isYourTurn)"), "LoveLetter unplayable hand cards must be disabled");
-assert(script.includes('type="button" ${isPlayableNow'), "LoveLetter hand card buttons must render a disabled attribute when unavailable");
+assert(script.includes("SharedRoomUI.handPanel"), "LoveLetter hand controls must use the shared hand panel helper");
+assert(script.includes("SharedRoomUI.cardStateClasses"), "LoveLetter hand card state classes must use the shared helper");
+assert(script.includes("const playableNow = isPlayableNow(card.uid, isYourTurn)"), "LoveLetter unplayable hand cards must compute playability in game rules");
+assert(script.includes('type="button" ${playableNow ? "" : "disabled"}'), "LoveLetter hand card buttons must render a disabled attribute when unavailable");
 assert(script.includes("你仍可查看自己的手牌"), "LoveLetter must let players inspect their hand outside their turn");
-assert(script.includes('CARD_HELP[card.id] || "")} ${chancellorKeepId'), "Chancellor selection must keep card ability help visible");
-assert(script.includes("love-action-info-block"), "LoveLetter action info must use a CriminalDance-style info block");
+assert(script.includes('renderHandCardFace(card, `${CARD_HELP[card.id] || ""} ${chancellorKeepId'), "Chancellor selection must keep card ability help visible");
+assert(script.includes("SharedRoomUI.actionInfoBlock"), "LoveLetter action info must use the shared action info helper");
+assert(script.includes('className: "love-action-info-block"'), "LoveLetter shared action info must keep the original block class");
+assert(script.includes('bodyClassName: "love-private"'), "LoveLetter shared action info must keep the original body class");
 assert(script.includes("renderSeatBadges"), "LoveLetter action info must render #N messages with shared seat badges");
 assert(script.includes("renderScoreHearts"), "LoveLetter score display must render affection hearts");
 assert(script.includes('statusCard("芳心", scoreHeartsText(highScore))'), "LoveLetter status score must use affection hearts");
 assert(!script.includes("${player.score} 分"), "LoveLetter player scores must not render as plain points");
 assert(script.includes("rosterScoreHearts(player)"), "LoveLetter roster scores must use the compact roster score renderer");
 assert(script.includes("function rosterScoreHearts"), "LoveLetter roster must hide zero score counts and show hearts only");
-["template-game-player-matrix", "template-game-hand-panel", "template-game-action-info-block", "template-game-turn-badge"].forEach((className) => {
+assert(script.includes("function renderHandCardFace"), "LoveLetter public hand reveal must reuse the same card face helper as hand cards");
+assert(script.includes("function renderResultRows") && script.includes("SharedRoomUI.resultRows"), "LoveLetter result rows must render public remaining hands through the shared result row helper");
+assert(script.includes("roundResult?.revealedHands"), "LoveLetter revealed hands must come from structured roundResult data");
+assert(script.includes("compact = false"), "LoveLetter settlement revealed hands must support compact non-interactive card rendering");
+["template-game-turn-badge"].forEach((className) => {
   assert(script.includes(className), `LoveLetter shared game template class is missing: ${className}`);
 });
-assert(script.includes("template-seat-number"), "LoveLetter seat numbers must use the shared seat-number template marker");
-assert(script.includes("template-seat-number seat-tone-"), "LoveLetter seat numbers must use shared seat tone colors");
+assert(script.includes("SharedRoomUI.playerMatrix"), "LoveLetter player matrix must use the shared player matrix helper");
+assert(script.includes("SharedRoomUI.seatNumber"), "LoveLetter seat numbers must use the shared seat-number helper");
 assert((script.match(/\$\{renderTableZones\(\)\}/g) || []).length >= 3, "LoveLetter result screens must keep table zones visible");
 assert((script.match(/\$\{renderActionInfo\(\)\}/g) || []).length >= 3, "LoveLetter result screens must keep action info visible");
 assert(!script.includes("編號"), "LoveLetter card labels must not use the word 編號");
@@ -94,6 +103,7 @@ assert(styles.includes("height: 28px"), "LoveLetter hand card number must keep a
 assert(styles.includes(".love-action-info-block"), "LoveLetter action info block style is missing");
 assert(styles.includes(".love-result-table + .love-result"), "LoveLetter result action info must be spaced away from the player matrix");
 assert(styles.includes("margin-top: 22px"), "LoveLetter result action info spacing must be visibly larger");
+assert(styles.includes(".love-revealed-card"), "LoveLetter must provide game-specific compact remaining-card appearance");
 assert(styles.includes(".love-score-hearts"), "LoveLetter affection heart score style is missing");
 assert(styles.includes(".love-score-heart-text"), "LoveLetter affection heart text style is missing");
 assert(styles.includes("font-size: .84rem"), "LoveLetter card helper text must match CriminalDance sizing");

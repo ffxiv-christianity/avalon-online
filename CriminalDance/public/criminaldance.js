@@ -388,13 +388,19 @@
             phase: snapshot.room.phase
           })}
         </div>
-        <div class="token-stack">
-          ${player.id === snapshot.room.currentPlayerId ? SharedRoomUI.token("turn", "目前回合") : ""}
-          ${player.id === snapshot.room.hostId ? SharedRoomUI.token("host", "房主") : ""}
-        </div>
+        <div class="token-stack">${renderRosterTokens(player)}</div>
       </article>
     `).join("");
     SharedRoomUI.bindHostControls(page.roster, sendAction);
+  }
+
+  function renderRosterTokens(player) {
+    return SharedRoomUI.rosterTokens({
+      player,
+      hostId: snapshot.room.hostId,
+      currentPlayerId: snapshot.room.currentPlayerId,
+      phase: snapshot.room.phase
+    });
   }
 
   function renderDecks() {
@@ -464,9 +470,7 @@
       ${showTurnPrompt ? renderTurnBadge() : ""}
       ${phaseHeader(phaseLabel(snapshot.room.phase), mainSubtitle())}
       <section class="criminal-table template-game-main-table">
-        <div class="criminal-seat-grid template-game-player-matrix">
-          ${snapshot.room.players.map(renderSeat).join("")}
-        </div>
+        ${SharedRoomUI.playerMatrix({ players: snapshot.room.players, renderSeat, className: "criminal-seat-grid" })}
         <div class="criminal-control-row template-game-control-row">
           <div class="criminal-control-main">
             ${pending ? renderPendingAction(pending) : renderPublicPendingAction(publicPending) || renderHandControls()}
@@ -487,7 +491,7 @@
       <article class="${seatAnimationClasses(player)}">
         <div class="criminal-seat-head">
           <div class="criminal-seat-title">
-            <span class="criminal-seat-number template-seat-number seat-tone-${(player.index % 8) + 1}">#${player.index + 1}</span>
+            ${SharedRoomUI.seatNumber(player.index, "criminal-seat-number")}
             <strong title="${escapeHtml(player.name)}">${escapeHtml(player.name)}</strong>
           </div>
           <span>${player.score} 分</span>
@@ -514,12 +518,11 @@
 
   function renderPileCard(item, kind) {
     const target = item.targetId ? playerById(item.targetId) : null;
-    const targetLabel = target ? `#${target.index + 1}` : "";
     const isPublic = kind === "public";
     return `
       <span class="${isPublic ? "criminal-public-card" : "criminal-pill"} card-${item.card} ${item.targetId ? "has-subtitle" : ""}">
         <span>${cardName(item.card)}</span>
-        ${targetLabel ? `<small title="${escapeHtml(target.name)}"><span class="criminal-seat-number template-seat-number seat-tone-${(target.index % 8) + 1}">${escapeHtml(targetLabel)}</span></small>` : ""}
+        ${target ? `<small title="${escapeHtml(target.name)}">${SharedRoomUI.seatNumber(target.index, "criminal-seat-number")} ${escapeHtml(target.name)}</small>` : ""}
       </span>
     `;
   }
@@ -576,17 +579,12 @@
   }
 
   function renderActionInfo() {
-    const messages = snapshot.you.actionInfo?.messages || [];
-    return `
-      <section class="criminal-action-info-block template-game-action-info-block">
-        <h3>行動資訊</h3>
-        <div class="criminal-private">
-          ${messages.length
-            ? messages.map((message) => `<p>${renderSeatBadges(message)}</p>`).join("")
-            : "<p>目前沒有行動資訊。</p>"}
-        </div>
-      </section>
-    `;
+    return SharedRoomUI.actionInfoBlock({
+      messages: snapshot.you.actionInfo?.messages || [],
+      className: "criminal-action-info-block",
+      bodyClassName: "criminal-private",
+      renderMessage: renderSeatBadges
+    });
   }
 
   function renderOpeningInfo() {
@@ -627,34 +625,47 @@
 
   function renderHandControls() {
     const isTurn = snapshot.room.phase === "playing" && snapshot.room.currentPlayerId === snapshot.you.id;
-    return `
-      <section class="template-game-hand-panel">
-        <h3>你的手牌</h3>
-        <div class="criminal-hand">
-          ${snapshot.you.hand.map((card, index) => `
-            <button class="criminal-card ${selectedCardIndex === index ? "selected" : ""}" data-card="${card.id}" data-card-index="${index}" type="button" ${isTurn && isPlayable(card.id) ? "" : "disabled"}>
-              <strong><span class="criminal-card-icon" aria-hidden="true">${escapeHtml(cardIcon(card.id))}</span>${escapeHtml(card.name)}</strong>
-              <small>${escapeHtml(cardDescription(card.id, isTurn))}</small>
-            </button>
-          `).join("")}
-        </div>
-        ${selectedCard ? renderSelectedCardControls() : ""}
-      </section>
-    `;
+    return SharedRoomUI.handPanel({
+      title: "你的手牌",
+      gridClassName: "criminal-hand",
+      items: snapshot.you.hand,
+      renderItem: (card, index) => {
+        const playableNow = isTurn && isPlayable(card.id);
+        return `
+          <button class="${SharedRoomUI.cardStateClasses({
+            className: "criminal-card",
+            selected: selectedCardIndex === index,
+            disabled: !playableNow
+          })}" data-card="${card.id}" data-card-index="${index}" type="button" ${playableNow ? "" : "disabled"}>
+            <strong><span class="criminal-card-icon" aria-hidden="true">${escapeHtml(cardIcon(card.id))}</span>${escapeHtml(card.name)}</strong>
+            <small>${escapeHtml(cardDescription(card.id, isTurn))}</small>
+          </button>
+        `;
+      },
+      footer: selectedCard ? renderSelectedCardControls() : ""
+    });
   }
 
   function renderSelectedCardControls() {
-    const needsTarget = ["detective", "witness", "dog", "trade", "inspector"].includes(selectedCard);
-    const needsGive = selectedCard === "trade";
+    const tradeGiveOptions = snapshot.you.hand
+      .map((card, index) => ({ card, index }))
+      .filter(({ card }) => card.id !== "trade");
+    const tradeHasGiveOptions = selectedCard === "trade" && tradeGiveOptions.length > 0;
+    const needsTarget = ["detective", "witness", "dog", "inspector"].includes(selectedCard) || tradeHasGiveOptions;
+    const needsGive = tradeHasGiveOptions;
     return `
       <div class="criminal-action-panel">
+        ${selectedCard === "trade" && !tradeGiveOptions.length ? `
+          <div class="notice">
+            你沒有可交換的其他手牌。交易可以打出，但不會產生效果。
+          </div>` : ""}
         ${needsTarget ? `
           <div class="criminal-action-group">
             <h3>指定玩家</h3>
             <div class="criminal-choice-grid">
               ${snapshot.room.players.filter((player) => player.id !== snapshot.you.id).map((player) => `
                 <button class="criminal-card ${selectedTargetId === player.id ? "selected" : ""}" data-target="${player.id}" type="button" ${targetDisabled(player) ? "disabled" : ""}>
-                  <strong><span class="criminal-seat-number template-seat-number seat-tone-${(player.index % 8) + 1}">#${player.index + 1}</span> ${escapeHtml(player.name)}</strong>
+                  <strong>${SharedRoomUI.seatNumber(player.index, "criminal-seat-number")} ${escapeHtml(player.name)}</strong>
                   <small>${player.handCount} 張手牌</small>
                 </button>
               `).join("")}
@@ -664,14 +675,14 @@
           <div class="criminal-action-group">
             <h3>選擇要交換的手牌</h3>
             <div class="criminal-choice-grid">
-              ${snapshot.you.hand.map((card, index) => ({ card, index })).filter(({ card }) => card.id !== "trade").map(({ card, index }) => `
+              ${tradeGiveOptions.map(({ card, index }) => `
                 <button class="criminal-card ${selectedGiveCardIndex === index ? "selected" : ""}" data-give-card="${card.id}" data-give-card-index="${index}" type="button">
                   <strong>${escapeHtml(card.name)}</strong>
                 </button>
               `).join("")}
             </div>
           </div>` : ""}
-        <div class="criminal-action-row">
+        <div class="criminal-action-row template-game-action-row">
           <button class="primary-button" data-play-selected type="button" ${canConfirmSelected() ? "" : "disabled"}>打出 ${cardName(selectedCard)}</button>
           <button class="ghost-button" data-clear-selection type="button">取消</button>
         </div>
@@ -687,7 +698,7 @@
             <strong>謠言輪到你抽牌。</strong>
             <p>請逆時針從 ${renderSeatBadges(playerLabelById(pending.sourceId))} 抽一張牌。抽到的牌會先放在桌前，所有人完成後才加入手牌。</p>
           </div>
-          <div class="criminal-action-row">
+          <div class="criminal-action-row template-game-action-row">
             <button class="primary-button" data-rumor-draw type="button">抽一張牌</button>
           </div>
         </section>
@@ -717,7 +728,7 @@
           <p>${renderSeatBadges(actorName)} 指定了 ${renderSeatBadges(targetName)}。${pending.caught ? "本局即將結束。" : "遊戲將繼續。"}</p>
           </div>
           ${isActor
-            ? `<div class="criminal-action-row"><button class="primary-button" data-confirm-detective-result type="button">${pending.caught ? "進入本局結算" : "繼續遊戲"}</button></div>`
+            ? `<div class="criminal-action-row template-game-action-row"><button class="primary-button" data-confirm-detective-result type="button">${pending.caught ? "進入本局結算" : "繼續遊戲"}</button></div>`
             : `<div class="notice">等待 ${renderSeatBadges(actorName)} 確認偵探結果。</div>`}
         </section>
       `;
@@ -738,21 +749,26 @@
   }
 
   function renderCardSelection(title, action, cards, highlightTurn = false) {
-    return `
-      <section class="criminal-action-panel template-game-hand-panel ${highlightTurn ? "criminal-turn-action" : ""}">
-        <h3>${renderSeatBadges(title)}</h3>
-        <div class="criminal-hand">
-          ${cards.map((card, index) => `
-            <button class="criminal-card ${selectedPendingAction === action && selectedPendingCardIndex === index ? "selected" : ""}" data-pending-action="${action}" data-pending-card="${card.id}" data-pending-card-index="${index}" type="button">
-              <strong>${escapeHtml(card.name)}</strong>
-            </button>
-          `).join("")}
-        </div>
-        <div class="criminal-action-row">
+    return SharedRoomUI.handPanel({
+      titleHtml: renderSeatBadges(title),
+      className: "criminal-action-panel",
+      stateClassName: highlightTurn ? "criminal-turn-action" : "",
+      gridClassName: "criminal-hand",
+      items: cards,
+      renderItem: (card, index) => `
+        <button class="${SharedRoomUI.cardStateClasses({
+          className: "criminal-card",
+          selected: selectedPendingAction === action && selectedPendingCardIndex === index
+        })}" data-pending-action="${action}" data-pending-card="${card.id}" data-pending-card-index="${index}" type="button">
+          <strong>${escapeHtml(card.name)}</strong>
+        </button>
+      `,
+      footer: `
+        <div class="criminal-action-row template-game-action-row">
           <button class="primary-button" data-confirm-pending-card type="button" ${selectedPendingAction === action && selectedPendingCard ? "" : "disabled"}>確認選擇</button>
         </div>
-      </section>
-    `;
+      `
+    });
   }
 
   function renderRoundResult() {
@@ -760,9 +776,7 @@
     page.mainPanel.innerHTML = `
       ${phaseHeader("本局結算", resultTitle(result.type))}
       <section class="criminal-table template-game-main-table criminal-result-table">
-        <div class="criminal-seat-grid template-game-player-matrix">
-          ${snapshot.room.players.map(renderSeat).join("")}
-        </div>
+        ${SharedRoomUI.playerMatrix({ players: snapshot.room.players, renderSeat, className: "criminal-seat-grid" })}
       </section>
       <div class="criminal-score-grid">
         ${snapshot.room.players.map((player) => `
@@ -781,9 +795,7 @@
     page.mainPanel.innerHTML = `
       ${phaseHeader("整場結束", `勝利者：${result.winners.map((player) => player.name).join("、")}`)}
       <section class="criminal-table template-game-main-table criminal-result-table">
-        <div class="criminal-seat-grid template-game-player-matrix">
-          ${snapshot.room.players.map(renderSeat).join("")}
-        </div>
+        ${SharedRoomUI.playerMatrix({ players: snapshot.room.players, renderSeat, className: "criminal-seat-grid" })}
       </section>
       <div class="criminal-score-grid">
         ${snapshot.room.players.map((player) => `
@@ -793,7 +805,7 @@
           </div>
         `).join("")}
       </div>
-      ${snapshot.you.isHost ? `<div class="result-action-row"><button class="danger-button" data-reset-match type="button">重置整場遊戲</button></div>` : ""}
+      ${snapshot.you.isHost ? `<div class="result-action-row"><button class="danger-button" data-reset-match type="button">返回大廳</button></div>` : ""}
     `;
   }
 
@@ -1088,7 +1100,10 @@
   function canConfirmSelected() {
     if (!selectedCard) return false;
     if (["detective", "witness", "dog", "inspector"].includes(selectedCard)) return Boolean(selectedTargetId);
-    if (selectedCard === "trade") return Boolean(selectedTargetId && selectedGiveCard);
+    if (selectedCard === "trade") {
+      const hasGiveOptions = snapshot.you.hand.some((card) => card.id !== "trade");
+      return hasGiveOptions ? Boolean(selectedTargetId && selectedGiveCard) : true;
+    }
     return true;
   }
 
@@ -1183,14 +1198,14 @@
 
   function renderSeatBadges(value) {
     return escapeHtml(value).replace(/#([1-8])(\s+)?/g, (_, number, trailingSpace) => (
-      `<span class="criminal-seat-number template-seat-number seat-tone-${number}">#${number}</span>${trailingSpace ? "&nbsp;" : ""}`
+      `${SharedRoomUI.seatNumber(Number(number) - 1, "criminal-seat-number")}${trailingSpace ? "&nbsp;" : ""}`
     ));
   }
 
   function renderTurnBadge() {
     return `
       <div class="criminal-turn-badge template-game-turn-badge" role="status" aria-live="polite">
-        <span class="criminal-turn-pulse" aria-hidden="true"></span>
+        <span class="criminal-turn-pulse template-game-turn-pulse" aria-hidden="true"></span>
         <strong>現在換你</strong>
       </div>
     `;

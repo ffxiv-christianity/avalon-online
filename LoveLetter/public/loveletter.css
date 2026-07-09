@@ -436,10 +436,43 @@
   gap: 8px;
 }
 
+.love-result-row.is-winner {
+  border-color: rgba(147, 63, 53, .38);
+  background: rgba(255, 246, 235, .86);
+}
+
+.love-revealed-card {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 92px;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(32, 40, 43, 0.12);
+  border-radius: 999px;
+  background: #fffaf0;
+  color: #243035;
+  cursor: default;
+  padding: 2px 7px 2px 2px;
+  font-size: .76rem;
+  line-height: 1;
+}
+
+.love-revealed-card .love-card-number {
+  width: 20px;
+  height: 20px;
+  flex-basis: 20px;
+  font-size: .7rem;
+}
+
+.love-revealed-card strong {
+  min-width: 0;
+  font-size: .78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .love-result-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
   padding: 12px;
 }
 
@@ -461,17 +494,12 @@
 }
 
 .love-turn-pulse {
+  --template-game-turn-pulse-shadow: rgba(147, 63, 53, .38);
   width: 8px;
   height: 8px;
   flex: 0 0 8px;
   border-radius: 50%;
   background: #933f35;
-  animation: love-turn-pulse 900ms ease-in-out infinite;
-}
-
-@keyframes love-turn-pulse {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 1; }
 }
 
 .love-rules-card-counts {
@@ -583,10 +611,6 @@
     line-height: 1.35;
   }
 
-  .love-result-row {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 
 @media (max-width: 380px) {

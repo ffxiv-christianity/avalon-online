@@ -20,6 +20,9 @@ const lovePage = fs.readFileSync(path.join(root, "LoveLetter", "public", "index.
 const loveScript = fs.readFileSync(path.join(root, "LoveLetter", "public", "loveletter.js"), "utf8");
 const loveStyles = fs.readFileSync(path.join(root, "LoveLetter", "public", "loveletter.css"), "utf8");
 const loveGame = fs.readFileSync(path.join(root, "LoveLetter", "game.js"), "utf8");
+const frameworkDoc = fs.readFileSync(path.join(root, "COMMON_ROOM_FRAMEWORK.md"), "utf8");
+const complianceMatrixDoc = fs.readFileSync(path.join(root, "docs", "FRAMEWORK_COMPLIANCE_MATRIX.md"), "utf8");
+const newGameChecklistDoc = fs.readFileSync(path.join(root, "docs", "NEW_GAME_CHECKLIST.md"), "utf8");
 const loveMobileStyles = loveStyles.slice(loveStyles.indexOf("@media (max-width: 560px)"), loveStyles.indexOf("@media (max-width: 380px)"));
 
 function cssRulesForSelector(css, selector) {
@@ -83,20 +86,183 @@ assert(criminalScript.includes("state?.playable === false && state.reason"), "Cr
 assert(criminalScript.includes("criminal-result-table"), "CriminalDance result screens must keep the player seat matrix visible for result pulses");
 [
   "template-game-main-table",
-  "template-game-player-matrix",
   "template-game-control-row",
-  "template-game-hand-panel",
-  "template-game-action-info-block",
-  "template-game-turn-badge",
-  "template-seat-number"
+  "template-game-turn-badge"
 ].forEach((className) => {
   assert(criminalScript.includes(className), `CriminalDance shared game template class is missing: ${className}`);
   assert(loveScript.includes(className), `LoveLetter shared game template class is missing: ${className}`);
 });
+[
+  ".template-game-control-row",
+  ".template-game-action-info-block",
+  ".template-game-action-row",
+  ".template-game-turn-badge",
+  ".template-game-turn-pulse"
+].forEach((selector) => assert(sharedStyles.includes(selector), `Shared main-game presentation style is missing: ${selector}`));
+assert(sharedStyles.includes("@keyframes template-game-turn-pulse"), "Shared turn pulse animation is missing");
+assert(sharedStyles.includes("prefers-reduced-motion: reduce") && sharedStyles.includes(".template-game-turn-pulse"), "Shared turn pulse must support reduced motion");
+assert(sharedStyles.includes("--template-game-turn-pulse-shadow"), "Shared turn pulse must expose a game-color variable");
+assert(sharedStyles.includes(".button-row.template-game-action-row"), "Shared mobile button-row rules must not stretch main-game action rows vertically");
+assert(!criminalStyles.includes("@keyframes criminal-turn-pulse"), "CriminalDance must use the shared turn pulse animation");
+assert(!loveStyles.includes("@keyframes love-turn-pulse"), "LoveLetter must use the shared turn pulse animation");
+assert(criminalStyles.includes("--template-game-turn-pulse-shadow") && loveStyles.includes("--template-game-turn-pulse-shadow"), "Games may only customize turn pulse color through the shared variable");
+["template-game-action-row", "template-game-turn-pulse"].forEach((className) => {
+  assert(criminalScript.includes(className), `CriminalDance shared presentation marker is missing: ${className}`);
+  assert(loveScript.includes(className), `LoveLetter shared presentation marker is missing: ${className}`);
+});
+assert(frameworkDoc.includes("新型主遊戲框架目前由 CriminalDance 與 LoveLetter 驗證"), "Framework doc must scope the newer main-game template to CriminalDance/LoveLetter and future games");
+assert(frameworkDoc.includes("Avalon 與 Onenightwolf 的既有主流程已穩定，除非重構，不要求為了形式一致而回套所有新型主遊戲"), "Framework doc must not force Avalon/Onenightwolf to backfill newer main-game markers");
+assert(frameworkDoc.includes("docs/FRAMEWORK_COMPLIANCE_MATRIX.md"), "Framework doc must link the compliance matrix");
+assert(frameworkDoc.includes("docs/NEW_GAME_CHECKLIST.md"), "Framework doc must link the new game checklist");
+[
+  "Avalon",
+  "Onenightwolf",
+  "CriminalDance",
+  "LoveLetter",
+  "Global Shell",
+  "Shared Runtime",
+  "Roster Template",
+  "New Main Game Template",
+  "Server View Boundary",
+  "No-dead-end Coverage"
+].forEach((item) => assert(complianceMatrixDoc.includes(item), `Compliance matrix is missing: ${item}`));
+assert(complianceMatrixDoc.includes("既有穩定主流程，暫不回套"), "Compliance matrix must document legacy stable main-flow games");
+assert(complianceMatrixDoc.includes("新增遊戲時，必須更新本矩陣"), "Compliance matrix must require updates for new games");
+[
+  "基本註冊",
+  "房間與連線",
+  "新型主遊戲框架判定",
+  "Template Marker",
+  "Server View",
+  "Action Info",
+  "可推進性",
+  "測試",
+  "RWD 與視覺",
+  "Release"
+].forEach((heading) => assert(newGameChecklistDoc.includes(heading), `New game checklist is missing section: ${heading}`));
+[
+  "SharedRoomClient.createActionRequest()",
+  "SharedRoomUI.playerMatrix()",
+  "SharedRoomUI.handPanel()",
+  "SharedRoomUI.actionInfoBlock()",
+  "template-game-action-row",
+  "you.pendingAction",
+  "公開訊息不得洩漏秘密牌名",
+  "至少跑 10 次完整流程",
+  "更新 `docs/FRAMEWORK_COMPLIANCE_MATRIX.md`"
+].forEach((item) => assert(newGameChecklistDoc.includes(item), `New game checklist is missing requirement: ${item}`));
+[
+  "Visual QA 分層",
+  "白箱 layout 測試",
+  "黑箱截圖測試",
+  "壓力測試",
+  "三層 Visual QA 都必須產出可檢查結果",
+  "白箱產出 marker/overlap report 與結構截圖",
+  "黑箱產出正常遊戲截圖",
+  "壓力產出最大內容截圖",
+  "三層 Visual QA 都必須涵蓋完整房間階段",
+  "不可只截主遊戲視窗",
+  "準備大廳、主遊戲與結算／等待回大廳",
+  "Shared room shell 的 Visual QA 必須覆蓋四款遊戲",
+  "Avalon、Onenightwolf、CriminalDance、LoveLetter",
+  "新型主遊戲 template marker 檢查只套用在使用該 template 的遊戲",
+  "正式 Visual QA 必須載入原本遊戲頁面與原本前端 renderer",
+  "使用各遊戲原本 server view schema",
+  "不得用手刻靜態 HTML fixture 取代實際遊戲架構截圖",
+  "黑箱與壓力截圖都必須使用最大玩家數矩陣",
+  "最大玩家矩陣",
+  "惡意長名字",
+  "最大或接近最大分數",
+  "公開牌、棄牌堆、打出牌與公開標記",
+  "不得只用理想最小畫面",
+  "gitignore 的臨時目錄"
+].forEach((item) => assert(newGameChecklistDoc.includes(item), `Visual QA checklist is missing requirement: ${item}`));
+[
+  "白箱 layout 測試、黑箱截圖測試與壓力測試",
+  "三層測試都必須產出對應截圖或 report",
+  "準備大廳、主遊戲與結算／等待回大廳",
+  "不可只截主遊戲視窗",
+  "Shared room shell 的 Visual QA 必須覆蓋四款遊戲",
+  "Avalon、Onenightwolf、CriminalDance、LoveLetter",
+  "新型主遊戲 template marker 檢查只套用在使用該 template 的遊戲",
+  "正式 Visual QA 必須載入原本遊戲頁面與原本前端 renderer",
+  "使用各遊戲原本 server view schema",
+  "不得用手刻靜態 HTML fixture 取代實際遊戲架構截圖",
+  "黑箱與壓力截圖都必須使用最大玩家矩陣",
+  "最大玩家矩陣",
+  "最多常見公開牌／棄牌／打出牌／公開標記",
+  "不得只用理想最小畫面",
+  "未經明確決定不得進正式 commit"
+].forEach((item) => assert(frameworkDoc.includes(item), `Framework Visual QA contract is missing: ${item}`));
+[
+  "新型主遊戲框架實作清單",
+  "新型 Server View 邊界",
+  "Action Info 訊息政策",
+  "Template Marker 命名規則"
+].forEach((heading) => assert(frameworkDoc.includes(heading), `Framework doc is missing required new-game contract section: ${heading}`));
+[
+  "是否需要玩家矩陣",
+  "是否需要手牌、角色牌、選牌",
+  "是否需要桌面公開區",
+  "是否需要公開資訊欄、私密資訊欄或行動資訊欄",
+  "是否需要右上角目前回合提示",
+  "是否需要主流程確認／取消按鈕列",
+  "手機版主流程順序"
+].forEach((item) => assert(frameworkDoc.includes(item), `Framework checklist is missing: ${item}`));
+[
+  "room.players[]",
+  "you.pendingAction",
+  "you.actionInfo",
+  "前端不得自行推導秘密或權限",
+  "Server-authoritative 清單"
+].forEach((item) => assert(frameworkDoc.includes(item), `Server View contract is missing: ${item}`));
+[
+  "公開行動應寫給所有玩家",
+  "私密結果只寫給相關玩家",
+  "公開訊息不得洩漏秘密牌名",
+  "結算畫面應保留本局最後一段 action info",
+  "renderSeatBadges"
+].forEach((item) => assert(frameworkDoc.includes(item), `Action info policy is missing: ${item}`));
+[
+  "無合法目標",
+  "無可交換牌",
+  "牌庫空",
+  "所有目標受保護",
+  "行動可無效果打出"
+].forEach((item) => assert(frameworkDoc.includes(item), `Progression no-dead-end contract is missing: ${item}`));
+[
+  "template-game-*",
+  "template-player-*",
+  "template-seat-*",
+  "template class 不得承載單一遊戲規則",
+  "至少跑 10 次完整流程"
+].forEach((item) => assert(frameworkDoc.includes(item), `Template/test contract is missing: ${item}`));
 assert(loveGame.includes("setPublicActionInfo"), "LoveLetter must list public action info like CriminalDance");
 assert(loveGame.includes("你從蓋牌抽到了"), "LoveLetter Prince burn-card draw must create private action info");
 assert(loveGame.includes("抽走了蓋牌"), "LoveLetter Prince burn-card draw must create public action info");
 assert(loveScript.includes("renderTableZones()") && loveScript.includes("${renderActionInfo()}"), "LoveLetter result screens must keep public table and action information visible");
+["rosterTokens", "playerMatrix", "seatNumber", "actionInfoBlock", "handPanel", "cardStateClasses"].forEach((helper) => {
+  assert(sharedRoomUi.includes(`function ${helper}`), `SharedRoomUI helper is missing: ${helper}`);
+  assert(criminalScript.includes(`SharedRoomUI.${helper}`), `CriminalDance must use SharedRoomUI.${helper}`);
+  assert(loveScript.includes(`SharedRoomUI.${helper}`), `LoveLetter must use SharedRoomUI.${helper}`);
+});
+assert(sharedRoomUi.includes("template-game-player-matrix"), "Shared player matrix helper must render the template marker");
+assert(sharedRoomUi.includes("template-seat-number"), "Shared seat number helper must render the template marker");
+assert(sharedRoomUi.includes("template-game-action-info-block"), "Shared action info helper must render the template marker");
+assert(sharedRoomUi.includes("template-game-hand-panel"), "Shared hand panel helper must render the template marker");
+assert(sharedRoomUi.includes("function resultRows") && sharedRoomUi.includes("template-result-row"), "Shared result row helper must support reusable result rows");
+assert(loveScript.includes("SharedRoomUI.resultRows"), "LoveLetter remaining-hand result rows must use the shared result row helper");
+assert(sharedStyles.includes(".template-result-player-name") && sharedStyles.includes("text-overflow: ellipsis"), "Shared result rows must truncate long player names");
+assert(sharedStyles.includes(".template-result-score") && sharedStyles.includes("min-width: max-content"), "Shared result score column must not be squeezed by remaining items");
+assert(loveScript.includes('className: "love-action-info-block"') && loveScript.includes('bodyClassName: "love-private"'), "LoveLetter shared action info must keep the original action-info classes");
+assert(criminalScript.includes('className: "criminal-action-info-block"') && criminalScript.includes('bodyClassName: "criminal-private"'), "CriminalDance shared action info must keep the original action-info classes");
+assert(loveScript.includes("renderMessage: renderSeatBadges") && criminalScript.includes("renderMessage: renderSeatBadges"), "Shared action info must keep game-specific #N badge rendering");
+assert(loveScript.includes('className: "love-action-panel"') && loveScript.includes('gridClassName: "love-hand"'), "LoveLetter shared hand panel must keep the original hand classes");
+assert(criminalScript.includes('gridClassName: "criminal-hand"'), "CriminalDance shared hand panel must keep the original hand grid class");
+assert(loveScript.includes("cardNumberBadge(card.value)"), "LoveLetter hand cards must keep game-specific card number rendering");
+assert(loveScript.includes("const playableNow = isPlayableNow(card.uid, isYourTurn)") && loveScript.includes("伯爵夫人在手時不可打出"), "LoveLetter hand rules must remain game-specific");
+assert(criminalScript.includes("cardDescription(card.id, isTurn)") && criminalScript.includes("isPlayable(card.id)"), "CriminalDance hand rules must remain game-specific");
+assert(criminalScript.includes("titleHtml: renderSeatBadges(title)"), "CriminalDance pending hand panel must preserve seat badge title HTML");
 assert(sharedStyles.includes(".template-seat-number.seat-tone-1"), "Shared template seat number tone styles are missing");
 assert(sharedRoomUi.includes("template-player-token"), "Shared player tokens must carry the template-player-token marker");
 assert(sharedStyles.includes(".token {"), "Shared player token base style is missing");
@@ -109,14 +275,10 @@ assertCssRuleIncludes(sharedStyles, ".token-stack", "width: 78px");
 assert(sharedStyles.includes("grid-template-columns: 34px minmax(0, 1fr) 78px"), "Shared player cards must reserve a fixed right-side token column");
 assert(sharedStyles.includes("grid-template-columns: 30px minmax(0, 1fr) 65px"), "Shared mobile player cards must reserve a fixed right-side token column");
 assert(sharedStyles.includes("width: 65px"), "Shared mobile player token stack must keep enough right-side width for two tokens");
-const loveRosterTokenFunction = loveScript.slice(loveScript.indexOf("function renderRosterTokens"), loveScript.indexOf("function showRosterStateTokens"));
-assert(!loveRosterTokenFunction.includes('SharedRoomUI.token("info"'), "LoveLetter roster must not duplicate protected state tokens from the player matrix");
-assert(!loveRosterTokenFunction.includes('SharedRoomUI.token("danger"'), "LoveLetter roster must not duplicate eliminated state tokens from the player matrix");
-assert(loveRosterTokenFunction.indexOf('SharedRoomUI.token("turn", "目前回合")') < loveRosterTokenFunction.indexOf('SharedRoomUI.token("host", "房主")'), "LoveLetter roster must render host token at the far right after turn token");
-assert(criminalScript.indexOf('player.id === snapshot.room.currentPlayerId ? SharedRoomUI.token("turn", "目前回合")') < criminalScript.indexOf('player.id === snapshot.room.hostId ? SharedRoomUI.token("host", "房主")'), "CriminalDance roster must render host token at the far right after state tokens");
-assert(loveScript.includes("function showRosterStateTokens()"), "LoveLetter roster must gate non-host player tokens by phase");
-assert(loveScript.includes('snapshot.room.phase !== "roundResult" && snapshot.room.phase !== "matchResult"'), "LoveLetter result roster must hide all non-host tokens");
-assert(loveScript.includes("template-seat-number seat-tone-"), "LoveLetter seat numbers must apply shared seat tone colors");
+assert(sharedRoomUi.includes('tokens.push(token("host", "房主"))'), "Shared roster token policy must render host token last");
+assert(sharedRoomUi.includes('resultPhases = ["roundResult", "matchResult", "result"]'), "Shared roster token policy must hide state tokens in result phases by default");
+assert(!loveScript.includes('SharedRoomUI.token("info"'), "LoveLetter roster must not duplicate protected state tokens from the player matrix");
+assert(!loveScript.includes('SharedRoomUI.token("danger"'), "LoveLetter roster must not duplicate eliminated state tokens from the player matrix");
 assert(loveScript.includes("renderSeatBadges"), "LoveLetter action info must render #N messages with shared seat badges");
 assert(loveScript.includes("renderScoreHearts"), "LoveLetter score display must render affection hearts");
 assert(loveScript.includes('statusCard("芳心", scoreHeartsText(highScore))'), "LoveLetter status score must use affection hearts");
@@ -124,11 +286,16 @@ assert(!loveScript.includes("${player.score} 分"), "LoveLetter player scores mu
 assert(lovePage.includes("若牌庫已空，改拿開局時暗置的蓋牌"), "LoveLetter rules must explain Prince drawing the setup burn card");
 assert(lovePage.includes("<h3>勝利條件</h3>"), "LoveLetter rules must include victory conditions");
 assert(lovePage.includes("牌庫耗盡時，所有未出局玩家公開手牌並比較數值"), "LoveLetter rules must explain deck-empty victory");
-["template-game-main-table", "template-game-player-matrix"].forEach((className) => {
+["template-game-main-table"].forEach((className) => {
   const criminalCount = (criminalScript.match(new RegExp(className, "g")) || []).length;
   const loveCount = (loveScript.match(new RegExp(className, "g")) || []).length;
   assert.strictEqual(criminalCount, loveCount, `CriminalDance and LoveLetter must call ${className} in the same main-game phases`);
 });
+assert.strictEqual(
+  (criminalScript.match(/SharedRoomUI\.playerMatrix/g) || []).length,
+  (loveScript.match(/SharedRoomUI\.playerMatrix/g) || []).length,
+  "CriminalDance and LoveLetter must render player matrices through SharedRoomUI in the same main-game phases"
+);
 
 [
   ".status-card strong",
@@ -246,6 +413,10 @@ assert(loveScript.includes("class=\"start-button\""), "LoveLetter lobby start ac
 assert(sharedStyles.includes(".validation-list"), "Shared validation list spacing is missing");
 assert(sharedStyles.includes(".validation.error"), "Shared validation error style is missing");
 assert(sharedStyles.includes(".setting-option"), "Shared setting option style is missing");
+assert(frameworkDoc.includes("roundResult.revealedHands") && frameworkDoc.includes("renderHandCardFace()"), "Framework docs must define the public remaining-hand reveal reference contract");
+assert(newGameChecklistDoc.includes("結算時是否需要公開所有玩家或未出局玩家的剩餘手牌"), "New game checklist must explicitly ask whether settlement needs remaining hand reveals");
+assert(frameworkDoc.includes("尚未達到目標分數時只能提供「開始下一局」") && frameworkDoc.includes("整場結束後，只能提供「返回大廳」"), "Framework docs must define score-based result action policy");
+assert(newGameChecklistDoc.includes("未達目標分數的本局結算只能開始下一局"), "New game checklist must include score-based result action policy");
 assert(avalonScript.includes("field setting-option"), "Avalon setting toggles must use the shared setting-option");
 assert(criminalPage.includes("field setting-option"), "CriminalDance setting toggles must use the shared setting-option");
 assert(lovePage.includes("field setting-option"), "LoveLetter setting toggles must use the shared setting-option");
@@ -404,7 +575,8 @@ assert(wolfScript.includes("SharedRoomUI.logEntries"), "One Night Wolf must use 
 assert(criminalScript.includes("SharedRoomUI.logEntries"), "CriminalDance must use the shared newest-first log renderer");
 assert(loveScript.includes("SharedRoomUI.logEntries"), "LoveLetter must use the shared newest-first log renderer");
 assert(sharedStyles.includes(".token.turn"), "Shared current-turn token style is missing");
-assert(criminalScript.includes('token("turn"'), "CriminalDance must use a current-turn token instead of the leader token");
+assert(sharedRoomUi.includes('token("turn", "目前回合")'), "Shared roster token policy must provide the current-turn token");
+assert(criminalScript.includes("SharedRoomUI.rosterTokens"), "CriminalDance must use shared roster token policy instead of a leader token");
 assert(sharedStyles.includes(".result-action-row"), "Shared result action spacing is missing");
 assert(criminalScript.includes("result-action-row"), "CriminalDance result actions must use shared result spacing");
 assert(criminalScript.includes("primary-button\" data-next-round"), "CriminalDance next-round action must use a normal primary button");

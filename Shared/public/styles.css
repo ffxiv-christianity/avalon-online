@@ -512,6 +512,81 @@ body.shared-readonly .shared-control-lock button {
   padding: 0 15px;
 }
 
+.template-game-control-row {
+  display: grid;
+  min-width: 0;
+  align-items: start;
+  gap: 12px;
+}
+
+.template-game-action-info-block {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.template-game-action-info-block > h3,
+.template-game-hand-panel > h3 {
+  min-height: 24px;
+  margin: 0 0 10px;
+}
+
+.template-game-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.template-game-action-row > .primary-button,
+.template-game-action-row > .secondary-button,
+.template-game-action-row > .ghost-button,
+.template-game-action-row > .danger-button {
+  min-width: 116px;
+}
+
+.template-game-turn-badge {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: .9rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.template-game-turn-pulse {
+  --template-game-turn-pulse-shadow: rgba(179, 122, 32, .45);
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 var(--template-game-turn-pulse-shadow);
+  animation: template-game-turn-pulse 1.45s ease-out infinite;
+}
+
+@keyframes template-game-turn-pulse {
+  70% {
+    box-shadow: 0 0 0 10px rgb(179 122 32 / 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgb(179 122 32 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .template-game-turn-pulse {
+    animation: none;
+  }
+}
+
 .status-strip {
   display: grid;
   width: 100%;
@@ -980,6 +1055,43 @@ body.shared-readonly .shared-control-lock button {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 14px;
+}
+
+.template-result-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.template-result-player {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.template-result-player-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-result-remaining {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.template-result-remaining small {
+  color: #7a8588;
+  font-size: .78rem;
+}
+
+.template-result-score {
+  min-width: max-content;
+  text-align: right;
 }
 
 .mission-table {
@@ -2198,6 +2310,25 @@ body.modal-open {
   .app-shell {
     width: min(calc(100vw - 20px), 1200px);
     padding-top: 10px;
+  }
+
+  .template-game-turn-badge {
+    top: 8px;
+    right: 8px;
+    padding: 6px 9px;
+    font-size: .82rem;
+  }
+
+  .template-game-action-row > .primary-button,
+  .template-game-action-row > .secondary-button,
+  .template-game-action-row > .ghost-button,
+  .template-game-action-row > .danger-button {
+    flex: 1 1 140px;
+  }
+
+  .button-row.template-game-action-row {
+    align-items: center;
+    flex-direction: row;
   }
 
   .topbar {

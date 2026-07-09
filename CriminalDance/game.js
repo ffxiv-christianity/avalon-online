@@ -363,10 +363,17 @@ function validatePlayPayload(room, actor, card, payload) {
   if (["detective", "witness", "dog", "inspector"].includes(card) && !otherPlayer(room, actor.id, payload.targetId)) {
     return "請指定其他玩家。";
   }
-  if ((card === "dog" || card === "trade") && !otherPlayer(room, actor.id, payload.targetId)?.hand.length) {
+  if (card === "dog" && !otherPlayer(room, actor.id, payload.targetId)?.hand.length) {
     return `${cardName(card)}不能指定沒有手牌的玩家。`;
   }
-  if (card === "trade" && !actor.hand.includes(payload.giveCard)) return "請選擇一張要交換的手牌。";
+  if (card === "trade") {
+    const exchangeableCards = tradeExchangeableCards(actor);
+    if (!exchangeableCards.length) return null;
+    if (!otherPlayer(room, actor.id, payload.targetId)?.hand.length) {
+      return "交易不能指定沒有手牌的玩家。";
+    }
+    if (!exchangeableCards.includes(payload.giveCard)) return "請選擇一張要交換的手牌。";
+  }
   return null;
 }
 
@@ -617,10 +624,15 @@ function removeOneFromList(list, card) {
 }
 
 function beginTrade(room, actor, targetId, giveCard) {
+  const exchangeableCards = tradeExchangeableCards(actor);
+  if (!exchangeableCards.length) {
+    setPublicActionInfo(room, actionPhaseKey(room, "trade"), `${playerSeatLabel(room, actor)} 沒有可交換的手牌，交易無效果。`);
+    return completeSimpleTurn(room);
+  }
   const target = otherPlayer(room, actor.id, targetId);
   if (!target) return "請指定其他玩家。";
   if (!target.hand.length) return "交易不能指定沒有手牌的玩家。";
-  if (!actor.hand.includes(giveCard)) return "請選擇一張要交換的手牌。";
+  if (!exchangeableCards.includes(giveCard)) return "請選擇一張要交換的手牌。";
   room.phase = "pendingTrade";
   room.pendingAction = {
     type: "trade",
@@ -633,6 +645,10 @@ function beginTrade(room, actor, targetId, giveCard) {
   setPublicActionInfo(room, actionPhaseKey(room, "trade"), `${playerSeatLabel(room, target)} 需要選一張手牌完成交易。`);
   touch(room);
   return null;
+}
+
+function tradeExchangeableCards(player) {
+  return player.hand.filter((card) => card !== "trade");
 }
 
 function tradeSelect(room, actor, card) {
@@ -719,7 +735,7 @@ function scoreRound(room, outcome) {
   }
   if (outcome.type === "detective") {
     scores[outcome.actorId] = 2;
-  } else if (outcome.type === "dog" || outcome.type === "inspector") {
+  } else if ((outcome.type === "dog" || outcome.type === "inspector") && !culpritTeam.has(outcome.actorId)) {
     scores[outcome.actorId] = 3;
   }
   room.players.forEach((player) => {
@@ -740,6 +756,7 @@ function nextRound(room, actor) {
 
 function resetMatch(room, actor) {
   if (actor.id !== room.hostId) return "只有房主可以重置整場遊戲。";
+  if (room.phase !== "matchResult") return "整場結束後才能返回大廳。";
   room.players.forEach((player) => {
     player.score = 0;
     player.hand = [];

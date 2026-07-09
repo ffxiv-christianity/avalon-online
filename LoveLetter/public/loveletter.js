@@ -321,14 +321,12 @@
   }
 
   function renderRosterTokens(player) {
-    return [
-      showRosterStateTokens() && player.id === snapshot.room.currentPlayerId ? SharedRoomUI.token("turn", "目前回合") : "",
-      player.id === snapshot.room.hostId ? SharedRoomUI.token("host", "房主") : ""
-    ].join("");
-  }
-
-  function showRosterStateTokens() {
-    return snapshot.room.phase !== "roundResult" && snapshot.room.phase !== "matchResult";
+    return SharedRoomUI.rosterTokens({
+      player,
+      hostId: snapshot.room.hostId,
+      currentPlayerId: snapshot.room.currentPlayerId,
+      phase: snapshot.room.phase
+    });
   }
 
   function renderDecks() {
@@ -395,9 +393,7 @@
       ${phaseHeader(phaseLabel(snapshot.room.phase), mainSubtitle())}
       <section class="love-table template-game-main-table">
         ${renderTableZones()}
-        <div class="love-seat-grid template-game-player-matrix">
-          ${snapshot.room.players.map(renderSeat).join("")}
-        </div>
+        ${SharedRoomUI.playerMatrix({ players: snapshot.room.players, renderSeat, className: "love-seat-grid" })}
         <div class="love-control-row template-game-control-row">
           ${pending ? renderChancellorPending(pending) : renderHandControls(isYourTurn)}
           ${renderActionInfo()}
@@ -435,7 +431,7 @@
       <article class="love-seat ${player.eliminated ? "is-eliminated" : ""} ${player.protected ? "is-protected" : ""}">
         <div class="love-seat-head">
           <div class="love-seat-title">
-            <span class="love-seat-number template-seat-number seat-tone-${(player.index % 8) + 1}">#${player.index + 1}</span>
+            ${SharedRoomUI.seatNumber(player.index, "love-seat-number")}
             <strong title="${escapeHtml(player.name)}">${escapeHtml(player.name)}</strong>
           </div>
           ${renderScoreHearts(player.score)}
@@ -462,23 +458,27 @@
   function renderHandControls(isYourTurn) {
     if (currentPlayer()?.eliminated) return `<div class="notice">你已出局，等待本局結束。</div>`;
     const selected = selectedCard();
-    return `
-      <section class="love-action-panel template-game-hand-panel">
-        <h3>你的手牌</h3>
-        <div class="love-hand">
-          ${snapshot.you.hand.map((card) => `
-            <button class="love-card ${selectedCardId === card.uid && isYourTurn ? "selected" : ""} ${isPlayableNow(card.uid, isYourTurn) ? "" : "disabled"} card-${card.id}" data-card-id="${escapeHtml(card.uid)}" type="button" ${isPlayableNow(card.uid, isYourTurn) ? "" : "disabled"}>
-              ${cardNumberBadge(card.value)}
-              <strong>${escapeHtml(card.name)}</strong>
-              <small>${cardPlayable(card.uid) ? escapeHtml(CARD_HELP[card.id] || "") : "伯爵夫人在手時不可打出"}</small>
-            </button>
-          `).join("")}
-        </div>
-        ${isYourTurn
-          ? selected ? renderSelectedCardControls(selected) : `<p class="notice">選一張手牌後確認打出。</p>`
-          : `<p class="notice">等待 ${escapeHtml(nameById(snapshot.room.currentPlayerId))} 出牌。你仍可查看自己的手牌。</p>`}
-      </section>
-    `;
+    return SharedRoomUI.handPanel({
+      title: "你的手牌",
+      className: "love-action-panel",
+      gridClassName: "love-hand",
+      items: snapshot.you.hand,
+      renderItem: (card) => {
+        const playableNow = isPlayableNow(card.uid, isYourTurn);
+        return `
+          <button class="${SharedRoomUI.cardStateClasses({
+            className: `love-card card-${card.id}`,
+            selected: selectedCardId === card.uid && isYourTurn,
+            disabled: !playableNow
+          })}" data-card-id="${escapeHtml(card.uid)}" type="button" ${playableNow ? "" : "disabled"}>
+            ${renderHandCardFace(card, cardPlayable(card.uid) ? CARD_HELP[card.id] || "" : "伯爵夫人在手時不可打出")}
+          </button>
+        `;
+      },
+      footer: isYourTurn
+        ? selected ? renderSelectedCardControls(selected) : `<p class="notice">選一張手牌後確認打出。</p>`
+        : `<p class="notice">等待 ${escapeHtml(nameById(snapshot.room.currentPlayerId))} 出牌。你仍可查看自己的手牌。</p>`
+    });
   }
 
   function renderSelectedCardControls(card) {
@@ -494,7 +494,7 @@
           <div class="love-target-grid">
             ${targets.length ? targets.map((player) => `
               <button class="secondary-button ${selectedTargetId === player.id ? "selected" : ""}" data-target-id="${escapeHtml(player.id)}" type="button">
-                <span class="love-seat-number template-seat-number seat-tone-${(player.index % 8) + 1}">#${player.index + 1}</span>
+                ${SharedRoomUI.seatNumber(player.index, "love-seat-number")}
                 <span>${escapeHtml(player.name)}</span>
               </button>
             `).join("") : `<div class="notice">目前沒有合法目標。</div>`}
@@ -513,7 +513,7 @@
             </div>
           </div>
         ` : ""}
-        <div class="button-row">
+        <div class="button-row template-game-action-row">
           <button class="primary-button" data-play-selected type="button" ${canConfirmSelected(card) ? "" : "disabled"}>確認打出</button>
           <button class="ghost-button" data-clear-selection type="button">取消</button>
         </div>
@@ -527,38 +527,35 @@
     if (!chancellorKeepId && keep) chancellorKeepId = keep;
     const bottomIds = cards.filter((card) => card.uid !== keep).map((card) => card.uid);
     if (!chancellorBottomIds.length) chancellorBottomIds = bottomIds;
-    return `
-      <section class="love-action-panel template-game-hand-panel">
-        <h3>大臣：選擇保留一張</h3>
-        <div class="love-hand">
-          ${cards.map((card) => `
-            <button class="love-card ${chancellorKeepId === card.uid ? "selected" : ""} card-${card.id}" data-chancellor-keep="${escapeHtml(card.uid)}" type="button">
-              ${cardNumberBadge(card.value)}
-              <strong>${escapeHtml(card.name)}</strong>
-              <small>${escapeHtml(CARD_HELP[card.id] || "")} ${chancellorKeepId === card.uid ? "保留" : "放回牌庫底"}</small>
-            </button>
-          `).join("")}
-        </div>
+    return SharedRoomUI.handPanel({
+      title: "大臣：選擇保留一張",
+      className: "love-action-panel",
+      gridClassName: "love-hand",
+      items: cards,
+      renderItem: (card) => `
+        <button class="${SharedRoomUI.cardStateClasses({
+          className: `love-card card-${card.id}`,
+          selected: chancellorKeepId === card.uid
+        })}" data-chancellor-keep="${escapeHtml(card.uid)}" type="button">
+          ${renderHandCardFace(card, `${CARD_HELP[card.id] || ""} ${chancellorKeepId === card.uid ? "保留" : "放回牌庫底"}`)}
+        </button>
+      `,
+      footer: `
         <p class="notice">未保留的牌會依目前順序放回牌庫底。</p>
-        <div class="button-row">
+        <div class="button-row template-game-action-row">
           <button class="primary-button" data-confirm-chancellor type="button">確認選擇</button>
         </div>
-      </section>
-    `;
+      `
+    });
   }
 
   function renderActionInfo() {
-    const messages = snapshot.you.actionInfo?.messages || [];
-    return `
-      <section class="love-action-info-block template-game-action-info-block">
-        <h3>行動資訊</h3>
-        <div class="love-private">
-          ${messages.length
-            ? messages.map((message) => `<p>${renderSeatBadges(message)}</p>`).join("")
-            : "<p>目前沒有行動資訊。</p>"}
-        </div>
-      </section>
-    `;
+    return SharedRoomUI.actionInfoBlock({
+      messages: snapshot.you.actionInfo?.messages || [],
+      className: "love-action-info-block",
+      bodyClassName: "love-private",
+      renderMessage: renderSeatBadges
+    });
   }
 
   function renderRoundResult() {
@@ -566,22 +563,23 @@
       ${phaseHeader("本局結算", snapshot.room.roundResult?.reason || "本局結束。")}
       <section class="love-table template-game-main-table love-result-table">
         ${renderTableZones()}
-        <div class="love-seat-grid template-game-player-matrix">
-          ${snapshot.room.players.map(renderSeat).join("")}
-        </div>
+        ${SharedRoomUI.playerMatrix({ players: snapshot.room.players, renderSeat, className: "love-seat-grid" })}
       </section>
       <section class="love-result">
         ${renderActionInfo()}
         <div class="love-score-grid">
-          ${snapshot.room.players.map((player) => `
-            <div class="love-result-row">
-              <span>${escapeHtml(player.name)}</span>
-              <strong>${renderScoreHearts(player.score, { gain: snapshot.room.roundResult?.roundScores?.[player.id] || 0 })}</strong>
-            </div>
-          `).join("")}
+          ${renderResultRows((player) => renderScoreHearts(player.score, { gain: snapshot.room.roundResult?.roundScores?.[player.id] || 0 }))}
         </div>
-        ${snapshot.you.isHost ? `<div class="result-action-row"><button class="primary-button" data-next-round type="button">開始下一局</button><button class="danger-button" data-reset-match type="button">返回大廳</button></div>` : ""}
+        ${snapshot.you.isHost ? `<div class="result-action-row"><button class="primary-button" data-next-round type="button">開始下一局</button></div>` : ""}
       </section>
+    `;
+  }
+
+  function renderHandCardFace(card, helperText = "", { compact = false } = {}) {
+    return `
+      ${cardNumberBadge(card.value)}
+      <strong>${escapeHtml(card.name)}</strong>
+      ${compact ? "" : `<small>${escapeHtml(helperText)}</small>`}
     `;
   }
 
@@ -591,23 +589,36 @@
       ${phaseHeader("整場結束", `勝利者：${winners.map((player) => player.name).join("、") || "未定"}`)}
       <section class="love-table template-game-main-table love-result-table">
         ${renderTableZones()}
-        <div class="love-seat-grid template-game-player-matrix">
-          ${snapshot.room.players.map(renderSeat).join("")}
-        </div>
+        ${SharedRoomUI.playerMatrix({ players: snapshot.room.players, renderSeat, className: "love-seat-grid" })}
       </section>
       <section class="love-result">
         ${renderActionInfo()}
         <div class="love-score-grid">
-          ${snapshot.room.players.map((player) => `
-            <div class="love-result-row">
-              <span>${escapeHtml(player.name)}</span>
-              <strong>${renderScoreHearts(player.score)}</strong>
-            </div>
-          `).join("")}
+          ${renderResultRows((player) => renderScoreHearts(player.score))}
         </div>
-        ${snapshot.you.isHost ? `<div class="result-action-row"><button class="danger-button" data-reset-match type="button">重置整場遊戲</button></div>` : ""}
+        ${snapshot.you.isHost ? `<div class="result-action-row"><button class="danger-button" data-reset-match type="button">返回大廳</button></div>` : ""}
       </section>
     `;
+  }
+
+  function renderResultRows(renderScore) {
+    return SharedRoomUI.resultRows({
+      players: snapshot.room.players,
+      rowClassName: "love-result-row",
+      playerClassName: "love-result-player",
+      remainingClassName: "love-result-hand",
+      scoreClassName: "love-result-score",
+      renderScore,
+      isWinner: (player) => Boolean(revealedHandByPlayerId(player.id)?.isWinner),
+      getRemainingItems: (player) => revealedHandByPlayerId(player.id)?.cards || [],
+      renderRemainingItem: (card) => `<span class="love-revealed-card card-${card.id}" title="${escapeHtml(card.name)}">${renderHandCardFace(card, "", { compact: true })}</span>`,
+      emptyRemainingText: "無手牌",
+      remainingLabel: "剩餘手牌"
+    });
+  }
+
+  function revealedHandByPlayerId(playerId) {
+    return (snapshot.room.roundResult?.revealedHands || []).find((entry) => entry.playerId === playerId) || null;
   }
 
   function handleMainClick(event) {
@@ -809,7 +820,7 @@
 
   function renderSeatBadges(value) {
     return escapeHtml(value).replace(/#([1-8])(\s+)?/g, (_, number, trailingSpace) => (
-      `<span class="love-seat-number template-seat-number seat-tone-${number}">#${number}</span>${trailingSpace ? "&nbsp;" : ""}`
+      `${SharedRoomUI.seatNumber(Number(number) - 1, "love-seat-number")}${trailingSpace ? "&nbsp;" : ""}`
     ));
   }
 
@@ -855,7 +866,7 @@
   function renderTurnBadge() {
     return `
       <div class="love-turn-badge template-game-turn-badge" role="status" aria-live="polite">
-        <span class="love-turn-pulse" aria-hidden="true"></span>
+        <span class="love-turn-pulse template-game-turn-pulse" aria-hidden="true"></span>
         <strong>現在換你</strong>
       </div>
     `;
