@@ -11,11 +11,9 @@ const page = fs.readFileSync(path.join(publicDir, "index.html"), "utf8");
 
 [
   "確認投票",
-  "確認開槍",
   "確認行動",
   "確認交換",
   "data-wolf-confirm-vote",
-  "data-wolf-confirm-hunter",
   "data-wolf-confirm-reveal"
 ].forEach((text) => assert(script.includes(text), `missing UI confirmation: ${text}`));
 
@@ -62,8 +60,6 @@ const coreClickHandler = script.slice(
   "data-night-action",
   "data-night-skip",
   "data-wolf-vote",
-  "data-wolf-hunter-target",
-  "data-wolf-confirm-hunter",
   "data-wolf-recommend",
   "data-copy-link",
   "data-wolf-role"
@@ -78,7 +74,6 @@ const buttonDataAttrs = [...new Set(
   "data-copy-link",
   "data-night-action",
   "data-night-skip",
-  "data-wolf-confirm-hunter",
   "data-wolf-confirm-reveal",
   "data-wolf-confirm-vote",
   "data-wolf-ready",
@@ -98,7 +93,6 @@ buttonDataAttrs
 [
   ['data-wolf-confirm-reveal', 'sendAction("confirmReveal")'],
   ['data-wolf-confirm-vote', 'sendAction("vote"'],
-  ['data-wolf-confirm-hunter', 'sendAction("hunterShot"'],
   ['data-wolf-ready', 'sendAction("toggleReady")'],
   ['data-wolf-return', 'sendAction("returnLobby")'],
   ['data-wolf-roll', 'sendAction("roll")'],
@@ -172,23 +166,56 @@ assert(script.includes("wolf-vote-guide"));
 assert(styles.includes(".wolf-vote-guide"));
 assert(script.includes("投票結果"));
 assert(script.includes("voteSummary(result)"));
+assert(script.includes('<details class="wolf-vote-result">'), "vote details must be collapsed by default");
+assert(!script.includes('<details class="wolf-vote-result" open>'), "vote details must not render open by default");
+assert(script.includes('<details class="wolf-night-flow" aria-label="夜晚詳細流程" open>'), "night recap must be collapsible and open by default");
+assert.strictEqual((script.match(/class="wolf-details-toggle"/g) || []).length, 2, "vote details and night recap must share the local toggle affordance");
+assert(script.includes("voteResultSummary(result)"), "collapsed voting results must keep a one-line summary");
+assert(script.includes("最高票未達處決門檻，無人遭到處決"));
+assert(script.includes("連帶出局"));
+assert(script.includes("人未投票"));
 assert(script.includes("wolf-vote-summary"));
 assert(script.includes("wolf-vote-meter"));
 assert(script.includes("--vote-fill: ${percent}%"));
 assert(!script.includes('style="width: ${percent}%'));
 assert(script.includes("最高票"));
 assert(script.includes("連帶出局"));
-assert(script.includes("未投票／廢票"));
+assert(script.includes("夜晚詳細流程"));
+assert(script.includes("nightFlow(result)"));
+assert(script.includes("wolf-night-flow-list"));
+assert(script.includes("wolf-night-flow-body"));
+assert(!script.includes("未投票／廢票"), "redundant per-voter direction list should be removed from results");
 assert(page.includes("討論時間結束後直接結算"));
 assert(script.includes("未投票視為廢票"));
 assert(page.includes("化身幽靈複製預言家、強盜、搗蛋鬼或酒鬼"));
 assert(page.includes("該玩家的最終角色是化身幽靈最初複製的角色"));
-assert(page.includes("多名獵人需要反擊時依 d100 座位順序行動"));
+assert(page.includes("其投票指向的玩家自動一同死亡"));
+assert(page.includes("若獵人因倒數結束而未投票，則不會帶走其他玩家"));
+assert(page.includes("即使爪牙也同時死亡"));
+assert(page.includes("仍在場的皮匠不會獲勝"));
+assert(page.includes("夜間叫醒順序與能力發動者由初始角色決定"));
+assert(page.includes("投票結束時的最終角色用於判定陣營、勝負及獵人能力"));
+assert(page.includes("不會回頭改變夜間行動者"));
+assert(page.includes("以投票結束時的最終角色判定"));
+assert(!script.includes("hunterShot"));
+assert(!script.includes("data-wolf-confirm-hunter"));
+assert(!script.includes("data-wolf-hunter-target"));
 assert(script.includes("選擇一名其他玩家，或選擇兩張中央牌"));
 assert(script.includes("預言家請選擇查看一位其他玩家的牌"));
 assert(styles.includes(".wolf-vote-result"));
+assert(styles.includes(".wolf-vote-result-summary"));
+assert(styles.includes('.wolf-vote-result[open] > .wolf-vote-result-summary'));
+assert(styles.includes('content: "▼"'), "expand and collapse controls must show a down triangle");
+assert(styles.includes(".wolf-night-flow[open] > .wolf-night-flow-heading"));
 assert(styles.includes(".wolf-vote-summary"));
 assert(styles.includes(".wolf-vote-meter"));
+assert(styles.includes(".wolf-night-flow"));
+assert(styles.includes(".wolf-night-flow-item"));
+assert(/\.wolf-night-flow\s*\{[^}]*margin: 18px 0;/s.test(styles), "night flow must keep spacing before the return button or waiting message");
+assert(/\.wolf-night-flow\s*\{[^}]*max-height: 490px;[^}]*overflow: hidden;/s.test(styles), "night flow must cap its total height near 500px");
+assert(/\.wolf-night-flow-body\s*\{[^}]*overflow-y: auto;/s.test(styles), "overflowing night recap content must scroll below the fixed heading");
+assert(script.includes("voteCount / voterCount"), "vote meters must use all players as the denominator");
+assert(!script.includes("voteCount / maxVotes"), "the highest vote count must not make every leading meter full");
 assert(styles.includes("width: var(--vote-fill, 0%)"));
 assert(styles.includes("var(--blue, #1f5d7a)"));
 assert(!styles.includes("var(--evil, #a64c3a)"));
@@ -240,13 +267,13 @@ assert(script.includes("夜晚行動順序"));
 assert(script.includes("nightOrderTrack()"));
 assert(script.includes("wolf-night-action"));
 assert(script.includes("roleDisplayName(room.night.actionRole)"));
-assert(script.includes("輪到你行動${actionRoleName ? ` - 你是${actionRoleName}` : \"\"}"));
+assert(script.includes("輪到你行動${actionRoleName ? ` - 你以${actionRoleName}身分行動` : \"\"}"));
 assert(script.includes("function nightWaitingPanel(night)"));
 assert(script.includes('night.role === "privateNightAction"'));
 assert(script.includes("夜晚流程正在收尾"));
 assert(script.includes("請稍候，系統即將進入討論。"));
-assert(page.includes("天亮前每位玩家只會看到自己的初始角色牌；輪到你行動時，行動區會提示你當下執行的角色。"));
-assert(page.includes("每個階段由當下持有該角色牌的玩家行動"));
+assert(page.includes("夜晚期間會持續顯示自己的初始角色"));
+assert(page.includes("不會讓被換到新角色的玩家補做能力"));
 assert(styles.includes(".wolf-night-step.active"));
 assert(styles.includes(".wolf-night-step.done"));
 assert(!styles.includes(".wolf-night-step.disabled"));

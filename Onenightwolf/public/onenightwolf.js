@@ -25,7 +25,6 @@
   let lastPlayerJoinSerial = 0;
   let unreadRosterCount = 0;
   let pendingVoteTargetId = null;
-  let pendingHunterTargetId = null;
   let avalonRejoinState = null;
   let hadRoomConnection = false;
 
@@ -70,6 +69,7 @@
 
     if (!page.mode || !page.joinForm || !page.roomView) return;
 
+    SharedPlayerName.bindPlayerNameInput(page.nameInput);
     rememberAvalonPresentation();
     bindModeSelector();
     bindLoginCapture();
@@ -187,7 +187,7 @@
         event.stopImmediatePropagation();
         const saved = sessionStore().sessions[recentButton.dataset.wolfRecentPlayer];
         if (!saved) return;
-        page.nameInput.value = saved.name || "";
+        page.nameInput.value = SharedPlayerName.cleanPlayerName(saved.name || "");
         page.roomInput.value = saved.roomCode;
         selectedSession = saved;
         sessionStorage.setItem(TAB_KEY, saved.playerId);
@@ -202,7 +202,7 @@
       if (event.target.closest("#createRoomButton")) {
         event.preventDefault();
         event.stopImmediatePropagation();
-        const name = page.nameInput.value.trim();
+        const name = SharedPlayerName.cleanPlayerName(page.nameInput.value);
         if (!name) return showToast("請輸入名字");
         connectAndSend({ type: "createRoom", name });
       }
@@ -238,7 +238,7 @@
       if (page.mode.value !== "onenightwolf") return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      const name = page.nameInput.value.trim();
+      const name = SharedPlayerName.cleanPlayerName(page.nameInput.value);
       const roomCode = parseRoomCode(page.roomInput.value);
       if (!name) return showToast("請輸入名字");
       if (!roomCode) return showToast("請輸入房間代碼或邀請網址");
@@ -346,30 +346,6 @@
       });
       const confirmButton = page.roomView.querySelector("[data-wolf-confirm-vote]");
       if (confirmButton) confirmButton.disabled = false;
-      return;
-    }
-
-    const hunterTargetButton = event.target.closest("[data-wolf-hunter-target]");
-    if (hunterTargetButton && page.roomView.contains(hunterTargetButton)) {
-      event.preventDefault();
-      event.stopPropagation();
-      pendingHunterTargetId = hunterTargetButton.dataset.wolfHunterTarget;
-      page.roomView.querySelectorAll("[data-wolf-hunter-target]").forEach((button) => {
-        button.classList.toggle("selected", button === hunterTargetButton);
-      });
-      const confirmButton = page.roomView.querySelector("[data-wolf-confirm-hunter]");
-      if (confirmButton) confirmButton.disabled = false;
-      return;
-    }
-
-    const confirmHunterButton = event.target.closest("[data-wolf-confirm-hunter]");
-    if (confirmHunterButton && page.roomView.contains(confirmHunterButton)) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!confirmHunterButton.disabled && pendingHunterTargetId) {
-        sendAction("hunterShot", { targetId: pendingHunterTargetId });
-        pendingHunterTargetId = null;
-      }
       return;
     }
 
@@ -760,7 +736,6 @@
       reveal: "查看角色",
       night: "夜間行動",
       discussion: "討論與投票",
-      hunter: "獵人反擊",
       result: "遊戲結果"
     };
     const progress = room.phase === "lobby"
@@ -771,8 +746,6 @@
         ? `${room.night.completedCount} / ${Math.max(1, room.night.actorCount)} 行動`
         : room.phase === "discussion"
           ? `${room.votesCast} / ${room.players.length} 投票`
-          : room.phase === "hunter"
-            ? `${room.hunter.pending} 名獵人待選擇`
           : "已結算";
     return `
       <div class="status-card"><span>階段</span><strong>${phaseLabels[room.phase]}</strong></div>
@@ -788,7 +761,6 @@
       reveal: "查看角色",
       night: "夜間行動",
       discussion: "討論投票",
-      hunter: "獵人反擊",
       result: "遊戲結果"
     };
     const context = room.phase === "night"
@@ -802,9 +774,7 @@
         ? `${room.night.completedCount}/${Math.max(1, room.night.actorCount)} 行動`
         : room.phase === "discussion"
           ? `${room.votesCast}/${room.players.length} 投票`
-          : room.phase === "hunter"
-            ? `${room.hunter.pending} 名待行動`
-            : room.phase === "result"
+          : room.phase === "result"
               ? "完成"
               : "";
     return SharedRoomUI.mobileStatusSummary([
@@ -884,7 +854,6 @@
       case "reveal": return revealPhase();
       case "night": return nightPhase();
       case "discussion": return discussionPhase();
-      case "hunter": return hunterPhase();
       case "result": return resultPhase();
       default: return "";
     }
@@ -1025,7 +994,6 @@
       reveal: "角色",
       night: "夜晚",
       discussion: "討論",
-      hunter: "獵人",
       result: "結果"
     }[snapshot.room.phase] || "";
     return `<div class="phase-header"><div><p class="eyebrow">${phaseLabel}</p><h2>${title}</h2><p>${subtitle}</p></div></div>`;
@@ -1080,7 +1048,7 @@
     const room = snapshot.room;
     const actionRoleName = roleDisplayName(room.night.actionRole);
     const actionTitle = room.night.yourTurn
-      ? `輪到你行動${actionRoleName ? ` - 你是${actionRoleName}` : ""}`
+      ? `輪到你行動${actionRoleName ? ` - 你以${actionRoleName}身分行動` : ""}`
       : `等待${room.night.roleName}`;
     return `
       <div class="phase-card">
@@ -1280,6 +1248,7 @@
   function resultPhase() {
     const result = snapshot.room.result;
     const cards = Object.fromEntries(result.finalCards.map((entry) => [entry.playerId, entry.role]));
+    const votingSummary = voteResultSummary(result);
     return `
       <div class="phase-card">
         <p class="eyebrow">Result</p>
@@ -1290,35 +1259,53 @@
               <span>${escapeHtml(player.name)}${result.eliminatedIds.includes(player.id) ? " · 遭到處決" : ""}${result.winningPlayerIds.includes(player.id) ? " · 獲勝" : ""}</span>
               <strong class="team-${snapshot.roles[cards[player.id]].team}">${escapeHtml(snapshot.roles[cards[player.id]].name)}</strong>
             </div>`).join("")}
-        <section class="wolf-vote-result">
-          <h3>投票結果</h3>
-          ${voteSummary(result)}
-          <div class="wolf-vote-result-list">
-            ${result.votes.map((vote) => {
-              const voter = snapshot.room.players.find((player) => player.id === vote.voterId);
-              const target = snapshot.room.players.find((player) => player.id === vote.targetId);
-              return `<div class="wolf-vote-result-row ${vote.targetId ? "" : "abstained"}">
-                <span>${escapeHtml(voter?.name || "未知玩家")}</span>
-                <strong>${target ? `投給 ${escapeHtml(target.name)}` : "未投票／廢票"}</strong>
-              </div>`;
-            }).join("")}
-          </div>
-        </section>
-        <p class="wolf-center-result">中央牌：${result.centerCards.map((role) => escapeHtml(snapshot.roles[role].name)).join("、")}</p>
+        <details class="wolf-vote-result">
+          <summary class="wolf-vote-result-summary">
+            <strong>投票結果</strong>
+            <span title="${escapeHtml(votingSummary)}">${escapeHtml(votingSummary)}</span>
+            <small class="wolf-details-toggle"></small>
+          </summary>
+          <div class="wolf-vote-result-details">${voteSummary(result)}</div>
+        </details>
+        ${nightFlow(result)}
         ${snapshot.you.isHost ? `<button class="primary-button" data-wolf-return type="button">返回準備房</button>` : `<p>等待房主開啟下一局。</p>`}
       </div>`;
   }
 
+  function nightFlow(result) {
+    const events = Array.isArray(result.nightFlow) ? result.nightFlow : [];
+    return `<details class="wolf-night-flow" aria-label="夜晚詳細流程" open>
+      <summary class="wolf-night-flow-heading">
+        <div><p class="eyebrow">Night recap</p><h3>夜晚詳細流程</h3></div>
+        <div class="wolf-night-flow-heading-meta"><span>${events.length} 個事件</span><small class="wolf-details-toggle"></small></div>
+      </summary>
+      <div class="wolf-night-flow-body">
+        ${events.length ? `<ol class="wolf-night-flow-list">
+          ${events.map((event) => `<li class="wolf-night-flow-item">
+            <span class="wolf-night-flow-index">${Number(event.id) || ""}</span>
+            <div>
+              <strong>${escapeHtml(roleDisplayName(event.role) || "夜間流程")}</strong>
+              <p>${escapeHtml(event.message)}</p>
+            </div>
+          </li>`).join("")}
+        </ol>` : `<p class="wolf-night-flow-empty">本局沒有玩家執行夜間能力。</p>`}
+        <div class="wolf-night-flow-center">
+          <strong>中央牌資訊</strong>
+          <p>${result.centerCards.map((role, index) => `中央 ${index + 1}：${escapeHtml(snapshot.roles[role].name)}`).join("　")}</p>
+        </div>
+      </div>
+    </details>`;
+  }
+
   function voteSummary(result) {
-    const totalVotes = result.votes.filter((vote) => vote.targetId).length;
-    const maxVotes = Math.max(1, ...snapshot.room.players.map((player) => Number(result.counts[player.id] || 0)));
+    const voterCount = Math.max(1, snapshot.room.players.length);
     return `<div class="wolf-vote-summary" aria-label="得票統計">
       ${snapshot.room.players.map((player) => {
         const voteCount = Number(result.counts[player.id] || 0);
         const voters = result.votes
           .filter((vote) => vote.targetId === player.id)
           .map((vote) => snapshot.room.players.find((voter) => voter.id === vote.voterId)?.name || "未知玩家");
-        const percent = Math.round((voteCount / maxVotes) * 100);
+        const percent = Math.round((voteCount / voterCount) * 100);
         const badges = [
           result.votedOutIds.includes(player.id) ? "最高票" : "",
           result.eliminatedIds.includes(player.id) && !result.votedOutIds.includes(player.id) ? "連帶出局" : ""
@@ -1326,7 +1313,7 @@
         return `<article class="wolf-vote-total ${result.eliminatedIds.includes(player.id) ? "eliminated" : ""}">
           <div class="wolf-vote-total-head">
             <strong>${escapeHtml(player.name)}</strong>
-            <span>${voteCount} / ${totalVotes} 票</span>
+            <span>${voteCount} / ${voterCount} 票</span>
           </div>
           <div class="wolf-vote-meter" style="--vote-fill: ${percent}%" aria-hidden="true"><span></span></div>
           <p>${voters.length ? `投給他：${voters.map(escapeHtml).join("、")}` : "沒有得票"}${badges.length ? ` · ${badges.join("、")}` : ""}</p>
@@ -1335,19 +1322,26 @@
     </div>`;
   }
 
-  function hunterPhase() {
-    return `<div class="phase-card">
-      <p class="eyebrow">Hunter</p>
-      <h2>獵人反擊</h2>
-      ${identityCard()}
-      ${snapshot.room.hunter.yourTurn ? `
-        <p>你已遭到處決。選擇一名其他玩家開槍，該玩家也會死亡。</p>
-        <div class="wolf-choice-grid">
-          ${snapshot.room.players.filter((player) => player.id !== snapshot.you.id).map((player) => `
-            <button class="wolf-choice" data-wolf-hunter-target="${player.id}" type="button">${escapeHtml(player.name)}</button>`).join("")}
-        </div>` : `<div class="notice">等待遭到處決的獵人選擇反擊目標。</div>`}
-        ${snapshot.room.hunter.yourTurn ? `<button class="primary-button" data-wolf-confirm-hunter type="button" ${pendingHunterTargetId ? "" : "disabled"}>確認開槍</button>` : ""}
-    </div>`;
+  function voteResultSummary(result) {
+    const playerCount = snapshot.room.players.length;
+    const castVoteCount = result.votes.filter((vote) => vote.targetId).length;
+    const votedOutIds = Array.isArray(result.votedOutIds) ? result.votedOutIds : [];
+    const votedOut = votedOutIds.map((playerId) => {
+      const player = snapshot.room.players.find((candidate) => candidate.id === playerId);
+      return `${player?.name || "未知玩家"}（${Number(result.counts[playerId] || 0)} 票）`;
+    });
+    let summary = votedOut.length === 0
+      ? "最高票未達處決門檻，無人遭到處決"
+      : votedOut.length === 1
+        ? `${votedOut[0]}遭到處決`
+        : `${votedOut.join("、")}同為最高票並遭到處決`;
+    const chainedNames = result.eliminatedIds
+      .filter((playerId) => !votedOutIds.includes(playerId))
+      .map((playerId) => snapshot.room.players.find((candidate) => candidate.id === playerId)?.name || "未知玩家");
+    if (chainedNames.length) summary += `；${chainedNames.join("、")}連帶出局`;
+    const missingVotes = Math.max(0, playerCount - castVoteCount);
+    if (missingVotes) summary += `；${missingVotes} 人未投票`;
+    return summary;
   }
 
   function bindRoomEvents() {
@@ -1558,7 +1552,7 @@
     return {
       doppelganger: { name: "化身幽靈", team: "neutral", description: "最早行動並複製一名玩家的初始角色。預言家、強盜、搗蛋鬼、酒鬼與爪牙立即行動；狼人、守夜人於其階段同行；失眠者最後複查。" },
       werewolf: { name: "狼人", team: "werewolf", description: "查看其他狼人；如果是唯一狼人，可以查看一張中央牌。" },
-      minion: { name: "爪牙", team: "werewolf", description: "查看所有狼人。狼人不會知道誰是爪牙；場上沒有狼人時，爪牙要設法讓其他玩家出局。" },
+      minion: { name: "爪牙", team: "werewolf", description: "查看所有狼人。狼人不會知道誰是爪牙；場上沒有狼人時，只要至少一名非爪牙玩家死亡便獲勝。" },
       mason: { name: "守夜人", team: "village", description: "查看另一名守夜人。牌庫必須同時放入兩張守夜人。" },
       seer: { name: "預言家", team: "village", description: "查看一名玩家的牌，或查看兩張中央牌。" },
       robber: { name: "強盜", team: "village", description: "可以和一名玩家交換牌，並查看自己換到的牌；不會發動新角色的能力，也可以選擇不交換。" },
@@ -1567,7 +1561,7 @@
       insomniac: { name: "失眠者", team: "village", description: "夜晚最後查看自己目前的角色；建議與交換牌角色一起使用。" },
       villager: { name: "村民", team: "village", description: "沒有夜間能力。" },
       tanner: { name: "皮匠", team: "tanner", description: "沒有夜間能力。只要自己遭到處決便獲勝。" },
-      hunter: { name: "獵人", team: "village", description: "沒有夜間能力。若遭到處決，獵人可選擇一名其他玩家開槍，使其一同出局。" }
+      hunter: { name: "獵人", team: "village", description: "沒有夜間能力。投票結束時最終持有獵人角色的玩家若死亡，其投票指向的玩家也會死亡。" }
     };
   }
 

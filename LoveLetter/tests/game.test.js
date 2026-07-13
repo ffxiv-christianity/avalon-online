@@ -183,7 +183,7 @@ function testCountessAndGuard() {
   assert.strictEqual(playFirst(room, players[0], { targetId: players[1].id, guessCardId: "princess" }), null);
   assert.strictEqual(players[1].eliminated, true);
   const guardHitView = makeView(room, players[0].id);
-  assert(guardHitView.you.actionInfo.messages.some((message) => message.includes("#1 P1 猜 #2 P2 是 公主：猜中，#2 P2 出局")));
+  assert(guardHitView.you.actionInfo.messages.some((message) => message.includes("#1 P1 猜 #2 P2 是 9 公主：猜中，#2 P2 出局")));
 
   setHands(room, [
     ["guard", "spy"],
@@ -195,7 +195,7 @@ function testCountessAndGuard() {
   assert.strictEqual(playFirst(room, players[0], { targetId: players[1].id, guessCardId: "priest" }), null);
   assert.strictEqual(players[1].eliminated, false);
   const guardMissView = makeView(room, players[2].id);
-  assert(guardMissView.you.actionInfo.messages.some((message) => message.includes("#1 P1 猜 #2 P2 是 神父：未猜中")));
+  assert(guardMissView.you.actionInfo.messages.some((message) => message.includes("#1 P1 猜 #2 P2 是 2 神父：未猜中")));
 
   setHands(room, [
     ["guard", "spy"],
@@ -211,7 +211,7 @@ function testCountessAndGuard() {
   assert.strictEqual(players[1].eliminated, false);
   assert.strictEqual(players[2].eliminated, false);
   const guardNoTargetView = makeView(room, players[0].id);
-  assert(guardNoTargetView.you.actionInfo.messages.some((message) => message.includes("打出衛兵，但沒有可指定的目標，無效果")));
+  assert(guardNoTargetView.you.actionInfo.messages.some((message) => message.includes("打出 1 衛兵，但沒有可指定的目標，無效果")));
 }
 
 function testPriestBaronAndPrivacy() {
@@ -228,6 +228,8 @@ function testPriestBaronAndPrivacy() {
   const otherView = makeView(room, players[2].id);
   assert.strictEqual(priestView.you.actionInfo.messages.length, 2);
   assert.strictEqual(otherView.you.actionInfo.messages.length, 1);
+  assert(priestView.you.actionInfo.messages.some((message) => message.includes("#1 P1 打出 2 神父，指定 #2 P2。")));
+  assert(priestView.you.actionInfo.messages.some((message) => message.includes("#2 P2 的手牌是 9 公主。")));
   assert(otherView.you.actionInfo.messages[0].includes("P1"));
   assert(otherView.you.actionInfo.messages[0].includes("P2"));
   assert(JSON.stringify(priestView.you.actionInfo).includes("公主"));
@@ -243,7 +245,7 @@ function testPriestBaronAndPrivacy() {
   assert.strictEqual(playFirst(room, players[0], { targetId: players[1].id }), null);
   assert.strictEqual(players[0].eliminated, true);
   const baronOtherView = makeView(room, players[2].id);
-  assert(baronOtherView.you.actionInfo.messages.some((message) => message.includes("#1 P1 與 #2 P2 發動男爵比牌：#2 P2 的手牌點數較大，#1 P1 出局")));
+  assert(baronOtherView.you.actionInfo.messages.some((message) => message.includes("#1 P1 與 #2 P2 使用 3 男爵進行比牌：#2 P2 的手牌點數較大，#1 P1 出局")));
 
   setHands(room, [
     ["baron", "princess"],
@@ -267,6 +269,26 @@ function testPriestBaronAndPrivacy() {
   assert.strictEqual(players[0].eliminated, false);
   assert.strictEqual(players[1].eliminated, false);
   assert(makeView(room, players[2].id).you.actionInfo.messages.some((message) => message.includes("手牌點數相同，無人出局")));
+}
+
+function testProtectedOpponentsDoNotBlockTargetCards() {
+  for (const card of ["guard", "priest", "baron", "king"]) {
+    const { room, players } = setup(3);
+    setHands(room, [
+      [card, "spy"],
+      ["princess"],
+      ["guard"]
+    ]);
+    room.deck = [inst("spy"), inst("spy")];
+    players[1].protected = true;
+    players[2].protected = true;
+    forceTurn(room, players[0]);
+
+    assert.deepStrictEqual(makeView(room, players[0].id).you.legalTargets[card], []);
+    assert.strictEqual(playCardByName(room, players[0], card), null, `${card} should be playable without a target`);
+    assert(players[0].discardPile.some((item) => item.card === card));
+    assert(makeView(room, players[0].id).you.actionInfo.messages.some((message) => message.includes("但沒有可指定的目標，無效果")));
+  }
 }
 
 function testHandmaidPrinceKing() {
@@ -317,7 +339,7 @@ function testHandmaidPrinceKing() {
   assert.strictEqual(playFirst(room, players[0], { targetId: players[1].id }), null);
   assert.strictEqual(players[1].eliminated, true);
   const princePrincessView = makeView(room, players[0].id);
-  assert(princePrincessView.you.actionInfo.messages.some((message) => message.includes("#1 P1 使用王子，#2 P2 棄掉公主並出局")));
+  assert(princePrincessView.you.actionInfo.messages.some((message) => message.includes("#1 P1 使用 5 王子，#2 P2 棄掉 9 公主並出局")));
 
   setHands(room, [
     ["prince", "spy"],
@@ -330,8 +352,8 @@ function testHandmaidPrinceKing() {
   assert.strictEqual(players[1].hand[0].card, "priest");
   const princeTargetView = makeView(room, players[1].id);
   const princeOtherView = makeView(room, players[2].id);
-  assert(princeTargetView.you.actionInfo.messages.some((message) => message.includes("你從牌庫抽到了 神父")));
-  assert(princeOtherView.you.actionInfo.messages.some((message) => message.includes("#1 P1 使用王子，#2 P2 棄掉手牌並從牌庫抽一張")));
+  assert(princeTargetView.you.actionInfo.messages.some((message) => message.includes("你從牌庫抽到了 2 神父")));
+  assert(princeOtherView.you.actionInfo.messages.some((message) => message.includes("#1 P1 使用 5 王子，#2 P2 棄掉手牌並從牌庫抽一張")));
   assert(!JSON.stringify(princeOtherView.you.actionInfo || {}).includes("你從牌庫抽到了"));
 
   setHands(room, [
@@ -346,10 +368,10 @@ function testHandmaidPrinceKing() {
   assert.strictEqual(players[1].hand[0].card, "baron");
   const princeBurnTargetView = makeView(room, players[1].id);
   const princeBurnOtherView = makeView(room, players[2].id);
-  assert(princeBurnTargetView.you.actionInfo.messages.some((message) => message.includes("你從蓋牌抽到了 男爵")));
-  assert(princeBurnTargetView.you.actionInfo.messages.some((message) => message.includes("#1 P1 使用王子，#2 P2 抽走了蓋牌")));
-  assert(princeBurnOtherView.you.actionInfo.messages.some((message) => message.includes("#1 P1 使用王子，#2 P2 抽走了蓋牌")));
-  assert(!JSON.stringify(princeBurnOtherView.you.actionInfo || {}).includes("你從蓋牌抽到了 男爵"));
+  assert(princeBurnTargetView.you.actionInfo.messages.some((message) => message.includes("你從蓋牌抽到了 3 男爵")));
+  assert(princeBurnTargetView.you.actionInfo.messages.some((message) => message.includes("#1 P1 使用 5 王子，#2 P2 抽走了蓋牌")));
+  assert(princeBurnOtherView.you.actionInfo.messages.some((message) => message.includes("#1 P1 使用 5 王子，#2 P2 抽走了蓋牌")));
+  assert(!JSON.stringify(princeBurnOtherView.you.actionInfo || {}).includes("你從蓋牌抽到了 3 男爵"));
 
   setHands(room, [
     ["king", "spy"],
@@ -364,8 +386,8 @@ function testHandmaidPrinceKing() {
   const kingActorView = makeView(room, players[0].id);
   const kingTargetView = makeView(room, players[1].id);
   const kingOtherView = makeView(room, players[2].id);
-  assert(kingActorView.you.actionInfo.messages.some((message) => message.includes("你用 間諜 和 #2 P2 交換了 衛兵")));
-  assert(kingTargetView.you.actionInfo.messages.some((message) => message.includes("你用 衛兵 和 #1 P1 交換了 間諜")));
+  assert(kingActorView.you.actionInfo.messages.some((message) => message.includes("你用 0 間諜 和 #2 P2 交換了 1 衛兵")));
+  assert(kingTargetView.you.actionInfo.messages.some((message) => message.includes("你用 1 衛兵 和 #1 P1 交換了 0 間諜")));
   assert(kingTargetView.you.actionInfo.messages.some((message) => message.includes("你從牌庫抽到了")));
   assert(kingOtherView.you.actionInfo.messages.some((message) => message.includes("#1 P1 與 #2 P2 交換了手牌")));
 }
@@ -386,8 +408,8 @@ function testChancellor() {
   assert.strictEqual(pendingView.room.pendingAction.type, "chancellor");
   assert.strictEqual(pendingView.you.pendingAction.cards.length, 3);
   assert.strictEqual(makeView(room, players[1].id).you.pendingAction, null);
-  assert(pendingView.you.actionInfo.messages.some((message) => message.includes("你從牌庫抽到了 公主")));
-  assert(pendingView.you.actionInfo.messages.some((message) => message.includes("你從牌庫抽到了 神父")));
+  assert(pendingView.you.actionInfo.messages.some((message) => message.includes("你從牌庫抽到了 9 公主")));
+  assert(pendingView.you.actionInfo.messages.some((message) => message.includes("你從牌庫抽到了 2 神父")));
   assert.strictEqual(applyRoomAction(room, players[1], "chooseChancellorKeep", {
     keepCardInstanceId: players[0].hand[0].uid,
     bottomCardInstanceIds: []
@@ -445,6 +467,21 @@ function testRoundEndScoringAndSpy() {
   assert.strictEqual(room.phase, "playing");
   assert.strictEqual(room.roundStartPlayerId, players[0].id);
   assert.strictEqual(room.roundNumber, 1);
+
+  const eliminatedScenario = setup(2);
+  const eliminatedRoom = eliminatedScenario.room;
+  const [survivor, eliminatedSpy] = eliminatedScenario.players;
+  setHands(eliminatedRoom, [
+    ["countess", "guard"],
+    []
+  ]);
+  eliminatedRoom.deck = [];
+  eliminatedSpy.eliminated = true;
+  eliminatedSpy.discardPile.push(inst("spy"));
+  forceTurn(eliminatedRoom, survivor);
+  assert.strictEqual(playCardByName(eliminatedRoom, survivor, "countess"), null);
+  assert.strictEqual(eliminatedRoom.roundResult.spyBonusPlayerId, null);
+  assert.strictEqual(eliminatedRoom.roundResult.roundScores[eliminatedSpy.id], 0, "eliminated Spy player must not score");
 }
 
 function testDeckEmptyTieAndMatchEnd() {
@@ -524,6 +561,7 @@ function runSuite() {
   testInvalidPlayAndTargetValidation();
   testCountessAndGuard();
   testPriestBaronAndPrivacy();
+  testProtectedOpponentsDoNotBlockTargetCards();
   testHandmaidPrinceKing();
   testChancellor();
   testRoundEndScoringAndSpy();

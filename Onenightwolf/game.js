@@ -12,6 +12,7 @@ const {
   transferHost: sharedTransferHost,
   kickOfflinePlayer: sharedKickOfflinePlayer
 } = require("../Shared/server/room-actions");
+const { cleanPlayerName } = require("../Shared/public/player-name");
 
 const ROLE_DEFS = {
   doppelganger: {
@@ -33,7 +34,7 @@ const ROLE_DEFS = {
     team: "werewolf",
     max: 1,
     order: 20,
-    description: "查看所有狼人。狼人不知道你是誰；必要時可以代替狼人被處決。"
+    description: "查看所有狼人。狼人不知道你是誰；場上沒有狼人時，只要至少一名非爪牙玩家死亡便獲勝。"
   },
   mason: {
     name: "守夜人",
@@ -96,7 +97,7 @@ const ROLE_DEFS = {
     team: "village",
     max: 1,
     order: 99,
-    description: "沒有夜間能力。若你遭到處決，你可以選擇一名其他玩家開槍，使其一同出局。"
+    description: "沒有夜間能力。投票結束時最終持有獵人角色的玩家若死亡，其投票指向的玩家也會死亡。"
   }
 };
 
@@ -149,10 +150,8 @@ function makeRoom(hostName, code = makeRoomCode()) {
     nightRoleIndex: -1,
     nightStage: null,
     doppelPendingRole: null,
+    nightHistory: [],
     votes: {},
-    pendingHunterIds: [],
-    hunterShots: {},
-    pendingVoteResult: null,
     result: null,
     discussionEndsAt: null,
     chat: [],
@@ -213,7 +212,6 @@ function applyRoomAction(room, actor, action, payload = {}) {
     case "confirmReveal": return confirmReveal(room, actor);
     case "nightAction": return nightAction(room, actor, payload);
     case "vote": return vote(room, actor, payload.targetId);
-    case "hunterShot": return hunterShot(room, actor, payload.targetId);
     case "returnLobby": return returnLobby(room, actor);
     case "chat": return chat(room, actor, payload.message);
     default: return "未知操作";
@@ -319,10 +317,8 @@ function startGame(room, actor) {
   room.nightRoleIndex = -1;
   room.nightStage = null;
   room.doppelPendingRole = null;
+  room.nightHistory = [];
   room.votes = {};
-  room.pendingHunterIds = [];
-  room.hunterShots = {};
-  room.pendingVoteResult = null;
   room.result = null;
   room.discussionEndsAt = null;
   room.phase = "reveal";
@@ -391,6 +387,11 @@ function resolveDoppelganger(room, actor, payload) {
   room.doppelCopiedRole = copiedRole;
   room.effectiveRoles[actor.id] = copiedRole;
   remember(room, actor.id, `你複製了 ${target.name} 的「${ROLE_DEFS[copiedRole].name}」，本局視為該角色與陣營。`);
+  addNightHistory(room, {
+    role: "doppelganger",
+    actorId: actor.id,
+    message: `${actor.name} 複製了 ${target.name} 的「${ROLE_DEFS[copiedRole].name}」。`
+  });
 
   if (!NIGHT_ROLES.has(copiedRole) || copiedRole === "doppelganger") return { keepActing: false };
   if (DOPPEL_IMMEDIATE_ROLES.has(copiedRole)) {
@@ -404,30 +405,63 @@ function resolveDoppelganger(room, actor, payload) {
 }
 
 function resolveWerewolf(room, actor, payload) {
-  const others = room.players.filter((player) => player.id !== actor.id && finalRole(room, player.id) === "werewolf");
+  const wakingWerewolfIds = new Set(nightActors(room, "werewolf"));
+  const others = room.players.filter((player) => player.id !== actor.id && wakingWerewolfIds.has(player.id));
   if (others.length) {
     remember(room, actor.id, `其他狼人：${others.map((player) => player.name).join("、")}`);
+    const wakingWerewolves = room.players.filter((player) => wakingWerewolfIds.has(player.id));
+    addNightHistory(room, {
+      role: "werewolf",
+      actorId: actor.id,
+      key: "werewolf-group",
+      message: `${wakingWerewolves.map((player) => player.name).join("、")} 睜眼互相確認狼人身分。`
+    });
     return null;
   }
   const centerIndex = Number(payload.centerIndex);
   if (!validCenterIndex(room, centerIndex)) return "你是唯一的狼人，請查看一張中央牌";
   remember(room, actor.id, centerMessage(room, centerIndex));
+  addNightHistory(room, {
+    role: "werewolf",
+    actorId: actor.id,
+    key: "werewolf-group",
+    message: `${actor.name} 獨自睜眼，沒有其他狼人，查看中央第 ${centerIndex + 1} 張「${ROLE_DEFS[room.centerCards[centerIndex]].name}」。`
+  });
   return null;
 }
 
 function resolveMinion(room, actor) {
-  const werewolves = room.players.filter((player) => finalRole(room, player.id) === "werewolf");
+  const wakingWerewolfIds = new Set(nightActors(room, "werewolf"));
+  const werewolves = room.players.filter((player) => wakingWerewolfIds.has(player.id));
   remember(room, actor.id, werewolves.length
     ? `狼人是：${werewolves.map((player) => player.name).join("、")}`
     : "玩家之中沒有狼人。你必須獨自替狼人陣營掩護。");
+  addNightHistory(room, {
+    role: "minion",
+    actorId: actor.id,
+    key: `minion-${actor.id}`,
+    message: werewolves.length
+      ? `${actor.name} 睜眼，確認狼人為 ${werewolves.map((player) => player.name).join("、")}。`
+      : `${actor.name} 睜眼，確認玩家之中沒有狼人。`
+  });
   return null;
 }
 
 function resolveMason(room, actor) {
-  const others = room.players.filter((player) => player.id !== actor.id && finalRole(room, player.id) === "mason");
+  const wakingMasonIds = new Set(nightActors(room, "mason"));
+  const others = room.players.filter((player) => player.id !== actor.id && wakingMasonIds.has(player.id));
   remember(room, actor.id, others.length
     ? `另一名守夜人是：${others.map((player) => player.name).join("、")}`
     : "玩家之中沒有另一名守夜人。");
+  const wakingMasons = room.players.filter((player) => wakingMasonIds.has(player.id));
+  addNightHistory(room, {
+    role: "mason",
+    actorId: actor.id,
+    key: "mason-group",
+    message: wakingMasons.length > 1
+      ? `${wakingMasons.map((player) => player.name).join("、")} 睜眼互相確認守夜人身分。`
+      : `${actor.name} 睜眼，沒有其他守夜人。`
+  });
   return null;
 }
 
@@ -436,12 +470,22 @@ function resolveSeer(room, actor, payload) {
     const target = otherPlayer(room, actor.id, payload.targetId);
     if (!target) return "請選擇一名其他玩家";
     remember(room, actor.id, `${target.name} 的牌是「${ROLE_DEFS[room.cards[target.id]].name}」`);
+    addNightHistory(room, {
+      role: "seer",
+      actorId: actor.id,
+      message: `${actor.name} 查看 ${target.name} 的牌：「${ROLE_DEFS[room.cards[target.id]].name}」。`
+    });
     return null;
   }
   if (payload.mode === "center") {
     const indexes = uniqueCenterIndexes(payload.centerIndexes);
     if (indexes.length !== 2 || indexes.some((index) => !validCenterIndex(room, index))) return "請選擇兩張中央牌";
     remember(room, actor.id, indexes.map((index) => centerMessage(room, index)).join("；"));
+    addNightHistory(room, {
+      role: "seer",
+      actorId: actor.id,
+      message: `${actor.name} 查看${indexes.map((index) => `中央第 ${index + 1} 張「${ROLE_DEFS[room.centerCards[index]].name}」`).join("、")}。`
+    });
     return null;
   }
   return "請選擇查看一名玩家或兩張中央牌";
@@ -450,25 +494,41 @@ function resolveSeer(room, actor, payload) {
 function resolveRobber(room, actor, payload) {
   if (payload.skip) {
     remember(room, actor.id, "你決定不交換卡片。");
+    addNightHistory(room, { role: "robber", actorId: actor.id, message: `${actor.name} 選擇不交換牌。` });
     return null;
   }
   const target = otherPlayer(room, actor.id, payload.targetId);
   if (!target) return "請選擇一名其他玩家，或選擇不交換";
+  const actorCard = room.cards[actor.id];
+  const targetCard = room.cards[target.id];
   swapCards(room, actor.id, target.id);
   remember(room, actor.id, `你與 ${target.name} 交換後，現在的牌是「${ROLE_DEFS[room.cards[actor.id]].name}」`);
+  addNightHistory(room, {
+    role: "robber",
+    actorId: actor.id,
+    message: `${actor.name} 與 ${target.name} 交換「${ROLE_DEFS[actorCard].name}」和「${ROLE_DEFS[targetCard].name}」，${actor.name} 查看後得知自己換到「${ROLE_DEFS[targetCard].name}」。`
+  });
   return null;
 }
 
 function resolveTroublemaker(room, actor, payload) {
   if (payload.skip) {
     remember(room, actor.id, "你決定不交換卡片。");
+    addNightHistory(room, { role: "troublemaker", actorId: actor.id, message: `${actor.name} 選擇不交換牌。` });
     return null;
   }
   const ids = [...new Set(Array.isArray(payload.targetIds) ? payload.targetIds : [])];
   const targets = ids.map((id) => otherPlayer(room, actor.id, id)).filter(Boolean);
   if (targets.length !== 2) return "請選擇另外兩名不同玩家，或選擇不交換";
+  const firstCard = room.cards[targets[0].id];
+  const secondCard = room.cards[targets[1].id];
   swapCards(room, targets[0].id, targets[1].id);
   remember(room, actor.id, `你交換了 ${targets[0].name} 與 ${targets[1].name} 的牌。`);
+  addNightHistory(room, {
+    role: "troublemaker",
+    actorId: actor.id,
+    message: `${actor.name} 交換 ${targets[0].name} 的「${ROLE_DEFS[firstCard].name}」與 ${targets[1].name} 的「${ROLE_DEFS[secondCard].name}」，當時沒有查看牌面。`
+  });
   return null;
 }
 
@@ -476,15 +536,26 @@ function resolveDrunk(room, actor, payload) {
   const centerIndex = Number(payload.centerIndex);
   if (!validCenterIndex(room, centerIndex)) return "請選擇一張中央牌";
   const held = room.cards[actor.id];
+  const centerCard = room.centerCards[centerIndex];
   room.cards[actor.id] = room.centerCards[centerIndex];
   room.centerCards[centerIndex] = held;
   remember(room, actor.id, `你與中央第 ${centerIndex + 1} 張牌交換，但不知道自己換到了什麼。`);
+  addNightHistory(room, {
+    role: "drunk",
+    actorId: actor.id,
+    message: `${actor.name} 將「${ROLE_DEFS[held].name}」與中央第 ${centerIndex + 1} 張「${ROLE_DEFS[centerCard].name}」交換，當時沒有查看新牌。`
+  });
   return null;
 }
 
 function resolveInsomniac(room, actor) {
   const role = finalRole(room, actor.id);
   remember(room, actor.id, `夜晚結束時，你的牌是「${ROLE_DEFS[role].name}」`);
+  addNightHistory(room, {
+    role: "insomniac",
+    actorId: actor.id,
+    message: `${actor.name} 在夜晚結束前查看自己的牌，看到「${ROLE_DEFS[role].name}」。`
+  });
   return null;
 }
 
@@ -543,18 +614,31 @@ function nightActors(room, role) {
     return room.players.filter((player) => room.initialCards[player.id] === "doppelganger").map((player) => player.id);
   }
   return room.players
-    .filter((player) => finalRole(room, player.id) === role)
+    .filter((player) => initialNightRole(room, player.id) === role)
     .filter((player) => !shouldSkipDoppelCopiedRegularAction(room, player.id, role))
     .map((player) => player.id);
 }
 
+function initialNightRole(room, playerId) {
+  const initialRole = room.initialCards[playerId];
+  if (initialRole === "doppelganger" && room.doppelCopiedRole) return room.doppelCopiedRole;
+  return initialRole;
+}
+
 function shouldSkipDoppelCopiedRegularAction(room, playerId, role) {
-  if (room.cards[playerId] !== "doppelganger" || room.doppelCopiedRole !== role) return false;
+  if (room.initialCards[playerId] !== "doppelganger" || room.doppelCopiedRole !== role) return false;
   return role === "insomniac" || DOPPEL_IMMEDIATE_ROLES.has(role);
 }
 
 function advanceTimedNight(room, now = Date.now()) {
   if (room.phase !== "night" || !room.nightStage?.delayUntil || !nightStageReadyToAdvance(room.nightStage, now)) return false;
+  if (room.nightStage.actorIds.length === 0 && room.nightStage.role !== "doppelInsomniac") {
+    addNightHistory(room, {
+      role: room.nightStage.role,
+      key: `empty-${room.nightStage.role}`,
+      message: `沒有玩家以「${ROLE_DEFS[room.nightStage.role].name}」初始身分行動；該角色牌開局時位於中央。`
+    });
+  }
   advanceNightStage(room, now);
   touch(room);
   return true;
@@ -597,46 +681,36 @@ function finishVote(room) {
   const votedOutIds = highest >= 2
     ? Object.entries(counts).filter(([, count]) => count === highest).map(([playerId]) => playerId)
     : [];
-  const hunterIds = votedOutIds
-    .filter((playerId) => finalRole(room, playerId) === "hunter")
-    .sort((leftId, rightId) => compareByRoll(playerById(room, leftId), playerById(room, rightId)));
-
-  if (hunterIds.length) {
-    room.pendingVoteResult = { counts, votedOutIds, eliminatedIds: [...votedOutIds] };
-    room.pendingHunterIds = hunterIds;
-    room.hunterShots = {};
-    room.phase = "hunter";
-    addLog(room, "遭到處決的獵人正在選擇反擊目標。");
-    return;
-  }
-  completeVoteResolution(room, counts, votedOutIds, [...votedOutIds]);
+  const eliminatedIds = resolveHunterDeaths(room, votedOutIds);
+  completeVoteResolution(room, counts, votedOutIds, eliminatedIds);
 }
 
-function hunterShot(room, actor, targetId) {
-  if (room.phase !== "hunter") return "目前不是獵人反擊階段";
-  if (room.pendingHunterIds[0] !== actor.id) return "目前不是你選擇反擊目標";
-  if (finalRole(room, actor.id) !== "hunter") return "只有出局的獵人可以反擊";
-  const target = room.players.find((player) => player.id === targetId && player.id !== actor.id);
-  if (!target) return "請選擇另一名玩家";
+function resolveHunterDeaths(room, votedOutIds) {
+  const eliminatedIds = [...votedOutIds];
+  const pendingHunterIds = votedOutIds
+    .filter((playerId) => finalRole(room, playerId) === "hunter")
+    .sort((leftId, rightId) => compareByRoll(playerById(room, leftId), playerById(room, rightId)));
+  const resolvedHunterIds = new Set();
 
-  room.hunterShots[actor.id] = target.id;
-  if (!room.pendingVoteResult.eliminatedIds.includes(target.id)) {
-    room.pendingVoteResult.eliminatedIds.push(target.id);
-  }
-  room.pendingHunterIds.shift();
-  if (finalRole(room, target.id) === "hunter"
-    && !room.hunterShots[target.id]
-    && !room.pendingHunterIds.includes(target.id)) {
-    room.pendingHunterIds.push(target.id);
-    room.pendingHunterIds.sort((leftId, rightId) => compareByRoll(playerById(room, leftId), playerById(room, rightId)));
+  while (pendingHunterIds.length) {
+    const hunterId = pendingHunterIds.shift();
+    if (resolvedHunterIds.has(hunterId)) continue;
+    resolvedHunterIds.add(hunterId);
+
+    const targetId = room.votes[hunterId];
+    const target = room.players.find((player) => player.id === targetId && player.id !== hunterId);
+    if (!target) continue;
+
+    if (!eliminatedIds.includes(target.id)) eliminatedIds.push(target.id);
+    addLog(room, `獵人 ${playerById(room, hunterId).name} 死亡，依投票帶走 ${target.name}。`);
+
+    if (finalRole(room, target.id) === "hunter" && !resolvedHunterIds.has(target.id)) {
+      pendingHunterIds.push(target.id);
+      pendingHunterIds.sort((leftId, rightId) => compareByRoll(playerById(room, leftId), playerById(room, rightId)));
+    }
   }
 
-  if (!room.pendingHunterIds.length) {
-    const pending = room.pendingVoteResult;
-    completeVoteResolution(room, pending.counts, pending.votedOutIds, pending.eliminatedIds);
-  }
-  touch(room);
-  return null;
+  return eliminatedIds;
 }
 
 function completeVoteResolution(room, counts, votedOutIds, eliminatedIds) {
@@ -671,22 +745,22 @@ function completeVoteResolution(room, counts, votedOutIds, eliminatedIds) {
     reason = killedWerewolf ? "好人陣營成功處決了至少一名狼人。" : "所有狼人都躲過了處決。";
   } else if (minionIds.length) {
     const nonMinionDied = eliminatedIds.some((playerId) => !minionIds.includes(playerId));
-    const winningTeam = killedMinion ? "village" : (nonMinionDied ? "werewolf" : "village");
+    const winningTeam = nonMinionDied ? "werewolf" : "village";
     winnerTeams.push(winningTeam);
     winningPlayerIds = playerIdsOnTeam(room, rolesByPlayer, winningTeam);
-    reason = killedMinion
-      ? "場上沒有狼人，爪牙遭到處決；好人陣營獲勝。"
-      : nonMinionDied
-        ? "場上沒有狼人，但爪牙成功讓其他玩家出局；狼人陣營獲勝。"
+    reason = nonMinionDied
+      ? "場上沒有狼人，但至少一名非爪牙玩家死亡；爪牙所屬的狼人陣營獲勝。"
+      : killedMinion
+        ? "場上沒有狼人，且只有爪牙遭到處決；好人陣營獲勝。"
         : "場上沒有狼人，且沒有人遭到處決；好人陣營獲勝。";
   } else {
     if (eliminatedIds.length) {
       winnerTeams.push("none");
       reason = "場上沒有狼人或爪牙，但仍有玩家遭到處決；本局沒有人獲勝。";
     } else {
-      winnerTeams.push("everyone");
-      winningPlayerIds = room.players.map((player) => player.id);
-      reason = "場上沒有狼人或爪牙，且無人遭到處決；所有玩家獲勝。";
+      winnerTeams.push("village");
+      winningPlayerIds = playerIdsOnTeam(room, rolesByPlayer, "village");
+      reason = "場上沒有狼人或爪牙，且無人遭到處決；好人陣營獲勝。";
     }
   }
 
@@ -705,8 +779,6 @@ function completeVoteResolution(room, counts, votedOutIds, eliminatedIds) {
       targetId: room.votes[player.id] || null
     }))
   };
-  room.pendingVoteResult = null;
-  room.pendingHunterIds = [];
   room.phase = "result";
   addLog(room, `${resultTitle(winnerTeams)}。`);
 }
@@ -752,10 +824,8 @@ function returnLobby(room, actor) {
   room.nightRoleIndex = -1;
   room.nightStage = null;
   room.doppelPendingRole = null;
+  room.nightHistory = [];
   room.votes = {};
-  room.pendingHunterIds = [];
-  room.hunterShots = {};
-  room.pendingVoteResult = null;
   room.result = null;
   room.discussionEndsAt = null;
   room.chat = [];
@@ -783,7 +853,7 @@ function makeView(room, playerId) {
   const validation = validateLobby(room);
   const visibleNightRole = nightRoleForViewer(room, playerId);
   const actionRole = nightActionRoleForViewer(room, playerId);
-  const nightProgress = nightProgressForViewer(room, visibleNightRole);
+  const nightProgress = nightProgressForViewer(room, visibleNightRole, playerId);
   const publicPlayers = playersByRoll(room).map((player) => ({
     id: player.id,
     name: player.name,
@@ -816,11 +886,6 @@ function makeView(room, playerId) {
         delayRemainingMs: Math.max(0, Number(room.nightStage?.delayUntil || 0) - Date.now())
       },
       votesCast: Object.keys(room.votes).length,
-      hunter: {
-        yourTurn: room.phase === "hunter" && room.pendingHunterIds[0] === playerId,
-        pending: room.pendingHunterIds.length,
-        shots: { ...room.hunterShots }
-      },
       discussionEndsAt: room.discussionEndsAt,
       chat: room.chat.slice(),
       log: room.log.slice(),
@@ -828,7 +893,8 @@ function makeView(room, playerId) {
       result: room.phase === "result" ? {
         ...room.result,
         finalCards: room.players.map((player) => ({ playerId: player.id, role: finalRole(room, player.id) })),
-        centerCards: [...room.centerCards]
+        centerCards: [...room.centerCards],
+        nightFlow: room.nightHistory.map(({ id, role, actorId, message }) => ({ id, role, actorId, message }))
       } : null
     },
     you: you ? {
@@ -863,8 +929,9 @@ function nightActionRoleForViewer(room, playerId) {
   return stage.role;
 }
 
-function nightProgressForViewer(room, visibleNightRole) {
+function nightProgressForViewer(room, visibleNightRole, playerId) {
   if (visibleNightRole === "privateNightAction") return { actorCount: 0, completedCount: 0 };
+  if (!room.nightStage?.actorIds.includes(playerId)) return { actorCount: 1, completedCount: 0 };
   return {
     actorCount: room.nightStage?.actorIds.length || 0,
     completedCount: room.nightStage?.completedIds.length || 0
@@ -878,24 +945,27 @@ function makeNightContext(room, playerId) {
     ? room.doppelCopiedRole
     : (stage.role === "doppelInsomniac" ? "insomniac" : stage.role);
   if (actionRole === "werewolf") {
+    const wakingWerewolfIds = new Set(nightActors(room, "werewolf"));
     const teammates = room.players
-      .filter((player) => player.id !== playerId && finalRole(room, player.id) === "werewolf")
+      .filter((player) => player.id !== playerId && wakingWerewolfIds.has(player.id))
       .map(publicPlayerReference);
     return { role: actionRole, teammates, loneWerewolf: teammates.length === 0 };
   }
   if (actionRole === "minion") {
+    const wakingWerewolfIds = new Set(nightActors(room, "werewolf"));
     return {
       role: actionRole,
       werewolves: room.players
-        .filter((player) => finalRole(room, player.id) === "werewolf")
+        .filter((player) => wakingWerewolfIds.has(player.id))
         .map(publicPlayerReference)
     };
   }
   if (actionRole === "mason") {
+    const wakingMasonIds = new Set(nightActors(room, "mason"));
     return {
       role: actionRole,
       masons: room.players
-        .filter((player) => player.id !== playerId && finalRole(room, player.id) === "mason")
+        .filter((player) => player.id !== playerId && wakingMasonIds.has(player.id))
         .map(publicPlayerReference)
     };
   }
@@ -994,6 +1064,18 @@ function addLog(room, message) {
   room.log.push(message);
 }
 
+function addNightHistory(room, { role, actorId = null, message, key = null }) {
+  room.nightHistory ||= [];
+  if (key && room.nightHistory.some((event) => event.key === key)) return;
+  room.nightHistory.push({
+    id: room.nightHistory.length + 1,
+    role,
+    actorId,
+    message,
+    key
+  });
+}
+
 function recordPlayerJoin(room, player) {
   room.playerJoinSerial += 1;
   room.playerJoinEvents.push({ serial: room.playerJoinSerial, playerId: player.id });
@@ -1025,7 +1107,7 @@ function validCenterIndex(room, index) {
 }
 
 function cleanName(value) {
-  return String(value || "").replace(/\s+/g, " ").trim().slice(0, 16);
+  return cleanPlayerName(value);
 }
 
 function normalizedName(value) {

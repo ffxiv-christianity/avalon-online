@@ -143,10 +143,11 @@
     page.openRules = document.getElementById("openRulesButton");
     page.closeRules = document.getElementById("closeRulesButton");
 
+    SharedPlayerName.bindPlayerNameInput(page.nameInput);
     bindEvents();
     const queryRoom = roomFromUrl();
     if (queryRoom) page.roomInput.value = queryRoom;
-    if (selectedSession?.name) page.nameInput.value = selectedSession.name;
+    if (selectedSession?.name) page.nameInput.value = SharedPlayerName.cleanPlayerName(selectedSession.name);
     renderRecentSessions();
     syncRejoin();
     connect();
@@ -232,13 +233,13 @@
 
   function bindEvents() {
     page.createButton.addEventListener("click", () => {
-      const name = page.nameInput.value.trim();
+      const name = SharedPlayerName.cleanPlayerName(page.nameInput.value);
       if (!name) return showToast("請先輸入名字。");
       sendRaw({ type: "createRoom", name });
     });
     page.joinForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      const name = page.nameInput.value.trim();
+      const name = SharedPlayerName.cleanPlayerName(page.nameInput.value);
       const roomCode = parseRoomCode(page.roomInput.value);
       if (!name) return showToast("請先輸入名字。");
       if (!roomCode) return showToast("請輸入有效的房間代碼或邀請連結。");
@@ -254,7 +255,7 @@
       if (!button) return;
       const saved = sessionStore().sessions[button.dataset.criminalRecentPlayer];
       if (!saved) return;
-      page.nameInput.value = saved.name || "";
+      page.nameInput.value = SharedPlayerName.cleanPlayerName(saved.name || "");
       page.roomInput.value = saved.roomCode;
       selectedSession = saved;
       sessionStorage.setItem(TAB_KEY, saved.playerId);

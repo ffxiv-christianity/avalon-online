@@ -206,7 +206,7 @@ function testDoppelgangerCopiesEveryRoleDeterministically() {
   });
 }
 
-function testHunterShotAfterAllVotes() {
+function testHunterVoteTargetDiesAfterAllVotes() {
   const layout = maxDeckLayout("hunter");
   const { room, players } = makeStartedMaxRoom(layout);
   runNightToDiscussion(room, players, players[1].id);
@@ -218,8 +218,6 @@ function testHunterShotAfterAllVotes() {
     assert.strictEqual(applyRoomAction(room, player, "vote", { targetId: hunter.id }), null);
   });
   assert.strictEqual(applyRoomAction(room, hunter, "vote", { targetId: shotTarget.id }), null);
-  assert.strictEqual(room.phase, "hunter");
-  assert.strictEqual(applyRoomAction(room, hunter, "hunterShot", { targetId: shotTarget.id }), null);
   assert.strictEqual(room.phase, "result");
   assert(room.result.votedOutIds.includes(hunter.id));
   assert(room.result.eliminatedIds.includes(hunter.id));
@@ -237,9 +235,6 @@ function makeDiscussionRoomWithRoles(roles) {
   room.phase = "discussion";
   room.discussionEndsAt = Date.now() + 300000;
   room.votes = {};
-  room.pendingHunterIds = [];
-  room.hunterShots = {};
-  room.pendingVoteResult = null;
   room.result = null;
   room.centerCards = ["villager", "villager", "villager"];
   room.initialCards = {};
@@ -257,43 +252,26 @@ function playerNames(players, ids = []) {
   return ids.map((id) => players.find((player) => player.id === id)?.name || id);
 }
 
-function testHunterChainsToAnotherHunterBeforeResult() {
+function testHunterVotesChainToAnotherHunterBeforeResult() {
   const { room, players } = makeDiscussionRoomWithRoles(["hunter", "hunter", "werewolf", "villager"]);
 
-  [players[1], players[2], players[3]].forEach((player) => {
-    assert.strictEqual(applyRoomAction(room, player, "vote", { targetId: players[0].id }), null);
-  });
-  assert.strictEqual(applyRoomAction(room, players[0], "vote", { targetId: players[2].id }), null);
-  assert.strictEqual(room.phase, "hunter");
-  assert.deepStrictEqual(playerNames(players, room.pendingHunterIds), ["P1"]);
-
-  assert.strictEqual(applyRoomAction(room, players[0], "hunterShot", { targetId: players[1].id }), null);
-  assert.strictEqual(room.phase, "hunter");
-  assert.deepStrictEqual(playerNames(players, room.pendingHunterIds), ["P2"]);
-  assert.deepStrictEqual(playerNames(players, room.pendingVoteResult.eliminatedIds), ["P1", "P2"]);
-
-  assert.strictEqual(applyRoomAction(room, players[1], "hunterShot", { targetId: players[2].id }), null);
+  assert.strictEqual(applyRoomAction(room, players[1], "vote", { targetId: players[2].id }), null);
+  assert.strictEqual(applyRoomAction(room, players[2], "vote", { targetId: players[0].id }), null);
+  assert.strictEqual(applyRoomAction(room, players[3], "vote", { targetId: players[0].id }), null);
+  assert.strictEqual(applyRoomAction(room, players[0], "vote", { targetId: players[1].id }), null);
   assert.strictEqual(room.phase, "result");
   assert.deepStrictEqual(playerNames(players, room.result.eliminatedIds), ["P1", "P2", "P3"]);
 }
 
-function testDoppelgangerHunterChainsToRealHunterBeforeResult() {
+function testDoppelgangerHunterVotesChainToRealHunterBeforeResult() {
   const { room, players } = makeDiscussionRoomWithRoles(["doppelganger", "hunter", "werewolf", "villager"]);
   room.doppelCopiedRole = "hunter";
   room.effectiveRoles[players[0].id] = "hunter";
 
-  [players[1], players[2], players[3]].forEach((player) => {
-    assert.strictEqual(applyRoomAction(room, player, "vote", { targetId: players[0].id }), null);
-  });
-  assert.strictEqual(applyRoomAction(room, players[0], "vote", { targetId: players[2].id }), null);
-  assert.strictEqual(room.phase, "hunter");
-  assert.deepStrictEqual(playerNames(players, room.pendingHunterIds), ["P1"]);
-
-  assert.strictEqual(applyRoomAction(room, players[0], "hunterShot", { targetId: players[1].id }), null);
-  assert.strictEqual(room.phase, "hunter");
-  assert.deepStrictEqual(playerNames(players, room.pendingHunterIds), ["P2"]);
-
-  assert.strictEqual(applyRoomAction(room, players[1], "hunterShot", { targetId: players[2].id }), null);
+  assert.strictEqual(applyRoomAction(room, players[1], "vote", { targetId: players[2].id }), null);
+  assert.strictEqual(applyRoomAction(room, players[2], "vote", { targetId: players[0].id }), null);
+  assert.strictEqual(applyRoomAction(room, players[3], "vote", { targetId: players[0].id }), null);
+  assert.strictEqual(applyRoomAction(room, players[0], "vote", { targetId: players[1].id }), null);
   assert.strictEqual(room.phase, "result");
   assert.deepStrictEqual(playerNames(players, room.result.eliminatedIds), ["P1", "P2", "P3"]);
 }
@@ -363,9 +341,9 @@ function testCenterOnlyRoleUsesFakeTimedNightAction() {
 
 testMaxDeckNightOrderDiscussionTimerAndPrivateInfo();
 testDoppelgangerCopiesEveryRoleDeterministically();
-testHunterShotAfterAllVotes();
-testHunterChainsToAnotherHunterBeforeResult();
-testDoppelgangerHunterChainsToRealHunterBeforeResult();
+testHunterVoteTargetDiesAfterAllVotes();
+testHunterVotesChainToAnotherHunterBeforeResult();
+testDoppelgangerHunterVotesChainToRealHunterBeforeResult();
 testJoiningPlayerResetsAllReady();
 testHostSettingsResetAllReady();
 testCenterOnlyRoleUsesFakeTimedNightAction();

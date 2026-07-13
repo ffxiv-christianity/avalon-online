@@ -11,6 +11,7 @@ const {
   transferHost: sharedTransferHost,
   kickOfflinePlayer: sharedKickOfflinePlayer
 } = require("../Shared/server/room-actions");
+const { cleanPlayerName } = require("../Shared/public/player-name");
 
 const CARD_DEFS = Object.freeze({
   first_discoverer: { name: "第一發現者", basic: true },
@@ -1061,7 +1062,7 @@ function touch(room) {
 }
 
 function cleanName(value) {
-  return String(value || "").replace(/\s+/g, " ").trim().slice(0, 16);
+  return cleanPlayerName(value);
 }
 
 function normalizedName(value) {

@@ -112,7 +112,6 @@ function setManualGame(room, players, roles) {
   room.activeExcaliburHolderId = null;
   room.excaliburTargetId = null;
   room.pendingExcaliburResult = null;
-  room.usedExcaliburHolderIds = [];
   room.ladyHolderId = null;
   room.ladyUsedIds = [];
   room.pendingLakeResult = null;
@@ -374,9 +373,10 @@ function testLobbySettingsReadyAndStart() {
     teamSizes: [2, 3, 2, 3, 3],
     leaderMode: "appoint",
     resultDelaySeconds: 5,
-    expansions: { excalibur: false, excaliburUnique: false, ladyOfLake: true }
+    expansions: { excalibur: false, ladyOfLake: true }
   });
   assert.strictEqual(room.settings.resultDelaySeconds, 5);
+  assert.deepStrictEqual(room.settings.expansions, { excalibur: false, ladyOfLake: true });
   expectError(room, host, "startGame", {}, "擲 d100");
 
   players.forEach((player) => {
@@ -400,7 +400,7 @@ function testLadyInitialHolderUsesSecondHighestRoll() {
     roles: room.settings.roles,
     teamSizes: [2, 3, 2, 3, 3],
     leaderMode: "appoint",
-    expansions: { excalibur: false, excaliburUnique: false, ladyOfLake: true }
+    expansions: { excalibur: false, ladyOfLake: true }
   });
   [1, 99, 2, 100, 3].forEach((roll, index) => {
     players[index].roll = roll;
@@ -547,7 +547,7 @@ function testChatReactionsAssassinationAndReset() {
 
 function testExcaliburExpansion() {
   const { room, players } = makePlayers(5);
-  room.settings.expansions = { excalibur: true, excaliburUnique: true, ladyOfLake: false };
+  room.settings.expansions = { excalibur: true, ladyOfLake: false };
   setManualGame(room, players, ["merlin", "servant", "servant", "assassin", "morgana"]);
   const leader = players[0];
   const evilOnTeam = players[3];
@@ -555,6 +555,8 @@ function testExcaliburExpansion() {
   action(room, leader, "toggleTeam", { playerId: leader.id });
   action(room, leader, "toggleTeam", { playerId: evilOnTeam.id });
   assert(!makeView(room, leader.id).room.excaliburCandidateIds.includes(leader.id), "leader must not be an Excalibur candidate");
+  expectError(room, leader, "submitTeam", {}, "必須將劍交給");
+  expectError(room, leader, "setExcaliburHolder", {}, "請將王者之劍交給");
   expectError(room, leader, "setExcaliburHolder", { playerId: leader.id }, "不能將王者之劍交給自己");
   expectError(room, players[1], "setExcaliburHolder", { playerId: evilOnTeam.id }, "領袖");
   action(room, leader, "setExcaliburHolder", { playerId: evilOnTeam.id });
@@ -563,14 +565,23 @@ function testExcaliburExpansion() {
   voteAll(room, players, "approve");
   action(room, leader, "continueVote");
   assert.strictEqual(room.phase, "mission");
-  assert(room.usedExcaliburHolderIds.includes(evilOnTeam.id));
 
   action(room, leader, "submitMission", { card: "success" });
   action(room, evilOnTeam, "submitMission", { card: "fail" });
   assert.strictEqual(room.phase, "excalibur");
   expectError(room, leader, "useExcalibur", { playerId: evilOnTeam.id }, "王者之劍持有者");
+  expectError(room, evilOnTeam, "useExcalibur", { playerId: evilOnTeam.id }, "另一名任務成員");
   action(room, evilOnTeam, "useExcalibur", { playerId: leader.id });
   assert.strictEqual(room.phase, "excaliburResult");
+  const publicExcaliburResult = {
+    holderId: evilOnTeam.id,
+    holderName: evilOnTeam.name,
+    targetId: leader.id,
+    targetName: leader.name
+  };
+  players.forEach((player) => {
+    assert.deepStrictEqual(makeView(room, player.id).room.excaliburPublicResult, publicExcaliburResult, "holder and target must become public as soon as Excalibur is used");
+  });
   assert.deepStrictEqual(makeView(room, evilOnTeam.id).room.excaliburResult, {
     targetId: leader.id,
     targetName: leader.name,
@@ -578,6 +589,7 @@ function testExcaliburExpansion() {
     originalCard: "success"
   });
   assert.strictEqual(makeView(room, leader.id).room.excaliburResult, null, "original mission card must only be visible to the sword holder");
+  assert(room.log.some((entry) => entry.includes(`${evilOnTeam.name} 對 ${leader.name} 發動王者之劍`)), "Excalibur target must be logged immediately");
   assert.strictEqual(room.missionResults.length, 0, "mission must not resolve before the sword holder confirms the private result");
   expectError(room, leader, "confirmExcaliburResult", {}, "王者之劍持有者");
   action(room, evilOnTeam, "confirmExcaliburResult");
@@ -586,13 +598,15 @@ function testExcaliburExpansion() {
   assert.strictEqual(room.missionResults.at(-1).fails, 2);
   assert.strictEqual(room.missionResults.at(-1).excalibur.targetId, leader.id);
   assert.strictEqual(room.missionResults.at(-1).excalibur.used, true);
+  assert.strictEqual(room.log.filter((entry) => entry.includes("發動王者之劍")).length, 1, "Excalibur activation must not be logged twice at mission resolution");
 
   room.phase = "team";
   room.selectedTeam = [evilOnTeam.id];
-  expectError(room, leader, "setExcaliburHolder", { playerId: evilOnTeam.id }, "已持有");
+  action(room, leader, "setExcaliburHolder", { playerId: evilOnTeam.id });
+  assert.strictEqual(room.selectedExcaliburHolderId, evilOnTeam.id, "the same player may hold Excalibur again on a later proposal");
 
   const { room: skipRoom, players: skipPlayers } = makePlayers(5);
-  skipRoom.settings.expansions = { excalibur: true, excaliburUnique: false, ladyOfLake: false };
+  skipRoom.settings.expansions = { excalibur: true, ladyOfLake: false };
   setManualGame(skipRoom, skipPlayers, ["merlin", "servant", "servant", "assassin", "morgana"]);
   const skipLeader = skipPlayers[0];
   const skipHolder = skipPlayers[3];
@@ -617,7 +631,7 @@ function testExcaliburExpansion() {
   assert(skipRoom.log.some((entry) => entry.includes("但沒有發動")));
 
   const { room: failedRoom, players: failedPlayers } = makePlayers(5);
-  failedRoom.settings.expansions = { excalibur: true, excaliburUnique: true, ladyOfLake: false };
+  failedRoom.settings.expansions = { excalibur: true, ladyOfLake: false };
   setManualGame(failedRoom, failedPlayers, ["merlin", "servant", "servant", "assassin", "morgana"]);
   const failedLeader = failedPlayers[0];
   action(failedRoom, failedLeader, "toggleTeam", { playerId: failedPlayers[1].id });
@@ -626,7 +640,7 @@ function testExcaliburExpansion() {
   action(failedRoom, failedLeader, "submitTeam");
   voteAll(failedRoom, failedPlayers, "reject");
   action(failedRoom, failedLeader, "continueVote");
-  assert(!failedRoom.usedExcaliburHolderIds.includes(failedPlayers[1].id), "failed vote should not consume Excalibur holder");
+  assert.strictEqual(failedRoom.selectedExcaliburHolderId, null, "failed proposal must clear its Excalibur assignment");
 }
 
 function completeApprovedSuccessRound(room, players, team) {
@@ -640,7 +654,7 @@ function completeApprovedSuccessRound(room, players, team) {
 function testLadyOfLakeExpansion() {
   const { room, players } = makePlayers(5);
   room.settings.leaderMode = "standard";
-  room.settings.expansions = { excalibur: false, excaliburUnique: false, ladyOfLake: true };
+  room.settings.expansions = { excalibur: false, ladyOfLake: true };
   setManualGame(room, players, ["merlin", "servant", "servant", "assassin", "morgana"]);
   room.ladyHolderId = players[4].id;
   room.ladyUsedIds = [players[4].id];
@@ -674,11 +688,18 @@ function testLadyOfLakeExpansion() {
   assert.strictEqual(room.ladyHolderId, players[2].id);
   assert(room.ladyUsedIds.includes(players[2].id));
   room.phase = "lake";
-  assert(makeView(room, players[2].id).room.lakeCandidateIds.includes(players[4].id));
-  action(room, players[2], "inspectWithLady", { playerId: players[4].id });
+  assert(!makeView(room, players[2].id).room.lakeCandidateIds.includes(players[4].id));
+  expectError(room, players[2], "inspectWithLady", { playerId: players[4].id });
+  assert(makeView(room, players[2].id).room.lakeCandidateIds.includes(players[0].id));
+  action(room, players[2], "inspectWithLady", { playerId: players[0].id });
   assert.strictEqual(room.phase, "lakeResult");
-  assert(makeView(room, players[2].id).room.lakeResultText.includes(`你查驗 ${players[4].name} 是邪惡方`));
-  assert.strictEqual(room.ladyHolderId, players[0].id, "used target should pass Lady to next unused player by d100 order");
+  assert.deepStrictEqual(makeView(room, players[2].id).room.lakeResult, {
+    targetId: players[0].id,
+    targetName: players[0].name,
+    targetMark: players[0].avatarMark,
+    side: "good"
+  });
+  assert.strictEqual(room.ladyHolderId, players[0].id);
   assert(room.ladyUsedIds.includes(players[0].id));
   action(room, players[2], "confirmLakeResult");
   assert.strictEqual(room.phase, "team");

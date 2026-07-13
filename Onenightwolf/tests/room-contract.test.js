@@ -139,9 +139,8 @@ function testReturnLobbyClearsTransientRoomStateButKeepsPlayers() {
   assert.deepStrictEqual(room.centerCards, []);
   assert.deepStrictEqual(room.privateInfo, {});
   assert.deepStrictEqual(room.effectiveRoles, {});
+  assert.deepStrictEqual(room.nightHistory, []);
   assert.deepStrictEqual(room.votes, {});
-  assert.deepStrictEqual(room.hunterShots, {});
-  assert.strictEqual(room.pendingVoteResult, null);
   assert.strictEqual(room.result, null);
   assert.strictEqual(room.discussionEndsAt, null);
   assert.deepStrictEqual(room.chat, []);

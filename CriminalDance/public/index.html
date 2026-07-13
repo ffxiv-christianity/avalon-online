@@ -46,7 +46,7 @@
           </label>
           <label class="field">
             <span>你的名字</span>
-            <input id="nameInput" maxlength="16" required autocomplete="name">
+            <input id="nameInput" maxlength="12" required autocomplete="name" aria-description="最多 12 個半形字元；中文、全形字元與表情符號算 2 個">
           </label>
           <label class="field">
             <span>房間代碼或邀請連結</span>
@@ -68,9 +68,10 @@
         <details class="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/07/09</small>
+            <small>最新版本 2026/07/13</small>
           </summary>
           <ul>
+            <li><strong>2026/07/13</strong> 統一房間名稱契約：玩家名稱最多 12 個半形字元，中文、全形字元與表情符號以 2 個計算；前端即時限制並由伺服器再次清理。</li>
             <li><strong>2026/07/09</strong> 改善遊戲邏輯與主遊戲 UI；修正只剩交易時可打出但無效果；修正已打出共犯的玩家用神犬或警部抓到犯人時不加分；補強規則說明、行動資訊與新型主遊戲框架呈現。</li>
             <li><strong>2026/07/06 v3</strong> 改善重新連線功能；改善動畫效果</li>
             <li><strong>2026/07/06 v2</strong> 修正bug；手牌新增額外說明。</li>
@@ -304,6 +305,7 @@
 
   <script src="/shared/client-state.js"></script>
   <script src="/shared/room-ui.js"></script>
+  <script src="/shared/player-name.js"></script>
   <script>
     document.getElementById("gameModeSelect")?.addEventListener("change", (event) => {
       if (event.target.value === "avalon") window.location.href = "/";

@@ -49,7 +49,7 @@
           </label>
           <label class="field">
             <span>你的名字</span>
-            <input id="nameInput" maxlength="16" required autocomplete="name" placeholder="">
+            <input id="nameInput" maxlength="12" required autocomplete="name" placeholder="" aria-description="最多 12 個半形字元；中文、全形字元與表情符號算 2 個">
           </label>
           <label class="field">
             <span>房間代碼或邀請連結</span>
@@ -71,12 +71,12 @@
         <details class="changelog" id="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/07/06 v3</small>
+            <small>最新版本 2026/07/13</small>
           </summary>
           <ul>
+            <li><strong>2026/07/13</strong> 王者之劍改依官方規則執行：每次提案必須交給任務中的其他玩家、可重複由同一玩家持有，發動時立即公開目標；全員投票時會顯示本次持有者。修正湖中女神不可查驗曾持有過標記的玩家，並統一玩家名稱最多 12 個半形字元。</li>
             <li><strong>2026/07/06 v3</strong> 改善重新連線功能</li>
             <li><strong>2026/06/25</strong> 改善伺服器連線</li>
-            <li><strong>2026/06/23 v3</strong> 改善手機板UI</li>
             <li><strong>2026/06/23 v3</strong> 改善手機板UI</li>
             <li><strong>2026/06/23 v2</strong> 新增多分頁控制權設定；重複操作的防護；玩家列表僅高亮本人，不再高亮其他玩家</li>
             <li><strong>2026/06/22</strong> 改善聊天室、玩家列表、記錄；房主可踢出離線玩家；新增可隨時查看規則；改善湖中女神、王者之劍的UI；
@@ -245,11 +245,11 @@
         </section>
         <section>
           <h3>王者之劍</h3>
-          <p>領袖可不給劍，或交給參與任務的其他玩家，不能交給自己。所有任務牌提交後，持劍者可選擇不發動，或鎖定一名任務成員；持劍者私下看見該玩家原本的任務牌，再將成功與失敗翻轉後結算。持劍者、是否發動及目標皆為公開情報。</p>
+          <p>啟用後，每次組隊時領袖都必須將劍交給參與任務的其他玩家，不能交給自己。所有任務牌提交後，持劍者可選擇不發動，或公開鎖定另一名任務成員；發動時立即公開持劍者與目標，只有持劍者能私下看見該玩家原本的任務牌，再將成功與失敗翻轉後結算。</p>
         </section>
         <section>
           <h3>湖中女神</h3>
-          <p>開局由擲骰第二高的玩家持有。指定輪次任務結束後，持有者查驗一名玩家的陣營，結果只有查驗者能看見；查驗對象與新的指示物持有者為公開情報。查驗結果不會寫入遊戲記錄。</p>
+          <p>開局由擲骰第二高的玩家持有。第 2、3、4 次任務結束後，持有者可查驗一名從未持有過湖中女神的其他玩家，並將指示物交給該玩家；因此最初持有者也不能成為之後的查驗對象。結果只有查驗者能看見，查驗對象與新的指示物持有者為公開情報，查驗結果不會寫入遊戲記錄。</p>
         </section>
         <section>
           <h3>四人特殊規則</h3>
@@ -257,7 +257,7 @@
         </section>
         <section>
           <h3>公開與私密資訊</h3>
-          <p>投票為公開明票；任務牌為匿名，只公開最終成功／失敗與失敗牌數。角色、湖中女神結果及王者之劍目標原始牌只會顯示在對應玩家自己的裝置。</p>
+          <p>投票為公開明票；任務牌為匿名，只公開最終成功／失敗與失敗牌數。王者之劍是否發動及目標會在發動時立即公開，但目標原本提交的任務牌只有持劍者能看見；角色與湖中女神結果也只會顯示在對應玩家自己的裝置。</p>
         </section>
       </div>
     </article>
@@ -265,6 +265,7 @@
 
   <script src="/shared/client-state.js"></script>
   <script src="/shared/room-ui.js"></script>
+  <script src="/shared/player-name.js"></script>
   <script>
     document.getElementById("gameModeSelect")?.addEventListener("change", (event) => {
       if (event.target.value === "onenightwolf") {
@@ -278,6 +279,6 @@
       }
     });
   </script>
-  <script src="./app.js"></script>
+  <script src="./app.js?v=20260713-1"></script>
 </body>
 </html>

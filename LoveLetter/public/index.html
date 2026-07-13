@@ -46,7 +46,7 @@
           </label>
           <label class="field">
             <span>你的名字</span>
-            <input id="nameInput" maxlength="16" required autocomplete="name">
+            <input id="nameInput" maxlength="12" required autocomplete="name" aria-description="最多 12 個半形字元；中文、全形字元與表情符號算 2 個">
           </label>
           <label class="field">
             <span>房間代碼或邀請連結</span>
@@ -68,9 +68,10 @@
         <details class="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/07/09</small>
+            <small>最新版本 2026/07/13</small>
           </summary>
           <ul>
+            <li><strong>2026/07/13</strong> 修正衛兵、神父、男爵與國王在所有其他玩家受女僕保護時仍可無效果打出，避免流程卡死；間諜改為回合結束時唯一仍在場且曾打出間諜的玩家得分。行動資訊統一顯示卡牌點數，改善女僕保護提示與點數圓標樣式，並統一玩家名稱最多 12 個半形字元。</li>
             <li><strong>2026/07/09</strong> 改善遊戲邏輯與主遊戲 UI；補強手牌、玩家矩陣、行動資訊、目前回合提示與確認按鈕列；優化無合法目標、抽牌、換牌與結算資訊呈現；結算時公開所有玩家剩餘手牌。</li>
             <li><strong>2026/07/07 v2</strong> 改善玩家列表房主指示物對齊；結算與整場結束時玩家列表只保留房主指示物；補強行動資訊與國王交換私密訊息；手機板抽牌堆與蓋牌改為同列顯示。</li>
             <li><strong>2026/07/07</strong> 修正無人可指定時，手牌只有衛兵會導致遊戲無法進行的問題。</li>
@@ -221,14 +222,14 @@
         <section>
           <h3>卡牌效果</h3>
           <dl class="rules-role-list">
-            <div><dt class="love-numbered-label"><span class="love-card-number">0</span><span class="love-card-name">間諜</span></dt><dd>無立即效果。本局只有一位玩家打出或棄掉過間諜時，該玩家額外 +1 分。</dd></div>
-            <div><dt class="love-numbered-label"><span class="love-card-number">1</span><span class="love-card-name">衛兵</span></dt><dd>指定未受保護的其他玩家，猜一張非衛兵牌；猜中則對方出局。</dd></div>
-            <div><dt class="love-numbered-label"><span class="love-card-number">2</span><span class="love-card-name">神父</span></dt><dd>指定未受保護的其他玩家，私下查看對方手牌。</dd></div>
-            <div><dt class="love-numbered-label"><span class="love-card-number">3</span><span class="love-card-name">男爵</span></dt><dd>指定未受保護的其他玩家，私下比手牌數值，較低者出局，平手無事。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">0</span><span class="love-card-name">間諜</span></dt><dd>無立即效果。回合結束時，若未出局的玩家中只有一人曾打出或棄掉間諜，該玩家額外 +1 分；已出局玩家不列入判定。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">1</span><span class="love-card-name">衛兵</span></dt><dd>指定未受保護的其他玩家，猜一張非衛兵牌；猜中則對方出局。若所有其他玩家都受保護，可直接打出且不發生效果。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">2</span><span class="love-card-name">神父</span></dt><dd>指定未受保護的其他玩家，私下查看對方手牌。若所有其他玩家都受保護，可直接打出且不發生效果。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">3</span><span class="love-card-name">男爵</span></dt><dd>指定未受保護的其他玩家，私下比手牌數值，較低者出局，平手無事。若所有其他玩家都受保護，可直接打出且不發生效果。</dd></div>
             <div><dt class="love-numbered-label"><span class="love-card-number">4</span><span class="love-card-name">侍女</span></dt><dd>保護自己直到下一次自己的回合開始。</dd></div>
             <div><dt class="love-numbered-label"><span class="love-card-number">5</span><span class="love-card-name">王子</span></dt><dd>指定任一未受保護玩家或自己，該玩家棄手牌並從牌庫抽一張；若牌庫已空，改拿開局時暗置的蓋牌；若棄公主則出局。</dd></div>
             <div><dt class="love-numbered-label"><span class="love-card-number">6</span><span class="love-card-name">大臣</span></dt><dd>最多抽 2 張，從手中保留 1 張，其餘依序放回牌庫底。</dd></div>
-            <div><dt class="love-numbered-label"><span class="love-card-number">7</span><span class="love-card-name">國王</span></dt><dd>指定未受保護的其他玩家，交換手牌。</dd></div>
+            <div><dt class="love-numbered-label"><span class="love-card-number">7</span><span class="love-card-name">國王</span></dt><dd>指定未受保護的其他玩家，交換手牌。若所有其他玩家都受保護，可直接打出且不發生效果。</dd></div>
             <div><dt class="love-numbered-label"><span class="love-card-number">8</span><span class="love-card-name">伯爵夫人</span></dt><dd>無效果；若同時持有國王或王子，必須打出伯爵夫人。</dd></div>
             <div><dt class="love-numbered-label"><span class="love-card-number">9</span><span class="love-card-name">公主</span></dt><dd>打出或被棄掉時立刻出局。</dd></div>
           </dl>
@@ -236,7 +237,7 @@
         <section>
           <h3>勝利條件</h3>
           <p>本局在牌庫耗盡或只剩一位玩家仍在局內時結束。牌庫耗盡時，所有未出局玩家公開手牌並比較數值，最高者獲勝；若最高數值平手，平手玩家都獲勝。若只剩一位玩家，該玩家獲勝。</p>
-          <p>本局勝者 +1 分；若只有一位玩家在本局打出或棄掉過間諜，該玩家額外 +1 分。預設目標分數為 2 人 6 分、3 人 5 分、4 人 4 分、5/6 人 3 分，房主可調整。</p>
+          <p>本局勝者 +1 分；結算時若未出局玩家中只有一人曾打出或棄掉間諜，該玩家再額外 +1 分，因此同一位玩家可同時取得勝利分與間諜分。預設目標分數為 2 人 6 分、3 人 5 分、4 人 4 分、5/6 人 3 分，房主可調整。</p>
         </section>
       </div>
     </article>
@@ -244,6 +245,7 @@
 
   <script src="/shared/client-state.js"></script>
   <script src="/shared/room-ui.js"></script>
+  <script src="/shared/player-name.js"></script>
   <script>
     document.getElementById("gameModeSelect")?.addEventListener("change", (event) => {
       if (event.target.value === "avalon") window.location.href = "/";
@@ -251,6 +253,6 @@
       if (event.target.value === "criminaldance") window.location.href = "/CriminalDance/";
     });
   </script>
-  <script src="/LoveLetter/loveletter.js"></script>
+  <script src="/LoveLetter/loveletter.js?v=20260713-1"></script>
 </body>
 </html>

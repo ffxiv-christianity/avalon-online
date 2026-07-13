@@ -46,7 +46,7 @@
           </label>
           <label class="field">
             <span>你的名字</span>
-            <input id="nameInput" maxlength="16" required autocomplete="name">
+            <input id="nameInput" maxlength="12" required autocomplete="name" aria-description="最多 12 個半形字元；中文、全形字元與表情符號算 2 個">
           </label>
           <label class="field">
             <span>房間代碼或邀請連結</span>
@@ -68,9 +68,10 @@
         <details class="changelog" id="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/07/06 v3</small>
+            <small>最新版本 2026/07/13</small>
           </summary>
           <ul>
+            <li><strong>2026/07/13</strong> 夜間行動順序與能力改以初始牌判定；修正化身幽靈、獵人連帶出局、爪牙與皮匠等勝負分支。結算新增可收合的 Night recap、中央牌資訊及預設折疊的投票明細，修正票條比例；未投票仍視為廢票。統一玩家名稱最多 12 個半形字元。</li>
             <li><strong>2026/07/06 v3</strong> 改善重新連線功能</li>
             <li><strong>2026/07/02</strong> 以共用 template 房間框架重構，玩法不變；改善化身幽靈邏輯</li>
             <li><strong>2026/06/25</strong> 改善伺服器連線</li>
@@ -195,8 +196,8 @@
           <h3>遊戲流程</h3>
           <ol>
             <li>每名玩家取得一張角色牌，另有三張牌留在中央。</li>
-            <li>天亮前每位玩家只會看到自己的初始角色牌；輪到你行動時，行動區會提示你當下執行的角色。</li>
-            <li>依角色順序完成夜間能力；每個階段由當下持有該角色牌的玩家行動，部分能力會交換角色牌。</li>
+            <li>夜晚期間會持續顯示自己的初始角色，方便記憶；這不代表目前或最終持有的角色牌。天亮進入討論後便不能再查看。</li>
+            <li>夜間叫醒順序與能力發動者由初始角色決定；夜間換牌只改變牌的位置與最終角色，不會讓被換到新角色的玩家補做能力，也不會取消原本角色的行動。</li>
             <li>天亮後在房主設定的時間內自由討論並投票；所有人提早投完會立即結算。</li>
             <li>討論時間結束後直接結算，尚未投票的玩家視為廢票。</li>
             <li>最高票且至少兩票者遭到處決；平票可能同時處決多人。結算時會公開所有玩家的投票。</li>
@@ -208,7 +209,7 @@
           <div class="wolf-rules-role-grid">
           <div class="neutral"><strong>化身幽靈</strong><span>依複製角色決定</span><p>最早行動，查看一名玩家的初始角色並複製其能力與陣營；不同角色會立即、同時或延後行動。</p></div>
           <div class="werewolf"><strong>狼人</strong><span>狼人陣營</span><p>查看其他狼人。若你是唯一的狼人，可以查看一張中央牌。</p></div>
-          <div class="werewolf"><strong>爪牙</strong><span>狼人陣營</span><p>查看所有狼人。狼人不知道你是誰；必要時可以代替狼人被處決。</p></div>
+          <div class="werewolf"><strong>爪牙</strong><span>狼人陣營</span><p>查看所有狼人。狼人不知道你是誰；場上沒有狼人時，只要至少一名非爪牙玩家死亡便獲勝。</p></div>
           <div class="village"><strong>守夜人</strong><span>好人陣營</span><p>查看另一名守夜人。牌庫中必須同時放入兩張守夜人。</p></div>
           <div class="village"><strong>預言家</strong><span>好人陣營</span><p>查看一名其他玩家的牌，或查看兩張中央牌。</p></div>
           <div class="village"><strong>強盜</strong><span>好人陣營</span><p>可以和一名其他玩家交換牌，並查看自己換到的牌。</p></div>
@@ -217,7 +218,7 @@
           <div class="village"><strong>失眠者</strong><span>好人陣營</span><p>夜晚最後查看自己目前的牌。</p></div>
           <div class="village"><strong>村民</strong><span>好人陣營</span><p>沒有夜間能力，依靠討論找出狼人。</p></div>
           <div class="tanner"><strong>皮匠</strong><span>皮匠陣營</span><p>沒有夜間能力。你的目標是讓自己在投票後遭到處決。</p></div>
-          <div class="village"><strong>獵人</strong><span>好人陣營</span><p>沒有夜間能力。若你遭到處決，你可以選擇一名其他玩家開槍，使其一同出局。</p></div>
+          <div class="village"><strong>獵人</strong><span>好人陣營</span><p>沒有夜間能力。投票結束時最終持有獵人角色的玩家若死亡，其投票指向的玩家也會死亡。</p></div>
           </div>
         </section>
         <section>
@@ -228,6 +229,7 @@
             <li>守夜人必須同時放入兩張；其他角色可由房主自由調整。</li>
             <li>每局所有玩家先擲 d100 決定順時鐘座位與玩家列表順序；夜間仍依固定角色順序進行。</li>
             <li>夜晚行動順序：化身幽靈➜狼人➜爪牙➜守夜人➜預言家➜強盜➜搗蛋鬼➜酒鬼➜失眠者。</li>
+            <li><strong>初始角色決定行動：</strong>玩家依自己的初始角色醒來並發動能力；能力執行時則以當下牌的位置進行查看或交換。投票結束時的最終角色用於判定陣營、勝負及獵人能力，不會回頭改變夜間行動者。</li>
             <li>村民、皮匠與獵人沒有夜間操作。</li>
             <li><strong>化身幽靈複製預言家、強盜、搗蛋鬼或酒鬼：</strong>在化身幽靈階段立即執行能力，之後不會在正牌角色階段再次行動。</li>
             <li><strong>化身幽靈複製狼人或守夜人：</strong>等到該角色階段，與其他狼人或守夜人一同行動。</li>
@@ -240,10 +242,10 @@
           <h3>勝利條件</h3>
           <ol>
             <li><strong class="team-werewolf">場上有狼人：</strong>至少一名狼人死亡，好人陣營獲勝；否則狼人陣營獲勝。</li>
-            <li><strong class="team-village">沒有狼人或爪牙：</strong>無人遭處決時所有玩家獲勝；若有人遭處決則無人獲勝。</li>
-            <li><strong class="team-werewolf">沒有狼人但有爪牙：</strong>爪牙死亡時好人陣營獲勝；其他玩家死亡時狼人陣營獲勝。</li>
+            <li><strong class="team-village">沒有狼人或爪牙：</strong>無人遭處決時好人陣營獲勝，仍在場的皮匠不會獲勝；若有人遭處決且沒有皮匠死亡，則無人獲勝。</li>
+            <li><strong class="team-werewolf">沒有狼人但有爪牙：</strong>只要至少一名非爪牙玩家死亡，爪牙所屬的狼人陣營獲勝，即使爪牙也同時死亡；若沒有人死亡或只有爪牙死亡，好人陣營獲勝。</li>
             <li><strong class="team-tanner">皮匠：</strong>皮匠死亡即可獲勝；若同時有狼人死亡，好人陣營也獲勝。</li>
-            <li><strong class="team-village">獵人：</strong>獵人死亡後選擇一名反擊目標，該玩家也會死亡。多名獵人需要反擊時依 d100 座位順序行動，不分正牌或化身幽靈；被獵人射殺的獵人也會繼續觸發反擊。</li>
+            <li><strong class="team-village">獵人：</strong>以投票結束時的最終角色判定。最終為獵人的玩家死亡時，其投票指向的玩家自動一同死亡；若該玩家最終也是獵人，便繼續依該獵人的原投票方向連鎖。不分正牌或化身幽靈；若獵人因倒數結束而未投票，則不會帶走其他玩家。</li>
           </ol>
         </section>
       </div>
@@ -252,6 +254,7 @@
 
   <script src="/shared/client-state.js"></script>
   <script src="/shared/room-ui.js"></script>
+  <script src="/shared/player-name.js"></script>
   <script>
     document.getElementById("gameModeSelect")?.addEventListener("change", (event) => {
       if (event.target.value === "avalon") {
@@ -265,6 +268,6 @@
       }
     });
   </script>
-  <script src="/Onenightwolf/onenightwolf.js?v=shell-20260701-8"></script>
+  <script src="/Onenightwolf/onenightwolf.js?v=shell-20260713-10"></script>
 </body>
 </html>

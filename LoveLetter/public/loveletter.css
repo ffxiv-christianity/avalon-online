@@ -280,6 +280,22 @@
   max-width: 100%;
 }
 
+.love-action-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.love-action-card-label .love-card-number {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  font-size: .72rem;
+}
+
 .love-action-panel > h3,
 .love-action-info-block > h3 {
   min-height: 24px;

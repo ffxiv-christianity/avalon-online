@@ -157,6 +157,7 @@ function connect() {
 }
 
 function bindEvents() {
+  SharedPlayerName.bindPlayerNameInput(els.nameInput);
   els.chatInput.value = "";
   window.addEventListener("pageshow", () => {
     els.chatInput.value = "";
@@ -181,25 +182,25 @@ function bindEvents() {
   if (queryRoom) els.roomInput.value = queryRoom;
   const handedOffName = sessionStorage.getItem("shared-entry-name");
   if (handedOffName) {
-    els.nameInput.value = handedOffName;
+    els.nameInput.value = SharedPlayerName.cleanPlayerName(handedOffName);
     sessionStorage.removeItem("shared-entry-name");
   }
   if (session?.playerId) writeTabPlayerId(session.playerId);
   if (queryRoom && new URLSearchParams(location.search).has("player")) {
     history.replaceState(null, "", AvalonClientState.roomUrlPath(location.pathname, queryRoom));
   }
-  if (session?.name) els.nameInput.value = session.name;
+  if (session?.name) els.nameInput.value = SharedPlayerName.cleanPlayerName(session.name);
   updateJoinControls();
   renderRecentSessions();
 
   els.createRoomButton.addEventListener("click", () => {
-    const name = els.nameInput.value.trim();
+    const name = SharedPlayerName.cleanPlayerName(els.nameInput.value);
     if (!name) return showToast("請先輸入名字。");
     send({ type: "createRoom", name });
   });
   els.joinForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    const name = els.nameInput.value.trim();
+    const name = SharedPlayerName.cleanPlayerName(els.nameInput.value);
     const roomCode = parsedRoomCode();
     if (!name) return showToast("請先輸入名字。");
     if (!roomCode) return showToast("請輸入有效的房間代碼或邀請連結。");
@@ -215,7 +216,7 @@ function bindEvents() {
     if (!button) return;
     const recentSession = sessionStore().sessions[button.dataset.recentPlayer];
     if (!recentSession) return;
-    els.nameInput.value = recentSession.name || "";
+    els.nameInput.value = SharedPlayerName.cleanPlayerName(recentSession.name || "");
     els.roomInput.value = recentSession.roomCode;
     session = recentSession;
     writeTabPlayerId(recentSession.playerId);
@@ -659,9 +660,8 @@ function renderLobby() {
   resultDelaySelect.value = String(settings.resultDelaySeconds);
 
   fragment.querySelector("[data-lobby-expansions]").innerHTML = [
-    settingToggle("excaliburToggle", "啟用王者之劍", settings.expansions?.excalibur, "領袖可將王者之劍交給參與任務的其他玩家。任務牌提交完畢後，持劍者先選擇目標並確認，私下查看該玩家原本的任務牌，再翻轉並結算。", you.isHost),
-    settingToggle("excaliburUniqueToggle", "王者之劍不可重複持有", settings.expansions?.excaliburUnique, "啟用後，每位玩家每局最多持有一次王者之劍；投票未通過不會消耗持有次數。", you.isHost && settings.expansions?.excalibur),
-    settingToggle("ladyToggle", "啟用湖中女神", settings.expansions?.ladyOfLake, "建議大於七人遊戲使用。開局由擲骰第二大的玩家持有；第 2、3、4 次任務結束後，湖中女神可以私下查驗一名玩家陣營。若被查驗者已持有過湖中女神，指示物會依擲骰順序交給下一位未持有者。", you.isHost)
+    settingToggle("excaliburToggle", "啟用王者之劍", settings.expansions?.excalibur, "每次組隊時，領袖必須將王者之劍交給參與任務的其他玩家。任務牌提交完畢後，持劍者可選擇不發動，或公開選擇另一名任務成員，私下查看其原本的任務牌，再翻轉並結算。", you.isHost),
+    settingToggle("ladyToggle", "啟用湖中女神", settings.expansions?.ladyOfLake, "建議大於七人遊戲使用。開局由擲骰第二大的玩家持有；第 2、3、4 次任務結束後，可私下查驗一名從未持有過湖中女神的其他玩家，並將指示物交給該玩家。最初持有者也不能被查驗。", you.isHost)
   ].join("");
   fragment.querySelector("[data-lobby-team-sizes]").innerHTML = settings.teamSizes.map((size, index) => `
     <label class="field compact">
@@ -705,12 +705,7 @@ function bindLobby(settings) {
     ...settings,
     resultDelaySeconds: Number(resultDelaySelect.value)
   }));
-  bindExpansionToggle("excaliburToggle", settings, (checked) => ({
-    ...settings.expansions,
-    excalibur: checked,
-    excaliburUnique: checked ? settings.expansions?.excaliburUnique : false
-  }));
-  bindExpansionToggle("excaliburUniqueToggle", settings, (checked) => ({ ...settings.expansions, excaliburUnique: checked }));
+  bindExpansionToggle("excaliburToggle", settings, (checked) => ({ ...settings.expansions, excalibur: checked }));
   bindExpansionToggle("ladyToggle", settings, (checked) => ({ ...settings.expansions, ladyOfLake: checked }));
   els.mainPanel.querySelectorAll(".team-size-input").forEach((input) => {
     input.addEventListener("change", () => {
@@ -819,6 +814,9 @@ function renderIdentityClue(clue) {
 function renderTeam() {
   const { room, you } = snapshot;
   const teamSize = room.settings.teamSizes[room.round];
+  const canSubmitTeam = you.isLeader
+    && room.selectedTeam.length === teamSize
+    && (!room.settings.expansions?.excalibur || room.selectedExcaliburHolderId);
   els.mainPanel.innerHTML = `
     ${phaseHeader(`第 ${room.round + 1} 次任務`, `${leaderName()} 持有領袖指示物，需要選出 ${teamSize} 位任務成員。`)}
     <div class="notice">${you.isLeader ? "你是領袖，請選擇隊伍。" : "等待領袖選擇隊伍。隊伍會即時更新。"}</div>
@@ -831,13 +829,13 @@ function renderTeam() {
       `).join("")}
     </div>
     ${renderExcaliburPicker(room, you)}
-    <button class="primary-button" data-action="submitTeam" type="button" ${you.isLeader && room.selectedTeam.length === teamSize ? "" : "disabled"}>送出隊伍</button>
+    <button class="primary-button" data-action="submitTeam" type="button" ${canSubmitTeam ? "" : "disabled"}>送出隊伍</button>
   `;
   els.mainPanel.querySelectorAll("[data-player]").forEach((button) => {
     button.addEventListener("click", () => sendAction("toggleTeam", { playerId: button.dataset.player }));
   });
   els.mainPanel.querySelectorAll("[data-excalibur-holder]").forEach((button) => {
-    button.addEventListener("click", () => sendAction("setExcaliburHolder", { playerId: button.dataset.excaliburHolder || null }));
+    button.addEventListener("click", () => sendAction("setExcaliburHolder", { playerId: button.dataset.excaliburHolder }));
   });
   els.mainPanel.querySelector("[data-action='submitTeam']")?.addEventListener("click", () => sendAction("submitTeam"));
 }
@@ -850,13 +848,9 @@ function renderExcaliburPicker(room, you) {
       <div class="section-heading">
         <h3>王者之劍</h3>
         <span class="help-dot" tabindex="0">?</span>
-        <span class="help-popover">可由領袖交給一名參與任務的其他玩家，不能交給自己。任務牌提交完畢後，持劍者可選擇不發動，或公開選擇一名任務成員翻轉任務牌再結算。</span>
+        <span class="help-popover">領袖必須交給一名參與任務的其他玩家，不能交給自己。任務牌提交完畢後，持劍者可選擇不發動，或公開選擇另一名任務成員翻轉任務牌再結算。</span>
       </div>
       <div class="choice-grid compact">
-        <button class="choice-card ${room.selectedExcaliburHolderId ? "" : "selected"}" data-excalibur-holder="" type="button" ${you.isLeader ? "" : "disabled"}>
-          <strong>不給</strong>
-          <span>本次不使用王者之劍</span>
-        </button>
         ${candidates.map((player) => `
           <button class="choice-card ${room.selectedExcaliburHolderId === player.id ? "selected" : ""}" data-excalibur-holder="${player.id}" type="button" ${you.isLeader ? "" : "disabled"}>
             <strong>${escapeHtml(player.name)}</strong>
@@ -870,8 +864,13 @@ function renderExcaliburPicker(room, you) {
 
 function renderVote() {
   const { room, you } = snapshot;
+  const excaliburHolder = room.players.find((player) => player.id === room.selectedExcaliburHolderId);
+  const excaliburNotice = room.settings.expansions.excalibur && excaliburHolder
+    ? `<div class="notice">本次任務的王者之劍持有者：<strong>${escapeHtml(excaliburHolder.name)}</strong></div>`
+    : "";
   els.mainPanel.innerHTML = `
     ${phaseHeader("全員投票", `是否同意隊伍：${namesByIds(room.selectedTeam)}。`)}
+    ${excaliburNotice}
     <div class="progress-panel">投票進度：${room.voteProgress.done} / ${room.voteProgress.total}</div>
     ${you.hasVoted ? `<div class="notice">你已投票，等待其他玩家。</div>` : `
       <div class="button-row">
@@ -933,14 +932,14 @@ function renderExcalibur() {
   const { room, you } = snapshot;
   const holder = room.players.find((player) => player.id === room.activeExcaliburHolderId);
   els.mainPanel.innerHTML = `
-    ${phaseHeader("王者之劍", `${holder?.name || "持劍者"} 可以選擇不發動，或公開選擇一名任務成員翻轉任務牌後結算。`)}
+    ${phaseHeader("王者之劍", `${holder?.name || "持劍者"} 可以選擇不發動，或公開選擇另一名任務成員翻轉任務牌後結算。`)}
     ${you.isExcaliburHolder ? `
       <div class="choice-grid">
         <button class="choice-card ${pendingExcaliburChoice === "skip" ? "selected" : ""}" data-excalibur-choice="skip" type="button">
           <strong>不發動</strong>
           <span>保留原本任務牌結果</span>
         </button>
-        ${room.players.filter((player) => room.selectedTeam.includes(player.id)).map((player) => `
+        ${room.players.filter((player) => room.selectedTeam.includes(player.id) && player.id !== room.activeExcaliburHolderId).map((player) => `
           <button class="choice-card ${pendingExcaliburChoice === player.id ? "selected" : ""}" data-excalibur-choice="${player.id}" type="button">
             <strong>${escapeHtml(player.name)}</strong>
             <span>翻轉此人的任務牌</span>
@@ -968,6 +967,7 @@ function renderExcalibur() {
 
 function renderExcaliburResult() {
   const result = snapshot.room.excaliburResult;
+  const publicResult = snapshot.room.excaliburPublicResult;
   const resultKey = result ? `${result.targetId}:${result.originalCard}` : null;
   const isRevealed = resultKey && revealedExcaliburResultKey === resultKey;
   els.mainPanel.innerHTML = `
@@ -985,7 +985,9 @@ function renderExcaliburResult() {
           `}
         </section>
       </div>
-    ` : `<div class="notice">等待王者之劍持有者確認原始牌。</div>`}
+    ` : `<div class="notice">${publicResult
+      ? `${escapeHtml(publicResult.holderName)} 已對 ${escapeHtml(publicResult.targetName)} 發動王者之劍；等待持劍者確認原始牌。`
+      : "等待王者之劍持有者確認原始牌。"}</div>`}
   `;
   els.mainPanel.querySelector("[data-reveal-excalibur]")?.addEventListener("click", () => {
     revealedExcaliburResultKey = resultKey;
@@ -1056,7 +1058,7 @@ function renderLake() {
   const { room, you } = snapshot;
   const holder = room.players.find((player) => player.id === room.ladyHolderId);
   els.mainPanel.innerHTML = `
-    ${phaseHeader("湖中女神", `${holder?.name || "湖中女神"} 可以查驗一位玩家。若對方已持有過湖中女神，指示物會交給下一位未持有者。`)}
+    ${phaseHeader("湖中女神", `${holder?.name || "湖中女神"} 可以查驗一位從未持有過湖中女神的其他玩家；被查驗者將接過指示物。`)}
     ${you.isLadyHolder ? `
       <div class="choice-grid">
         ${room.players.filter((player) => room.lakeCandidateIds.includes(player.id)).map((player) => `

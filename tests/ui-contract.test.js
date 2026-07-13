@@ -10,6 +10,7 @@ const avalonScript = fs.readFileSync(path.join(root, "Avalon", "public", "app.js
 const sharedStyles = fs.readFileSync(path.join(root, "Shared", "public", "styles.css"), "utf8");
 const sharedClient = fs.readFileSync(path.join(root, "Shared", "public", "client-state.js"), "utf8");
 const sharedRoomUi = fs.readFileSync(path.join(root, "Shared", "public", "room-ui.js"), "utf8");
+const sharedPlayerName = fs.readFileSync(path.join(root, "Shared", "public", "player-name.js"), "utf8");
 const wolfPage = fs.readFileSync(path.join(root, "Onenightwolf", "public", "index.html"), "utf8");
 const wolfScript = fs.readFileSync(path.join(root, "Onenightwolf", "public", "onenightwolf.js"), "utf8");
 const wolfStyles = fs.readFileSync(path.join(root, "Onenightwolf", "public", "onenightwolf.css"), "utf8");
@@ -24,6 +25,36 @@ const frameworkDoc = fs.readFileSync(path.join(root, "COMMON_ROOM_FRAMEWORK.md")
 const complianceMatrixDoc = fs.readFileSync(path.join(root, "docs", "FRAMEWORK_COMPLIANCE_MATRIX.md"), "utf8");
 const newGameChecklistDoc = fs.readFileSync(path.join(root, "docs", "NEW_GAME_CHECKLIST.md"), "utf8");
 const loveMobileStyles = loveStyles.slice(loveStyles.indexOf("@media (max-width: 560px)"), loveStyles.indexOf("@media (max-width: 380px)"));
+
+[
+  ["Avalon", avalonPage, "王者之劍改依官方規則執行"],
+  ["Onenightwolf", wolfPage, "夜間行動順序與能力改以初始牌判定"],
+  ["CriminalDance", criminalPage, "統一房間名稱契約"],
+  ["LoveLetter", lovePage, "所有其他玩家受女僕保護時仍可無效果打出"]
+].forEach(([game, page, releaseNote]) => {
+  assert(page.includes("最新版本 2026/07/13"), `${game} release note date must be current`);
+  assert(page.includes(releaseNote), `${game} release note must describe its actual changes`);
+});
+
+[
+  ["Avalon", avalonPage, avalonScript],
+  ["Onenightwolf", wolfPage, wolfScript],
+  ["CriminalDance", criminalPage, criminalScript],
+  ["LoveLetter", lovePage, loveScript]
+].forEach(([game, page, script]) => {
+  assert(page.includes('id="nameInput" maxlength="12"'), `${game} name input must expose the 12 half-width-unit limit`);
+  assert(page.includes('<script src="/shared/player-name.js"></script>'), `${game} must load the Shared player-name contract`);
+  assert(script.includes("SharedPlayerName.bindPlayerNameInput"), `${game} must bind the Shared player-name contract`);
+  assert(script.includes("SharedPlayerName.cleanPlayerName"), `${game} must clean submitted or restored names through Shared`);
+});
+assert(sharedPlayerName.includes("MAX_PLAYER_NAME_WIDTH = 12"), "Shared player-name width must remain 12");
+assert(avalonScript.includes("本次任務的王者之劍持有者"), "Avalon voting must identify the selected Excalibur holder");
+assert(wolfScript.includes('class="wolf-night-flow-center"'), "One Night Wolf night flow must include center-card information");
+assert(
+  wolfScript.indexOf('class="wolf-night-flow-center"') < wolfScript.indexOf("</details>`;", wolfScript.indexOf("function nightFlow")),
+  "center-card information must be inside the night-flow section"
+);
+assert(!wolfScript.includes('<p class="wolf-center-result">中央牌：'), "center cards must not remain duplicated outside the night flow");
 
 function cssRulesForSelector(css, selector) {
   const rules = [];
@@ -53,6 +84,15 @@ function assertCssRuleExcludes(css, selector, declaration) {
 const avalonMainStart = avalonPage.indexOf('<main class="app-shell">');
 const avalonMainEnd = avalonPage.indexOf("</main>");
 assert(!avalonPage.includes('id="wolfRoomView"'), "Avalon index should not embed the One Night Wolf room shell");
+assert(avalonPage.includes("從未持有過湖中女神的其他玩家"), "Avalon rules must exclude every previous Lady holder from inspection");
+assert(avalonPage.includes("最初持有者也不能成為之後的查驗對象"), "Avalon rules must explicitly explain that the initial Lady holder cannot be inspected");
+assert(avalonScript.includes("最初持有者也不能被查驗"), "Avalon lobby setting help must match the Lady inspection restriction");
+assert(avalonScript.includes("被查驗者將接過指示物"), "Avalon Lady phase help must explain the token transfer");
+assert(avalonPage.includes("每次組隊時領袖都必須將劍交給參與任務的其他玩家"), "Avalon rules must require an Excalibur holder on every proposal");
+assert(avalonPage.includes("發動時立即公開持劍者與目標"), "Avalon rules must publish the Excalibur target when it is used");
+assert(!avalonScript.includes("excaliburUnique"), "removed Excalibur uniqueness option must not remain in the UI");
+assert(avalonScript.includes("player.id !== room.activeExcaliburHolderId"), "Excalibur holder must not be offered as their own target");
+assert(avalonScript.includes("room.excaliburPublicResult"), "Excalibur public target must render before mission resolution");
 assert(avalonPage.includes('window.location.href = "/Onenightwolf/"'), "Avalon game selector must navigate to the One Night Wolf index");
 assert(avalonPage.includes('window.location.href = "/CriminalDance/"'), "Avalon game selector must navigate to the CriminalDance index");
 assert(avalonPage.includes('window.location.href = "/LoveLetter/"'), "Avalon game selector must navigate to the LoveLetter index");
@@ -256,7 +296,7 @@ assert(sharedStyles.includes(".template-result-player-name") && sharedStyles.inc
 assert(sharedStyles.includes(".template-result-score") && sharedStyles.includes("min-width: max-content"), "Shared result score column must not be squeezed by remaining items");
 assert(loveScript.includes('className: "love-action-info-block"') && loveScript.includes('bodyClassName: "love-private"'), "LoveLetter shared action info must keep the original action-info classes");
 assert(criminalScript.includes('className: "criminal-action-info-block"') && criminalScript.includes('bodyClassName: "criminal-private"'), "CriminalDance shared action info must keep the original action-info classes");
-assert(loveScript.includes("renderMessage: renderSeatBadges") && criminalScript.includes("renderMessage: renderSeatBadges"), "Shared action info must keep game-specific #N badge rendering");
+assert(loveScript.includes("renderMessage: renderActionMessage") && loveScript.includes("let output = renderSeatBadges(value)") && criminalScript.includes("renderMessage: renderSeatBadges"), "Shared action info must keep game-specific #N badge rendering");
 assert(loveScript.includes('className: "love-action-panel"') && loveScript.includes('gridClassName: "love-hand"'), "LoveLetter shared hand panel must keep the original hand classes");
 assert(criminalScript.includes('gridClassName: "criminal-hand"'), "CriminalDance shared hand panel must keep the original hand grid class");
 assert(loveScript.includes("cardNumberBadge(card.value)"), "LoveLetter hand cards must keep game-specific card number rendering");

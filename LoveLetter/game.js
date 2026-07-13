@@ -11,6 +11,7 @@ const {
   transferHost: sharedTransferHost,
   kickOfflinePlayer: sharedKickOfflinePlayer
 } = require("../Shared/server/room-actions");
+const { cleanPlayerName } = require("../Shared/public/player-name");
 
 const CARD_DEFS = Object.freeze({
   spy: { name: "間諜", english: "Spy", value: 0, count: 2 },
@@ -304,7 +305,7 @@ function playCard(room, actor, payload) {
   removeCardInstance(actor.hand, cardInstance.uid);
   actor.discardPile.push(cardInstance);
   const actionPhase = actionPhaseKey(room, cardInstance.card);
-  const publicActionMessage = `${playerSeatLabel(room, actor)} 打出 ${cardName(cardInstance.card)}${payload.targetId ? `，指定 ${playerSeatLabelById(room, payload.targetId)}` : ""}。`;
+  const publicActionMessage = `${playerSeatLabel(room, actor)} 打出 ${cardLabel(cardInstance.card)}${payload.targetId ? `，指定 ${playerSeatLabelById(room, payload.targetId)}` : ""}。`;
   addLog(room, publicActionMessage);
   setPublicActionInfo(room, actionPhase, publicActionMessage);
 
@@ -333,6 +334,7 @@ function validatePlayPayload(room, actor, card, payload) {
     if (!targetableOpponent(room, actor.id, payload.targetId)) return "請指定一位未受保護的其他玩家。";
     if (!CARD_DEFS[payload.guessCardId] || payload.guessCardId === "guard") return "衛兵必須猜一張非衛兵的牌。";
   }
+  if (["priest", "baron", "king"].includes(card) && legalOpponentTargets(room, actor).length === 0) return null;
   if (["priest", "baron", "king"].includes(card) && !targetableOpponent(room, actor.id, payload.targetId)) {
     return `請指定一位未受保護的其他玩家。`;
   }
@@ -349,12 +351,12 @@ function applyCardEffect(room, actor, cardInstance, payload) {
   if (card === "spy" || card === "countess") return null;
   if (card === "guard") {
     if (legalOpponentTargets(room, actor).length === 0) {
-      publishPublicActionInfo(room, actionPhaseKey(room, "guard"), `${playerSeatLabel(room, actor)} 打出衛兵，但沒有可指定的目標，無效果。`);
+      publishPublicActionInfo(room, actionPhaseKey(room, "guard"), `${playerSeatLabel(room, actor)} 打出 ${cardLabel("guard")}，但沒有可指定的目標，無效果。`);
       return null;
     }
     const target = playerById(room, payload.targetId);
     const phaseKey = actionPhaseKey(room, "guard");
-    const guessed = cardName(payload.guessCardId);
+    const guessed = cardLabel(payload.guessCardId);
     const isHit = target.hand.some((item) => item.card === payload.guessCardId);
     if (isHit) {
       publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 猜 ${playerSeatLabel(room, target)} 是 ${guessed}：猜中，${playerSeatLabel(room, target)} 出局。`);
@@ -365,11 +367,19 @@ function applyCardEffect(room, actor, cardInstance, payload) {
     return null;
   }
   if (card === "priest") {
+    if (legalOpponentTargets(room, actor).length === 0) {
+      publishPublicActionInfo(room, actionPhaseKey(room, "priest"), `${playerSeatLabel(room, actor)} 打出 ${cardLabel("priest")}，但沒有可指定的目標，無效果。`);
+      return null;
+    }
     const target = playerById(room, payload.targetId);
-    setPrivateActionInfo(actor, actionPhaseKey(room, "priest"), `${target.name} 的手牌是 ${target.hand.map((item) => cardName(item.card)).join("、")}。`);
+    setPrivateActionInfo(actor, actionPhaseKey(room, "priest"), `${playerSeatLabel(room, target)} 的手牌是 ${target.hand.map((item) => cardLabel(item.card)).join("、")}。`);
     return null;
   }
   if (card === "baron") {
+    if (legalOpponentTargets(room, actor).length === 0) {
+      publishPublicActionInfo(room, actionPhaseKey(room, "baron"), `${playerSeatLabel(room, actor)} 打出 ${cardLabel("baron")}，但沒有可指定的目標，無效果。`);
+      return null;
+    }
     const target = playerById(room, payload.targetId);
     const actorValue = highestHandValue(actor);
     const targetValue = highestHandValue(target);
@@ -377,15 +387,15 @@ function applyCardEffect(room, actor, cardInstance, payload) {
     setPrivateActionInfo(actor, phaseKey, `你與 ${target.name} 比牌：你是 ${actorValue}，對方是 ${targetValue}。`);
     setPrivateActionInfo(target, phaseKey, `${actor.name} 與你比牌：對方是 ${actorValue}，你是 ${targetValue}。`);
     if (actorValue > targetValue) {
-      publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 與 ${playerSeatLabel(room, target)} 發動男爵比牌：${playerSeatLabel(room, actor)} 的手牌點數較大，${playerSeatLabel(room, target)} 出局。`);
+      publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 與 ${playerSeatLabel(room, target)} 使用 ${cardLabel("baron")}進行比牌：${playerSeatLabel(room, actor)} 的手牌點數較大，${playerSeatLabel(room, target)} 出局。`);
       eliminatePlayer(room, target, `${target.name} 在男爵比牌中出局。`);
     }
     if (targetValue > actorValue) {
-      publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 與 ${playerSeatLabel(room, target)} 發動男爵比牌：${playerSeatLabel(room, target)} 的手牌點數較大，${playerSeatLabel(room, actor)} 出局。`);
+      publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 與 ${playerSeatLabel(room, target)} 使用 ${cardLabel("baron")}進行比牌：${playerSeatLabel(room, target)} 的手牌點數較大，${playerSeatLabel(room, actor)} 出局。`);
       eliminatePlayer(room, actor, `${actor.name} 在男爵比牌中出局。`);
     }
     if (actorValue === targetValue) {
-      publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 與 ${playerSeatLabel(room, target)} 發動男爵比牌：手牌點數相同，無人出局。`);
+      publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 與 ${playerSeatLabel(room, target)} 使用 ${cardLabel("baron")}進行比牌：手牌點數相同，無人出局。`);
     }
     return null;
   }
@@ -412,6 +422,10 @@ function applyCardEffect(room, actor, cardInstance, payload) {
     return null;
   }
   if (card === "king") {
+    if (legalOpponentTargets(room, actor).length === 0) {
+      publishPublicActionInfo(room, actionPhaseKey(room, "king"), `${playerSeatLabel(room, actor)} 打出 ${cardLabel("king")}，但沒有可指定的目標，無效果。`);
+      return null;
+    }
     const target = playerById(room, payload.targetId);
     const actorHand = actor.hand;
     const targetHand = target.hand;
@@ -445,8 +459,8 @@ function chooseChancellorKeep(room, actor, payload) {
   actor.hand = actor.hand.filter((item) => item.uid === keepId);
   room.deck.unshift(...bottomCards);
   const phaseKey = actionPhaseKey(room, "chancellor");
-  publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 完成大臣效果。`);
-  setPrivateActionInfo(actor, phaseKey, `你保留 ${cardName(actor.hand[0].card)}，將 ${bottomCards.length} 張牌放回牌庫底。`);
+  publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 完成 ${cardLabel("chancellor")}效果。`);
+  setPrivateActionInfo(actor, phaseKey, `你保留 ${cardLabel(actor.hand[0].card)}，將 ${bottomCards.length} 張牌放回牌庫底。`);
   room.pendingAction = null;
   room.phase = "playing";
   completeTurn(room, actor);
@@ -459,7 +473,7 @@ function discardHandForPrince(room, actor, target) {
   target.discardPile.push(...discarded);
   const phaseKey = actionPhaseKey(room, "prince");
   if (discarded.some((item) => item.card === "princess")) {
-    publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 使用王子，${playerSeatLabel(room, target)} 棄掉公主並出局。`);
+    publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 使用 ${cardLabel("prince")}，${playerSeatLabel(room, target)} 棄掉 ${cardLabel("princess")}並出局。`);
     eliminatePlayer(room, target, `${target.name} 因王子棄掉公主並出局。`);
     return;
   }
@@ -469,10 +483,10 @@ function discardHandForPrince(room, actor, target) {
     target.hand.push(replacement);
     if (deckReplacement) {
       setDrawActionInfo(room, target, replacement, phaseKey);
-      publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 使用王子，${playerSeatLabel(room, target)} 棄掉手牌並從牌庫抽一張。`);
+      publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 使用 ${cardLabel("prince")}，${playerSeatLabel(room, target)} 棄掉手牌並從牌庫抽一張。`);
     } else {
-      setPrivateActionInfo(target, phaseKey, `你從蓋牌抽到了 ${cardName(replacement.card)}。`);
-      publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 使用王子，${playerSeatLabel(room, target)} 抽走了蓋牌。`);
+      setPrivateActionInfo(target, phaseKey, `你從蓋牌抽到了 ${cardLabel(replacement.card)}。`);
+      publishPublicActionInfo(room, phaseKey, `${playerSeatLabel(room, actor)} 使用 ${cardLabel("prince")}，${playerSeatLabel(room, target)} 抽走了蓋牌。`);
     }
   }
 }
@@ -515,7 +529,9 @@ function endRoundByDeck(room) {
 function endRound(room, outcome) {
   const roundScores = Object.fromEntries(room.players.map((player) => [player.id, 0]));
   outcome.winnerIds.forEach((winnerId) => { roundScores[winnerId] += 1; });
-  const spyPlayers = room.players.filter((player) => player.discardPile.some((item) => item.card === "spy"));
+  const spyPlayers = room.players.filter((player) => (
+    !player.eliminated && player.discardPile.some((item) => item.card === "spy")
+  ));
   if (spyPlayers.length === 1) roundScores[spyPlayers[0].id] += 1;
   Object.entries(roundScores).forEach(([targetPlayerId, score]) => {
     playerById(room, targetPlayerId).score += score;
@@ -758,8 +774,13 @@ function cardName(card) {
   return CARD_DEFS[card]?.name || card;
 }
 
+function cardLabel(card) {
+  const definition = CARD_DEFS[card];
+  return definition ? `${definition.value} ${definition.name}` : card;
+}
+
 function cardsLabel(cards) {
-  return cards.map((item) => cardName(item.card)).join("、") || "沒有手牌";
+  return cards.map((item) => cardLabel(item.card)).join("、") || "沒有手牌";
 }
 
 function actionPhaseKey(room, card) {
@@ -771,7 +792,7 @@ function drawPhaseKey(room) {
 }
 
 function setDrawActionInfo(room, player, card, phaseKey = drawPhaseKey(room)) {
-  setPrivateActionInfo(player, phaseKey, `你從牌庫抽到了 ${cardName(card.card)}。`);
+  setPrivateActionInfo(player, phaseKey, `你從牌庫抽到了 ${cardLabel(card.card)}。`);
 }
 
 function roundResultText(room) {
@@ -834,7 +855,7 @@ function touch(room) {
 }
 
 function cleanName(value) {
-  return String(value || "").replace(/\s+/g, " ").trim().slice(0, 16);
+  return cleanPlayerName(value);
 }
 
 function normalizedName(value) {

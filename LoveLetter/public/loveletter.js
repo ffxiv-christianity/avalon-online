@@ -109,10 +109,11 @@
     page.openRules = document.getElementById("openRulesButton");
     page.closeRules = document.getElementById("closeRulesButton");
 
+    SharedPlayerName.bindPlayerNameInput(page.nameInput);
     bindEvents();
     const queryRoom = roomFromUrl();
     if (queryRoom) page.roomInput.value = queryRoom;
-    if (selectedSession?.name) page.nameInput.value = selectedSession.name;
+    if (selectedSession?.name) page.nameInput.value = SharedPlayerName.cleanPlayerName(selectedSession.name);
     renderRecentSessions();
     syncRejoin();
     connect();
@@ -198,13 +199,13 @@
 
   function bindEvents() {
     page.createButton.addEventListener("click", () => {
-      const name = page.nameInput.value.trim();
+      const name = SharedPlayerName.cleanPlayerName(page.nameInput.value);
       if (!name) return showToast("請先輸入名字。");
       sendRaw({ type: "createRoom", name });
     });
     page.joinForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      const name = page.nameInput.value.trim();
+      const name = SharedPlayerName.cleanPlayerName(page.nameInput.value);
       const roomCode = parseRoomCode(page.roomInput.value);
       if (!name) return showToast("請先輸入名字。");
       if (!roomCode) return showToast("請輸入有效的房間代碼或邀請連結。");
@@ -220,7 +221,7 @@
       if (!button) return;
       const saved = sessionStore().sessions[button.dataset.loveRecentPlayer];
       if (!saved) return;
-      page.nameInput.value = saved.name || "";
+      page.nameInput.value = SharedPlayerName.cleanPlayerName(saved.name || "");
       page.roomInput.value = saved.roomCode;
       selectedSession = saved;
       sessionStorage.setItem(TAB_KEY, saved.playerId);
@@ -483,13 +484,13 @@
 
   function renderSelectedCardControls(card) {
     const targets = targetIdsForCard(card.id).map((targetId) => playerById(targetId)).filter(Boolean);
-    const guardWithoutTargets = card.id === "guard" && targets.length === 0;
-    const needsTarget = ["guard", "priest", "baron", "prince", "king"].includes(card.id) && !guardWithoutTargets;
-    const needsGuess = card.id === "guard" && !guardWithoutTargets;
+    const canPlayWithoutTarget = ["guard", "priest", "baron", "king"].includes(card.id) && targets.length === 0;
+    const needsTarget = ["guard", "priest", "baron", "prince", "king"].includes(card.id) && !canPlayWithoutTarget;
+    const needsGuess = card.id === "guard" && !canPlayWithoutTarget;
     return `
       <div class="love-selected-panel">
         <h3>打出 ${escapeHtml(card.name)}</h3>
-        ${guardWithoutTargets ? `<p class="notice">所有其他玩家都受保護，衛兵可以打出但無效果。</p>` : ""}
+        ${canPlayWithoutTarget ? `<p class="notice">所有其他玩家都受保護，${escapeHtml(card.name)}可以打出但無效果。</p>` : ""}
         ${needsTarget ? `
           <div class="love-target-grid">
             ${targets.length ? targets.map((player) => `
@@ -554,7 +555,7 @@
       messages: snapshot.you.actionInfo?.messages || [],
       className: "love-action-info-block",
       bodyClassName: "love-private",
-      renderMessage: renderSeatBadges
+      renderMessage: renderActionMessage
     });
   }
 
@@ -707,8 +708,9 @@
 
   function canConfirmSelected(card) {
     if (!card) return false;
-    if (["priest", "baron", "prince", "king"].includes(card.id)) return Boolean(selectedTargetId);
-    if (card.id === "guard") return targetIdsForCard("guard").length === 0 || Boolean(selectedTargetId && selectedGuessCardId);
+    if (["priest", "baron", "king"].includes(card.id)) return targetIdsForCard(card.id).length === 0 || Boolean(selectedTargetId);
+    if (card.id === "prince") return Boolean(selectedTargetId);
+    if (card.id === "guard") return targetIdsForCard(card.id).length === 0 || Boolean(selectedTargetId && selectedGuessCardId);
     return true;
   }
 
@@ -822,6 +824,17 @@
     return escapeHtml(value).replace(/#([1-8])(\s+)?/g, (_, number, trailingSpace) => (
       `${SharedRoomUI.seatNumber(Number(number) - 1, "love-seat-number")}${trailingSpace ? "&nbsp;" : ""}`
     ));
+  }
+
+  function renderActionMessage(value) {
+    let output = renderSeatBadges(value);
+    CARD_ORDER.forEach((cardId) => {
+      const definition = snapshot.cards?.[cardId] || { value: CARD_VALUES[cardId], name: CARD_NAMES[cardId] };
+      const label = `${definition.value} ${definition.name}`;
+      const rendered = `<span class="love-action-card-label">${cardNumberBadge(definition.value)}<span>${escapeHtml(definition.name)}</span></span>`;
+      output = output.replaceAll(escapeHtml(label), rendered);
+    });
+    return output;
   }
 
   function scoreHeartsText(score) {

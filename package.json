@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/shared.test.js && node tests/architecture.test.js && npm --prefix Avalon test && npm --prefix Onenightwolf test && npm --prefix CriminalDance test && npm --prefix LoveLetter test && node tests/ui-contract.test.js && node tests/server-stats.test.js && node tests/avalon-realtime.test.js && node tests/wolf-reconnect.test.js"
+    "test": "node tests/shared.test.js && node tests/player-name-contract.test.js && node tests/architecture.test.js && npm --prefix Avalon test && npm --prefix Onenightwolf test && npm --prefix CriminalDance test && npm --prefix LoveLetter test && node tests/ui-contract.test.js && node tests/server-stats.test.js && node tests/avalon-realtime.test.js && node tests/wolf-reconnect.test.js"
   },
   "engines": {
     "node": ">=18"

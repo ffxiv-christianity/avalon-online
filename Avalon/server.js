@@ -13,6 +13,7 @@ const {
   kickOfflinePlayer: sharedKickOfflinePlayer
 } = require("../Shared/server/room-actions");
 const { serveSharedStatic } = require("../Shared/server/static");
+const { cleanPlayerName } = require("../Shared/public/player-name");
 const { bytesToMb, roomConnectionCount } = require("../Shared/server/admin");
 const {
   createRealtimeMetrics,
@@ -155,7 +156,6 @@ function makeRoom(hostName) {
       resultDelaySeconds: 3,
       expansions: {
         excalibur: false,
-        excaliburUnique: false,
         ladyOfLake: false
       }
     },
@@ -173,7 +173,6 @@ function makeRoom(hostName) {
     activeExcaliburHolderId: null,
     excaliburTargetId: null,
     pendingExcaliburResult: null,
-    usedExcaliburHolderIds: [],
     ladyHolderId: null,
     ladyUsedIds: [],
     pendingLakeResult: null,
@@ -495,14 +494,10 @@ function applyRoomAction(room, actor, action, payload) {
     if (room.phase !== "team") return "現在不是組隊階段。";
     if (!room.settings.expansions?.excalibur) return "此房間未啟用王者之劍。";
     if (!isCurrentLeader(room, actor)) return "只有目前領袖可以指派王者之劍。";
-    const targetId = payload.playerId ? String(payload.playerId) : null;
-    if (!targetId) {
-      room.selectedExcaliburHolderId = null;
-      return null;
-    }
+    const targetId = String(payload.playerId || "");
+    if (!targetId) return "請將王者之劍交給一名參與任務的其他玩家。";
     if (!room.selectedTeam.includes(targetId)) return "王者之劍只能交給任務成員。";
     if (targetId === actor.id) return "領袖不能將王者之劍交給自己。";
-    if (room.settings.expansions.excaliburUnique && room.usedExcaliburHolderIds.includes(targetId)) return "這位玩家本局已持有過王者之劍。";
     room.selectedExcaliburHolderId = targetId;
     return null;
   }
@@ -510,6 +505,7 @@ function applyRoomAction(room, actor, action, payload) {
     if (room.phase !== "team") return "現在不是組隊階段。";
     if (!isCurrentLeader(room, actor)) return "只有目前領袖可以送出隊伍。";
     if (room.selectedTeam.length !== room.settings.teamSizes[room.round]) return "任務隊伍人數不正確。";
+    if (room.settings.expansions?.excalibur && !room.selectedExcaliburHolderId) return "啟用王者之劍時，領袖必須將劍交給一名參與任務的其他玩家。";
     room.phase = "vote";
     room.votes = {};
     addLog(room, `${actor.name} 提名隊伍：${namesByIds(room, room.selectedTeam)}。`);
@@ -550,6 +546,7 @@ function applyRoomAction(room, actor, action, payload) {
     }
     const targetId = String(payload.playerId || "");
     if (!room.selectedTeam.includes(targetId)) return "只能選擇本次任務成員。";
+    if (targetId === actor.id) return "王者之劍只能翻轉另一名任務成員的任務牌。";
     if (!room.missionCards[targetId]) return "這位玩家尚未提交任務牌。";
     room.excaliburTargetId = targetId;
     const target = room.players.find((player) => player.id === targetId);
@@ -560,6 +557,7 @@ function applyRoomAction(room, actor, action, payload) {
       targetMark: target?.avatarMark || firstNameCharacter(target?.name),
       originalCard: room.missionCards[targetId]
     };
+    addLog(room, `${actor.name} 對 ${target?.name || targetId} 發動王者之劍。`);
     room.phase = "excaliburResult";
     return null;
   }
@@ -664,7 +662,6 @@ function startGame(room) {
   room.activeExcaliburHolderId = null;
   room.excaliburTargetId = null;
   room.pendingExcaliburResult = null;
-  room.usedExcaliburHolderIds = [];
   room.ladyHolderId = room.settings.expansions?.ladyOfLake ? initialLadyHolder(room)?.id || null : null;
   room.ladyUsedIds = room.ladyHolderId ? [room.ladyHolderId] : [];
   room.pendingLakeResult = null;
@@ -696,9 +693,6 @@ function continueAfterVote(room) {
       ? room.selectedExcaliburHolderId
       : null;
     room.excaliburTargetId = null;
-    if (room.activeExcaliburHolderId && room.settings.expansions?.excaliburUnique) {
-      room.usedExcaliburHolderIds = uniqueIds([...room.usedExcaliburHolderIds, room.activeExcaliburHolderId]);
-    }
     return;
   }
   room.rejectedVotes += 1;
@@ -745,7 +739,7 @@ function finishMission(room) {
   room.pendingExcaliburResult = null;
   room.phase = "missionResult";
   room.resultReadyAt = Date.now() + room.settings.resultDelaySeconds * 1000;
-  if (excalibur) addLog(room, excaliburLogText(room, excalibur));
+  if (excalibur && !excalibur.used) addLog(room, excaliburLogText(room, excalibur));
   addLog(room, `第 ${room.round + 1} 次任務${result === "success" ? "成功" : "失敗"}，失敗牌 ${fails} 張。`);
 }
 
@@ -844,7 +838,6 @@ function resetRoom(room) {
   room.activeExcaliburHolderId = null;
   room.excaliburTargetId = null;
   room.pendingExcaliburResult = null;
-  room.usedExcaliburHolderIds = [];
   room.ladyHolderId = null;
   room.ladyUsedIds = [];
   room.pendingLakeResult = null;
@@ -877,7 +870,6 @@ function makeView(room, playerId) {
       isLeader: index === room.leaderIndex && room.phase !== "lobby",
       retiredLeader: room.retiredLeaderIds.includes(player.id),
       excaliburHolder: room.selectedExcaliburHolderId === player.id || room.activeExcaliburHolderId === player.id,
-      usedExcalibur: room.usedExcaliburHolderIds.includes(player.id),
       ladyHolder: room.ladyHolderId === player.id,
       usedLady: room.ladyUsedIds.includes(player.id),
       onTeam: room.selectedTeam.includes(player.id),
@@ -907,7 +899,12 @@ function makeView(room, playerId) {
       selectedTeam: room.selectedTeam,
       selectedExcaliburHolderId: room.selectedExcaliburHolderId,
       activeExcaliburHolderId: room.activeExcaliburHolderId,
-      usedExcaliburHolderIds: room.usedExcaliburHolderIds,
+      excaliburPublicResult: room.pendingExcaliburResult ? {
+        holderId: room.activeExcaliburHolderId,
+        holderName: playerNameById(room, room.activeExcaliburHolderId),
+        targetId: room.pendingExcaliburResult.targetId,
+        targetName: room.pendingExcaliburResult.targetName
+      } : null,
       excaliburResult: room.pendingExcaliburResult?.viewerId === playerId ? {
         targetId: room.pendingExcaliburResult.targetId,
         targetName: room.pendingExcaliburResult.targetName,
@@ -1240,7 +1237,6 @@ function sanitizeResultDelay(value) {
 function sanitizeExpansions(expansions = {}) {
   return {
     excalibur: Boolean(expansions.excalibur),
-    excaliburUnique: Boolean(expansions.excaliburUnique),
     ladyOfLake: Boolean(expansions.ladyOfLake)
   };
 }
@@ -1285,8 +1281,7 @@ function excaliburCandidates(room) {
   return room.selectedTeam
     .map((id) => room.players.find((player) => player.id === id))
     .filter(Boolean)
-    .filter((player) => player.id !== leaderId)
-    .filter((player) => !room.settings.expansions.excaliburUnique || !room.usedExcaliburHolderIds.includes(player.id));
+    .filter((player) => player.id !== leaderId);
 }
 
 function initialLadyHolder(room) {
@@ -1295,7 +1290,9 @@ function initialLadyHolder(room) {
 }
 
 function lakeCandidates(room) {
-  return room.players.filter((player) => player.id !== room.ladyHolderId);
+  return room.players.filter((player) => (
+    player.id !== room.ladyHolderId && !room.ladyUsedIds.includes(player.id)
+  ));
 }
 
 function nextLadyHolderAfterInspection(room, targetId) {
@@ -1485,7 +1482,7 @@ function updateRoomEmptyState(room, now = Date.now()) {
 }
 
 function cleanName(name) {
-  return String(name || "").trim().slice(0, 16);
+  return cleanPlayerName(name);
 }
 
 function chooseAvatarMark(existingPlayers, name) {

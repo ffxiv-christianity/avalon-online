@@ -43,11 +43,16 @@ assert(script.includes("isPlayableNow(card.uid, isYourTurn)"), "LoveLetter unpla
 assert(script.includes("SharedRoomUI.handPanel"), "LoveLetter hand controls must use the shared hand panel helper");
 assert(script.includes("SharedRoomUI.cardStateClasses"), "LoveLetter hand card state classes must use the shared helper");
 assert(script.includes("const playableNow = isPlayableNow(card.uid, isYourTurn)"), "LoveLetter unplayable hand cards must compute playability in game rules");
+assert(script.includes('["guard", "priest", "baron", "king"].includes(card.id) && targets.length === 0'), "Every other-player target card must share the no-target play rule in the UI");
+assert(script.includes('["priest", "baron", "king"].includes(card.id)) return targetIdsForCard(card.id).length === 0'), "Priest, Baron and King confirmation must remain enabled with no legal opponent target");
 assert(script.includes('type="button" ${playableNow ? "" : "disabled"}'), "LoveLetter hand card buttons must render a disabled attribute when unavailable");
 assert(script.includes("你仍可查看自己的手牌"), "LoveLetter must let players inspect their hand outside their turn");
 assert(script.includes('renderHandCardFace(card, `${CARD_HELP[card.id] || ""} ${chancellorKeepId'), "Chancellor selection must keep card ability help visible");
 assert(script.includes("SharedRoomUI.actionInfoBlock"), "LoveLetter action info must use the shared action info helper");
 assert(script.includes('className: "love-action-info-block"'), "LoveLetter shared action info must keep the original block class");
+assert(script.includes("renderMessage: renderActionMessage"), "LoveLetter action info must use the card-aware message renderer");
+assert(script.includes("snapshot.cards?.[cardId]"), "LoveLetter action info must use the server card definitions");
+assert(script.includes("cardNumberBadge(definition.value)"), "LoveLetter action info card labels must reuse the shared card number badge helper");
 assert(script.includes('bodyClassName: "love-private"'), "LoveLetter shared action info must keep the original body class");
 assert(script.includes("renderSeatBadges"), "LoveLetter action info must render #N messages with shared seat badges");
 assert(script.includes("renderScoreHearts"), "LoveLetter score display must render affection hearts");
@@ -72,6 +77,9 @@ assert(page.includes("若牌庫已空，改拿開局時暗置的蓋牌"), "LoveL
 assert(page.includes("<h3>勝利條件</h3>"), "LoveLetter rules must include victory conditions");
 assert(page.includes("牌庫耗盡時，所有未出局玩家公開手牌並比較數值"), "LoveLetter rules must explain deck-empty victory");
 assert(page.includes("只剩一位玩家，該玩家獲勝"), "LoveLetter rules must explain last-standing victory");
+assert(page.includes("若未出局的玩家中只有一人曾打出或棄掉間諜"), "LoveLetter rules must limit the Spy bonus to the sole surviving Spy player");
+assert(page.includes("同一位玩家可同時取得勝利分與間諜分"), "LoveLetter rules must explain that the round and Spy points can stack");
+assert.strictEqual((page.match(/若所有其他玩家都受保護，可直接打出且不發生效果。/g) || []).length, 4, "Every other-player target card must explain the no-target protected case");
 ["抽牌堆", "蓋牌", "公開移除"].forEach((text) => {
   assert(script.includes(text), `LoveLetter table zones must show ${text}`);
 });
@@ -101,6 +109,8 @@ assert(styles.includes("position: absolute"), "LoveLetter turn badge must float 
 assert(styles.includes("width: 28px"), "LoveLetter hand card number must keep a fixed circular width");
 assert(styles.includes("height: 28px"), "LoveLetter hand card number must keep a fixed circular height");
 assert(styles.includes(".love-action-info-block"), "LoveLetter action info block style is missing");
+assert(styles.includes(".love-action-card-label .love-card-number"), "LoveLetter action info card numbers need a scoped fixed-size style");
+assert(styles.includes("flex: 0 0 20px"), "LoveLetter action info card numbers must not shrink into ovals");
 assert(styles.includes(".love-result-table + .love-result"), "LoveLetter result action info must be spaced away from the player matrix");
 assert(styles.includes("margin-top: 22px"), "LoveLetter result action info spacing must be visibly larger");
 assert(styles.includes(".love-revealed-card"), "LoveLetter must provide game-specific compact remaining-card appearance");

@@ -43,16 +43,14 @@ const STALE_SAFE_ACTIONS = new Set([
   "toggleReady",
   "confirmReveal",
   "nightAction",
-  "vote",
-  "hunterShot"
+  "vote"
 ]);
 const COALESCED_ACTIONS = new Set([
   "roll",
   "toggleReady",
   "confirmReveal",
   "nightAction",
-  "vote",
-  "hunterShot"
+  "vote"
 ]);
 
 function serveStatic(req, res) {
