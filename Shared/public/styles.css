@@ -927,6 +927,32 @@ body.shared-readonly .shared-control-lock button {
   line-height: 1;
 }
 
+.seat-tone-1 { --seat-tone-bg: #e7f0d7; --seat-tone-color: #516b21; }
+.seat-tone-2 { --seat-tone-bg: #dceeee; --seat-tone-color: #23666b; }
+.seat-tone-3 { --seat-tone-bg: #e2e7f6; --seat-tone-color: #3d528a; }
+.seat-tone-4 { --seat-tone-bg: #eee0f2; --seat-tone-color: #70427d; }
+.seat-tone-5 { --seat-tone-bg: #f4dedc; --seat-tone-color: #93413a; }
+.seat-tone-6 { --seat-tone-bg: #f4e8c8; --seat-tone-color: #7c5a16; }
+.seat-tone-7 { --seat-tone-bg: #e3eadb; --seat-tone-color: #486a3c; }
+.seat-tone-8 { --seat-tone-bg: #e7e1d8; --seat-tone-color: #69533c; }
+
+.template-seat-number {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 50%;
+  background: var(--seat-tone-bg);
+  color: var(--seat-tone-color);
+  padding: 0;
+  font-size: .72rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .template-seat-number.seat-tone-1 { background: #e7f0d7; color: #516b21; }
 .template-seat-number.seat-tone-2 { background: #dceeee; color: #23666b; }
 .template-seat-number.seat-tone-3 { background: #e2e7f6; color: #3d528a; }

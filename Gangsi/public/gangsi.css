@@ -1,0 +1,1065 @@
+:root {
+  --gangsi-brand: #7a5718;
+  --gangsi-brand-soft: #f1e5cb;
+  --gangsi-floor: #eef2ef;
+  --gangsi-grid: #334044;
+  --gangsi-void: #c8c3ba;
+  --gangsi-wall: #8f1d2c;
+  --treasure-a: #0057b8;
+  --treasure-b: #00875a;
+  --treasure-c: #f2c300;
+  --treasure-c-ink: #332900;
+  --treasure-d: #a90f9b;
+  --treasure-e: #d62828;
+}
+
+.gangsi-brand-mark {
+  color: var(--gangsi-brand);
+}
+
+.gangsi-editor-link {
+  display: inline-flex;
+  width: max-content;
+  color: var(--blue);
+  font-size: .86rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.gangsi-editor-link:hover,
+.gangsi-editor-link:focus-visible {
+  text-decoration: underline;
+}
+
+.gangsi-main-panel {
+  min-width: 0;
+}
+
+.gangsi-map-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.gangsi-map-summary div {
+  min-width: 0;
+}
+
+.gangsi-map-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.gangsi-map-summary strong {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+.gangsi-token-field {
+  min-width: 112px;
+}
+
+.gangsi-token-field input {
+  width: 52px;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.gangsi-role-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.gangsi-role-control button {
+  min-height: 38px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  background: #fff;
+  color: var(--muted);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.gangsi-role-control button:last-child {
+  border-right: 0;
+}
+
+.gangsi-role-control button.is-active {
+  background: var(--ink);
+  color: #fff;
+}
+
+.gangsi-role-control button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.gangsi-rules-dialog {
+  border-top-color: var(--gangsi-brand);
+}
+
+.gangsi-rules-dialog .rules-content {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.gangsi-rules-dialog .rules-content > section {
+  min-width: 0;
+}
+
+.gangsi-rules-overview,
+.gangsi-rules-flow,
+.gangsi-rules-dice-grid,
+.gangsi-rules-treasures {
+  display: grid;
+  gap: 10px;
+}
+
+.gangsi-rules-overview,
+.gangsi-rules-flow {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gangsi-rules-overview > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--gangsi-brand);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.gangsi-rules-overview span,
+.gangsi-rules-overview small,
+.gangsi-rules-treasures span,
+.gangsi-rules-treasures small {
+  display: block;
+  color: var(--muted);
+  font-size: .78rem;
+  line-height: 1.4;
+}
+
+.gangsi-rules-overview strong {
+  display: block;
+  margin: 4px 0;
+  color: var(--gangsi-brand);
+  line-height: 1.3;
+}
+
+.gangsi-rules-callout {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--gangsi-brand);
+  border-radius: 8px;
+  background: var(--gangsi-brand-soft);
+  padding: 12px 14px;
+}
+
+.gangsi-rules-callout span {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.gangsi-rules-callout.warn {
+  border-left-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.gangsi-rules-callout.danger {
+  border-left-color: var(--evil);
+  background: var(--evil-soft);
+}
+
+.gangsi-rules-callout.danger strong {
+  color: var(--evil);
+}
+
+.gangsi-rules-flow > div {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 2px 9px;
+  align-items: center;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+}
+
+.gangsi-rules-flow span {
+  display: grid;
+  grid-row: 1 / span 2;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: var(--gangsi-brand);
+  color: #fff;
+  font-weight: 900;
+}
+
+.gangsi-rules-flow small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.gangsi-rules-dice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gangsi-rules-dice-grid > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 13px;
+}
+
+.gangsi-rules-dice-grid p {
+  margin: 10px 0 0;
+}
+
+.gangsi-rules-faces {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(32px, 1fr));
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.gangsi-rules-faces span {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--gangsi-floor);
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.gangsi-rules-faces span.mummy {
+  border-color: var(--gangsi-grid);
+  background: var(--gangsi-grid);
+  color: #fff;
+}
+
+.gangsi-rules-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.gangsi-rules-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: .87rem;
+}
+
+.gangsi-rules-table th,
+.gangsi-rules-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.gangsi-rules-table th {
+  background: var(--gangsi-brand-soft);
+  color: var(--gangsi-brand);
+  font-weight: 900;
+}
+
+.gangsi-rules-table td {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.gangsi-rules-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.gangsi-rules-score-table {
+  min-width: 520px;
+}
+
+.gangsi-rules-movement-table th:first-child,
+.gangsi-rules-movement-table td:first-child {
+  width: 132px;
+  min-width: 132px;
+}
+
+.gangsi-rules-treasures {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.gangsi-rules-treasures > div {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--task-color) 65%, var(--line));
+  border-top: 5px solid var(--task-color);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--task-color) 10%, #fff);
+  padding: 10px;
+}
+
+.gangsi-rules-treasures strong {
+  display: block;
+  min-height: 2.6em;
+  margin: 3px 0;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.gangsi-rules-treasures > div[data-group="A"] { --task-color: var(--treasure-a); }
+.gangsi-rules-treasures > div[data-group="B"] { --task-color: var(--treasure-b); }
+.gangsi-rules-treasures > div[data-group="C"] { --task-color: var(--treasure-c); }
+.gangsi-rules-treasures > div[data-group="D"] { --task-color: var(--treasure-d); }
+.gangsi-rules-treasures > div[data-group="E"] { --task-color: var(--treasure-e); }
+
+.gangsi-checkbox-field {
+  display: flex;
+  align-items: center;
+  align-self: end;
+  min-height: 42px;
+  gap: 9px;
+  color: var(--ink);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.gangsi-checkbox-field input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.gangsi-game-shell {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.gangsi-player-matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.gangsi-player-seat {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--muted);
+  border-radius: 7px;
+  background: #fff;
+  padding: 9px;
+}
+
+.gangsi-piece-token {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 2px solid var(--seat-tone-color, var(--gangsi-grid));
+  border-radius: 50%;
+  background: var(--seat-tone-bg, #fff);
+  color: var(--seat-tone-color, var(--gangsi-grid));
+  font-weight: 900;
+}
+
+.gangsi-piece-token small {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: .55rem;
+}
+
+.gangsi-piece-token.is-eliminated {
+  opacity: .35;
+  text-decoration: line-through;
+}
+
+.gangsi-piece-token.is-mummy {
+  border-color: var(--gangsi-wall);
+  background: var(--gangsi-wall);
+  color: #fff;
+}
+
+.gangsi-player-seat.is-self {
+  border-left-color: var(--good);
+}
+
+.gangsi-player-seat.is-current {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+
+.gangsi-player-seat.is-offline {
+  opacity: .56;
+}
+
+.gangsi-seat-pieces {
+  display: flex;
+  min-width: 34px;
+  gap: 4px;
+}
+
+.gangsi-player-seat-body {
+  min-width: 0;
+}
+
+.gangsi-player-seat strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gangsi-player-seat small {
+  color: var(--muted);
+}
+
+.gangsi-progress-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.gangsi-progress-groups > span,
+.gangsi-revealed-strip > span {
+  border: 1px solid color-mix(in srgb, var(--task-color) 72%, var(--line));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--task-color) 13%, #fff);
+  padding: 2px 5px;
+  color: var(--ink);
+  font-size: .68rem;
+  font-weight: 900;
+}
+
+.gangsi-progress-groups > span[data-group="A"],
+.gangsi-revealed-strip > span[data-group="A"] { --task-color: var(--treasure-a); }
+.gangsi-progress-groups > span[data-group="B"],
+.gangsi-revealed-strip > span[data-group="B"] { --task-color: var(--treasure-b); }
+.gangsi-progress-groups > span[data-group="C"],
+.gangsi-revealed-strip > span[data-group="C"] { --task-color: var(--treasure-c); }
+.gangsi-progress-groups > span[data-group="D"],
+.gangsi-revealed-strip > span[data-group="D"] { --task-color: var(--treasure-d); }
+.gangsi-progress-groups > span[data-group="E"],
+.gangsi-revealed-strip > span[data-group="E"] { --task-color: var(--treasure-e); }
+
+.gangsi-game-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 300px);
+  gap: clamp(14px, 1.3vw, 22px);
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 16px 0;
+}
+
+.gangsi-board-region,
+.gangsi-control-region {
+  min-width: 0;
+}
+
+.gangsi-board-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.gangsi-board-heading h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.gangsi-board-heading > span {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.gangsi-board-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: auto;
+}
+
+.gangsi-board {
+  --cols: 10;
+  --rows: 7;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
+  width: max(100%, calc(var(--cols) * 40px));
+  aspect-ratio: var(--cols) / var(--rows);
+  overflow: hidden;
+  container-type: inline-size;
+  border: 3px solid var(--gangsi-grid);
+  background: var(--gangsi-floor);
+}
+
+.gangsi-board-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-right: 1px solid rgba(51, 64, 68, .34);
+  border-bottom: 1px solid rgba(51, 64, 68, .34);
+  border-radius: 0;
+  background: var(--gangsi-floor);
+  padding: 0;
+  color: inherit;
+  cursor: default;
+}
+
+.gangsi-board-cell:focus-visible {
+  z-index: 4;
+  outline: 3px solid var(--blue);
+  outline-offset: -3px;
+}
+
+.gangsi-board-cell.is-legal-target {
+  z-index: 2;
+  box-shadow: inset 0 0 0 4px var(--gold);
+  cursor: pointer;
+}
+
+.gangsi-board-cell.is-path-cell {
+  background: #d9ebf2;
+}
+
+.gangsi-board-cell.is-treasure-hint {
+  z-index: 2;
+  background: color-mix(in srgb, var(--gold-soft) 72%, #fff);
+  box-shadow: inset 0 0 0 3px var(--gold), 0 0 0 2px #fff;
+}
+
+.gangsi-board-cell.is-treasure-hint .gangsi-treasure-token {
+  transform: scale(1.14);
+}
+
+.gangsi-board-cell.is-void {
+  background: var(--gangsi-void);
+}
+
+.gangsi-board-cell.is-entrance {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.gangsi-board-cell.is-dungeon {
+  background: var(--evil-soft);
+  color: var(--evil);
+}
+
+.gangsi-board-cell.wall-right {
+  border-right: 4px solid var(--gangsi-wall);
+}
+
+.gangsi-board-cell.wall-bottom {
+  border-bottom: 4px solid var(--gangsi-wall);
+}
+
+.gangsi-zone-label {
+  position: absolute;
+  z-index: 1;
+  top: 2px;
+  left: 3px;
+  padding: 2px;
+  font-size: clamp(.56rem, 2.4cqw, .78rem);
+  font-weight: 900;
+}
+
+.gangsi-treasure-token {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, .88);
+  border-radius: 5px;
+  color: #fff;
+  font-size: clamp(.58rem, 2.3cqw, .74rem);
+  font-weight: 900;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+
+.gangsi-board-piece-stack {
+  position: absolute;
+  z-index: 3;
+  right: 2px;
+  bottom: 2px;
+  display: flex;
+  max-width: calc(100% - 4px);
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.gangsi-board-piece {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(18px, 4.2cqw, 28px);
+  height: clamp(18px, 4.2cqw, 28px);
+  border: 2px solid var(--seat-tone-color, var(--gangsi-grid));
+  border-radius: 50%;
+  background: var(--seat-tone-bg, #fff);
+  color: var(--seat-tone-color, var(--gangsi-grid));
+  font-size: clamp(.58rem, 2.2cqw, .78rem);
+  font-weight: 900;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .24);
+}
+
+.gangsi-board-piece small {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: .48rem;
+}
+
+.gangsi-board-piece.is-current {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--gold);
+}
+
+.gangsi-board-piece.is-mummy {
+  border-color: var(--gangsi-wall);
+  background: var(--gangsi-wall);
+  color: #fff;
+}
+
+.gangsi-treasure-token[data-group="A"] { background: var(--treasure-a); }
+.gangsi-treasure-token[data-group="B"] { background: var(--treasure-b); }
+.gangsi-treasure-token[data-group="C"] { background: var(--treasure-c); color: var(--treasure-c-ink); }
+.gangsi-treasure-token[data-group="D"] { background: var(--treasure-d); }
+.gangsi-treasure-token[data-group="E"] { background: var(--treasure-e); }
+
+.gangsi-control-region {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.gangsi-value-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  box-shadow: inset 0 -3px 0 color-mix(in srgb, var(--gangsi-brand) 18%, transparent);
+}
+
+.gangsi-value-strip div {
+  min-width: 0;
+  padding: 10px 7px;
+  border-right: 1px solid var(--line);
+  text-align: center;
+}
+
+.gangsi-value-strip div:nth-child(2) {
+  background: color-mix(in srgb, var(--treasure-a) 5%, #fff);
+}
+
+.gangsi-value-strip div:last-child {
+  border-right: 0;
+}
+
+.gangsi-value-strip span {
+  display: block;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+}
+
+.gangsi-value-strip strong {
+  display: block;
+  margin-top: 3px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--gangsi-grid);
+}
+
+.gangsi-value-strip [data-gangsi-life] {
+  color: var(--gangsi-wall);
+}
+
+.gangsi-value-strip [data-gangsi-missions] {
+  color: var(--treasure-a);
+}
+
+.gangsi-dice-panel h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  color: var(--gangsi-grid);
+  font-size: .9rem;
+}
+
+.gangsi-dice-panel h3::before {
+  content: "";
+  display: block;
+  flex: 0 0 4px;
+  width: 4px;
+  height: 1em;
+  border-radius: 2px;
+  background: var(--gangsi-brand);
+}
+
+.gangsi-dice-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.gangsi-dice-row.has-mummy-die {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.gangsi-die {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: 0;
+  font-weight: 900;
+  cursor: default;
+  box-shadow:
+    inset 0 -2px 0 rgba(51, 64, 68, .12),
+    0 2px 5px rgba(31, 39, 41, .08);
+}
+
+.gangsi-die.is-locked {
+  border-color: var(--gangsi-wall);
+  background: var(--evil-soft);
+  color: var(--gangsi-wall);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gangsi-wall) 22%, transparent);
+}
+
+.gangsi-die.is-hidden-face {
+  color: var(--muted);
+}
+
+.gangsi-die.is-mummy-die {
+  border: 2px solid var(--gangsi-wall);
+  background: var(--gangsi-wall);
+  color: #fff;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .25), 0 2px 5px rgba(31, 39, 41, .16);
+}
+
+.gangsi-die.is-selectable {
+  border-color: var(--good);
+  background: color-mix(in srgb, var(--good-soft) 68%, #fff);
+  box-shadow: inset 0 0 0 2px var(--good-soft), 0 2px 7px rgba(14, 107, 65, .16);
+  color: var(--good);
+  cursor: pointer;
+}
+
+.gangsi-action-info-block {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gangsi-action-info-block > h3 {
+  min-height: 24px;
+  margin: 0 0 10px;
+}
+
+.gangsi-action-info-body {
+  display: grid;
+  align-self: start;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid rgba(32, 40, 43, .14);
+  border-radius: 8px;
+  background: #fffdf8;
+  padding: 14px;
+  overflow-wrap: anywhere;
+}
+
+.gangsi-action-info-body p {
+  min-width: 0;
+  margin: 0;
+  font-size: .95rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.gangsi-control-region .template-game-action-row > button {
+  box-shadow: 0 2px 6px rgba(31, 39, 41, .12);
+}
+
+.gangsi-direction-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-areas:
+    ". up ."
+    "left down right";
+  gap: 5px;
+}
+
+.gangsi-direction-grid [data-gangsi-arrow="up"] { grid-area: up; }
+.gangsi-direction-grid [data-gangsi-arrow="left"] { grid-area: left; }
+.gangsi-direction-grid [data-gangsi-arrow="down"] { grid-area: down; }
+.gangsi-direction-grid [data-gangsi-arrow="right"] { grid-area: right; }
+
+.gangsi-direction-grid button {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  font-size: 1.2rem;
+}
+
+.gangsi-hand-panel {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.gangsi-hand-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gangsi-task-card {
+  display: grid;
+  min-width: 0;
+  min-height: 92px;
+  align-content: space-between;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-top: 5px solid var(--task-color);
+  border-radius: 7px;
+  background: #fff;
+  padding: 10px;
+}
+
+.gangsi-task-card[data-group="A"] { --task-color: var(--treasure-a); }
+.gangsi-task-card[data-group="B"] { --task-color: var(--treasure-b); }
+.gangsi-task-card[data-group="C"] { --task-color: var(--treasure-c); }
+.gangsi-task-card[data-group="D"] { --task-color: var(--treasure-d); }
+.gangsi-task-card[data-group="E"] { --task-color: var(--treasure-e); }
+
+.gangsi-task-card > span {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.gangsi-task-card strong {
+  overflow-wrap: anywhere;
+  font-size: .88rem;
+}
+
+.gangsi-task-card small {
+  color: var(--muted);
+}
+
+.gangsi-task-card.is-revealed {
+  background: var(--good-soft);
+}
+
+.gangsi-task-card[data-gangsi-task-id] {
+  cursor: help;
+}
+
+.gangsi-task-card[data-gangsi-task-id]:hover,
+.gangsi-task-card[data-gangsi-task-id]:focus-visible {
+  border-color: var(--gold);
+  outline: 2px solid color-mix(in srgb, var(--gold) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.gangsi-revealed-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.gangsi-turn-badge {
+  background: var(--ink);
+  color: #fff;
+}
+
+.gangsi-capture-lightbox {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(25, 29, 30, .52);
+  padding: 20px;
+  pointer-events: auto;
+}
+
+.gangsi-capture-message {
+  display: grid;
+  width: min(570px, 100%);
+  min-height: 150px;
+  align-content: center;
+  gap: 11px;
+  border: 3px solid var(--gangsi-wall);
+  border-radius: 6px;
+  background: #fff;
+  padding: 30px;
+  color: var(--gangsi-wall);
+  text-align: center;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .28);
+}
+
+.gangsi-capture-message strong,
+.gangsi-capture-message span {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.gangsi-capture-message span {
+  color: var(--ink);
+}
+
+.gangsi-game-over-lightbox .identity-header .eyebrow {
+  color: var(--good);
+}
+
+.gangsi-game-over-lightbox.evil .identity-header .eyebrow {
+  color: var(--gangsi-wall);
+}
+
+@media (max-width: 1280px) {
+  .gangsi-game-main {
+    grid-template-columns: 1fr;
+  }
+
+  .gangsi-control-region {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gangsi-value-strip,
+  .gangsi-control-region .template-game-action-row {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 930px) {
+  .gangsi-rules-treasures {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .gangsi-player-matrix {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .gangsi-rules-overview,
+  .gangsi-rules-flow,
+  .gangsi-rules-dice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gangsi-rules-treasures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gangsi-rules-callout {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .gangsi-capture-lightbox {
+    padding: 9px;
+  }
+
+  .gangsi-capture-message {
+    min-height: 135px;
+    padding: 21px 15px;
+  }
+
+  .gangsi-game-shell {
+    gap: 12px;
+  }
+
+  .gangsi-player-matrix,
+  .gangsi-control-region {
+    grid-template-columns: 1fr;
+  }
+
+  .gangsi-value-strip,
+  .gangsi-control-region .template-game-action-row {
+    grid-column: auto;
+  }
+
+  .gangsi-board {
+    width: max(100%, calc(var(--cols) * 36px));
+  }
+
+  .gangsi-map-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .gangsi-hand-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gangsi-action-info-body {
+    padding: 10px;
+  }
+}

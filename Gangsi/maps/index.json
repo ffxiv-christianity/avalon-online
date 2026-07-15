@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "maps": [
+    {
+      "id": "classic",
+      "name": "經典古墓",
+      "file": "classic.json",
+      "builtIn": true
+    },
+    {
+      "id": "test-map",
+      "name": "蟹制地圖1",
+      "file": "test-map.json",
+      "builtIn": true
+    }
+  ]
+}

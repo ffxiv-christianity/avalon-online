@@ -174,11 +174,13 @@
 - 是否需要玩家矩陣或玩家摘要卡；需要時使用 `SharedRoomUI.playerMatrix()` 與 `SharedRoomUI.seatNumber()`。
 - 是否需要手牌、角色牌、選牌或其他玩家可選物件；需要時使用 `SharedRoomUI.handPanel()` 與 `SharedRoomUI.cardStateClasses()` 固定 UI 外框與 selected/disabled 狀態。
 - 是否需要桌面公開區，例如抽牌堆、棄牌堆、蓋牌、公開移除、公開牌區、任務區或其他全員可見資訊；需要時應放在主桌面區，不可塞進聊天或記錄。
+- 是否屬於棋盤式遊戲；若是，必須先定義結構化地圖、格子／節點屬性、通行圖譜、特殊區域、棋子可見性與合法移動來源，不得把地圖規則寫死在前端 DOM。
 - 是否需要公開資訊欄、私密資訊欄或行動資訊欄；需要行動資訊時使用 `SharedRoomUI.actionInfoBlock()`，公開/私密訊息由 Server View 提供。
 - 是否需要右上角目前回合提示；需要時使用 `template-game-turn-badge` 與 `template-game-turn-pulse`，提示只在目前玩家可操作或需確認時顯示。
 - 是否需要主流程確認／取消按鈕列；需要時使用 `template-game-action-row`，按鈕是否 disabled、確認條件與 action payload 仍由遊戲決定。
 - 是否需要結算或整場結束後房主操作；需要時使用 Shared `.result-action-row`，不得沿用大廳 `.start-button`。
 - 手機版主流程順序必須先決定：桌面公開區、玩家矩陣、手牌／操作、行動資訊欄，且不得因隱藏桌機內容而缺功能。
+- 棋盤式遊戲必須決定桌機與手機的棋盤縮放／捲動方式、最大地圖尺寸、棋子堆疊與座標是否顯示；實際遊戲預設不顯示每格座標，座標只保留在 `aria-label`、編輯器或除錯工具。
 
 ### 新型 Server View 邊界
 
@@ -189,6 +191,7 @@
 - `room.publicZones` 或遊戲等價欄位：全員可見的牌堆、桌面區、棄牌區、移除區、任務或流程公開資訊。
 - `you.hand`、`you.role`、`you.privateInfo` 或遊戲等價欄位：只屬於目前玩家的手牌、角色、查驗、抽牌、交換、夜晚結果等秘密資訊。
 - `you.pendingAction`：目前玩家是否需要操作、操作類型、可選項目的 Server-authoritative 清單；前端只能呈現與送回選擇，不得自行增加合法選項。
+- 棋盤式遊戲的可走格、方向、完整路徑與障礙判定也屬於 Server-authoritative 清單；前端只能高亮伺服器允許的目標。若某陣營不能知道其他棋子位置，其 View 與合法移動資料都不得旁洩位置資訊。
 - `you.actionInfo`：目前玩家可閱讀的公開與私密行動訊息；其他玩家不能從自己的 View 取得不屬於自己的私密結果。
 - 結算 View 必須保留足夠公開資訊，讓玩家理解誰觸發結算、哪些玩家得分、哪些公開牌或公開狀態影響結果。
 
@@ -337,15 +340,21 @@
 
 方格尺寸、間距、卡片圓角、按鈕層級、狀態色彩及 RWD 斷點優先由 `Shared/public/styles.css` 控制。遊戲專屬 CSS 只能補充角色、陣營、階段或規則所需樣式，不得重寫共用骨架。
 
-狀態卡的外觀、數量與 RWD 屬於 Shared UI；卡片內容屬於遊戲及階段語意。準備大廳若存在房主，應顯示目前房主；遊戲開始後才改為該遊戲的領袖、行動者或其他遊戲專屬摘要。不得在準備階段顯示尚未生效的遊戲職位。
+狀態卡的外觀、數量與 RWD 屬於 Shared UI；卡片內容屬於遊戲及階段語意。準備大廳若存在房主，應顯示目前房主；遊戲開始後才改為該遊戲的領袖、行動者或其他遊戲專屬摘要。不得在準備階段顯示尚未生效的遊戲職位。採用下述棋盤式主遊戲框架時，可在桌機與手機都省略四張狀態卡，把空間留給棋盤，但仍須在主控制區呈現必要數值與階段資訊。
 
-本文件中的主遊戲框架分成兩層：全站房間框架已適用 Avalon、Onenightwolf、CriminalDance 與 LoveLetter；新型主遊戲框架目前由 CriminalDance 與 LoveLetter 驗證，包含玩家矩陣、手牌／選牌區、行動資訊欄、主流程確認列與右上角回合提示。後續新遊戲若需要這些結構，應優先套用新型主遊戲框架；Avalon 與 Onenightwolf 的既有主流程已穩定，除非重構，不要求為了形式一致而回套所有新型主遊戲 `template-*` marker。
+本文件中的主遊戲框架分成三層：全站房間框架已適用 Avalon、Onenightwolf、CriminalDance、LoveLetter 與 Gangsi；新型主遊戲框架由 CriminalDance、LoveLetter 與 Gangsi 驗證，包含玩家矩陣、手牌／選牌區、行動資訊欄、主流程確認列與右上角回合提示；棋盤式主遊戲框架則由 Gangsi 驗證，在新型主遊戲框架上增加結構化棋盤、Server-authoritative 移動、棋子可見性與棋盤優先的空間規則。後續新遊戲應依玩法套用相應層級；Avalon 與 Onenightwolf 的既有主流程已穩定，除非重構，不要求為了形式一致而回套所有新型主遊戲 `template-*` marker。
 
 多人主畫面若使用玩家矩陣或玩家摘要卡，必須保留座位號、分數／狀態、目前行動者與必要公開資訊。玩家名稱必須使用 `min-width: 0`、`text-overflow: ellipsis` 或等效做法處理惡意長名字，完整名稱可放在 `title` 或詳細區，不得讓卡片撐破主視窗。
 
-若遊戲適合使用玩家矩陣，玩家矩陣也屬於固定 template 框架的一部分：新增遊戲時必須先確認主流程是否需要玩家矩陣；需要時必須使用 `SharedRoomUI.playerMatrix()` 產生矩陣 wrapper，並沿用既有矩陣的座位號、玩家名稱截斷、分數／狀態、目前行動者 token、公開資訊堆疊與 RWD 欄數規則，只能依玩家上限調整欄數。座位編號 `#N` 也屬於 template 資訊，必須使用 `SharedRoomUI.seatNumber()` 產生 `template-seat-number` marker，並可同時保留遊戲專屬外觀 class。
+若遊戲適合使用玩家矩陣，玩家矩陣也屬於固定 template 框架的一部分：新增遊戲時必須先確認主流程是否需要玩家矩陣；需要時必須使用 `SharedRoomUI.playerMatrix()` 產生矩陣 wrapper，並沿用既有矩陣的座位號、玩家名稱截斷、分數／狀態、目前行動者 token、公開資訊堆疊與 RWD 欄數規則，只能依玩家上限調整欄數。座位編號 `#N` 也屬於 template 資訊，必須使用 `SharedRoomUI.seatNumber()` 產生 `template-seat-number` marker；其圓形、固定尺寸與 `seat-tone-1` 至 `seat-tone-8` 配色由 Shared template 統一。與玩家座位綁定的遊戲物件可使用 `SharedRoomUI.seatToneClass()` 沿用同一配色；角色專屬固定配色可由遊戲明確覆寫。
 
 CriminalDance 與 LoveLetter 的主遊戲框架應視為新型主遊戲 template：主桌面、玩家矩陣、控制列、手牌／選牌區、行動資訊欄與目前回合 badge 的位置一致。玩家矩陣 wrapper、座位編號與玩家列表 token policy 屬於 `SharedRoomUI` helper；`template-game-control-row`、`template-game-action-row`、`template-game-turn-badge` 與 `template-game-turn-pulse` 屬於 Shared presentation contract，只固定位置、按鈕列尺寸與「輪到你」呼吸渲染。玩家上限、矩陣欄數、桌面牌區、公開牌區、動畫與其他規則表現仍屬遊戲專屬實作，不應寫成跨遊戲差異白名單。
+
+棋盤式主遊戲 template 沿用新型主遊戲的 `template-game-main-table`、玩家矩陣、控制列、手牌、行動資訊與回合 badge，但主桌面以棋盤為第一優先。地圖必須是可驗證的結構化資料，將格子／節點、牆壁或邊、入口、特殊區域與物件位置分開表示；遊戲邏輯只依這些固定屬性互動，載入不同地圖時不得改寫棋子或角色規則。前端不得自行推導通行、穿越、停止、抓捕或揭露結果，所有合法目標及最終狀態都由 Server View 提供。
+
+棋盤式主遊戲可以省略桌機四張 `status-strip`，但玩家生命、任務進度、骰子／資源、目前階段與行動者仍須在玩家矩陣或控制區保持可掃讀。實際遊戲格子不得常駐顯示座標；座標可保留在地圖編輯器、無障礙名稱與開發工具。棋盤需使用固定行列、`aspect-ratio` 或等價約束防止棋子與標籤改變格子尺寸；超出可用寬度時使用可預期的縮放或局部捲動，不得壓縮到文字、棋子或操作重疊。
+
+若不同陣營對棋子位置的可見性不同，Server View 必須為每位 viewer 建立不同棋盤資料。隱藏位置不能只靠 CSS、透明度或前端不渲染處理，且合法移動清單、記錄、提示文字與錯誤訊息都不能成為旁通道。公開任務進度可按類別與數量提供，但未揭露的精確物件 ID、手牌與位置仍應留在擁有者的 private View。
 
 遊戲若有「打出牌堆」「置於面前的公開牌」「指定到某位玩家的公開標記」等資訊，可以用遊戲專屬小籌碼呈現；籌碼可有副標，但尺寸、間距與截斷規則必須跟主畫面矩陣一致。只屬於單一玩家的換牌、抽牌、查驗方向與結果，仍屬 Server View 的私密資訊，不得公開成全桌流程圖。
 
@@ -360,7 +369,7 @@ CriminalDance 與 LoveLetter 的主遊戲框架應視為新型主遊戲 template
 - 準備大廳隱藏四張 status card，將首屏空間優先留給聊天／玩家資訊與主遊戲區。
 - 遊戲開始後改顯示 Shared 的單行精簡摘要，不顯示四張大卡。
 - 精簡摘要最多使用三個主要資訊群組；不得橫向捲動，空間不足時以省略號處理。
-- 桌機與平板仍保留四張 status card。
+- 桌機與平板仍保留四張 status card；採用棋盤式主遊戲 template 且已把必要摘要移入玩家矩陣／控制區者可以省略。
 
 ## 12. Shared、模板與遊戲專屬的責任邊界
 
@@ -419,7 +428,7 @@ CriminalDance 與 LoveLetter 的主遊戲框架應視為新型主遊戲 template
 13. 所有私密資訊都必須能證明是 Server authoritative：測試需覆蓋不同 viewer 只收到自己的私密 View，且偽造 client payload 不會改變 server 私密結果。
 14. 所有 lightbox、規則 overlay、私密資訊揭露與短暫記憶型資訊，必須沿用 Shared lightbox／overlay 行為；不得在遊戲內另做一套 modal。
 15. 若遊戲規則要求在結算時公開剩餘手牌、隱藏角色或其他私密資訊才能驗證勝負，必須在 `roundResult` 或等價 Server View 提供結構化公開資料，不得只放在 action info 文字中。若是公開剩餘手牌，應公開玩家、牌面、比較值與是否得分，並在前端用該遊戲遊玩時的同一個牌面 renderer 或等價 helper 顯示；結算區可使用不可選的 compact 牌列，玩家名稱必須能處理超長名字。下一款需要顯示剩餘手牌的遊戲，優先使用 `Shared/public/room-ui.js` 的 `SharedRoomUI.resultRows()` 產生結果列、名稱截斷、剩餘牌列與右側分數欄，遊戲只提供資料與 compact 牌面 renderer；LoveLetter 的 `roundResult.revealedHands`、`renderResultRows()` 與 `renderHandCardFace()` 可作為參考。Shared 只定義「結算必須可驗證」與「公開牌面應重用牌面 renderer」契約，不強制所有手牌遊戲公開剩餘手牌。
-16. Visual QA 截圖測試屬於按需執行的人工輔助檢查，不是每次改動或每次交付的必跑項目；若本次改動影響手機版 layout、主遊戲框架、玩家矩陣、手牌／選牌區、桌面牌區、棄牌／打出牌堆、規則 overlay、lightbox 或大量公開資訊，交付前應先詢問是否執行 Visual QA。若執行 Visual QA，必須分清白箱 layout 測試、黑箱截圖測試與壓力測試；三層測試都必須產出對應截圖或 report，並涵蓋準備大廳、主遊戲與結算／等待回大廳，不可只截主遊戲視窗。Shared room shell 的 Visual QA 必須覆蓋四款遊戲：Avalon、Onenightwolf、CriminalDance、LoveLetter；新型主遊戲 template marker 檢查只套用在使用該 template 的遊戲。正式 Visual QA 必須載入原本遊戲頁面與原本前端 renderer，並使用各遊戲原本 server view schema；不得用手刻靜態 HTML fixture 取代實際遊戲架構截圖。黑箱與壓力截圖都必須使用最大玩家矩陣；壓力 fixture 必須模擬最大玩家矩陣、最長合理名字、最大或接近最大分數、最多常見公開牌／棄牌／打出牌／公開標記與多行 action info，不得只用理想最小畫面。
+16. Visual QA 截圖測試屬於按需執行的人工輔助檢查，不是每次改動或每次交付的必跑項目；若本次改動影響手機版 layout、主遊戲框架、玩家矩陣、手牌／選牌區、棋盤、桌面牌區、棄牌／打出牌堆、規則 overlay、lightbox 或大量公開資訊，交付前應先詢問是否執行 Visual QA。若執行 Visual QA，必須分清白箱 layout 測試、黑箱截圖測試與壓力測試；三層測試都必須產出對應截圖或 report，並涵蓋準備大廳、主遊戲與結算／等待回大廳，不可只截主遊戲視窗。Shared room shell 的 Visual QA 必須覆蓋五款遊戲：Avalon、Onenightwolf、CriminalDance、LoveLetter、Gangsi；新型及棋盤式主遊戲 template marker 檢查只套用在使用該 template 的遊戲。正式 Visual QA 必須載入原本遊戲頁面與原本前端 renderer，並使用各遊戲原本 server view schema；不得用手刻靜態 HTML fixture 取代實際遊戲架構截圖。黑箱與壓力截圖都必須使用最大玩家矩陣；棋盤式遊戲還必須涵蓋最大支援地圖、最多棋子／標記、合法目標高亮與隱藏棋子 viewer。壓力 fixture 必須模擬最大玩家矩陣、最長合理名字、最大或接近最大分數、最多常見公開牌／棄牌／打出牌／公開標記與多行 action info，不得只用理想最小畫面。
 17. Visual QA harness、fixture、截圖 baseline 與測試專用瀏覽器依賴未經明確決定不得進正式 commit；若正式導入，必須獨立提交並限制測試入口。
 18. 交付前必須執行根目錄測試；若改動 UI 或 RWD，還必須用桌機與手機寬度檢查主流程不跑版、按鈕不重疊且所有可發生的按鈕都有 handler。
 

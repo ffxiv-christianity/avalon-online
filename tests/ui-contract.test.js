@@ -21,6 +21,9 @@ const lovePage = fs.readFileSync(path.join(root, "LoveLetter", "public", "index.
 const loveScript = fs.readFileSync(path.join(root, "LoveLetter", "public", "loveletter.js"), "utf8");
 const loveStyles = fs.readFileSync(path.join(root, "LoveLetter", "public", "loveletter.css"), "utf8");
 const loveGame = fs.readFileSync(path.join(root, "LoveLetter", "game.js"), "utf8");
+const gangsiPage = fs.readFileSync(path.join(root, "Gangsi", "public", "index.html"), "utf8");
+const gangsiScript = fs.readFileSync(path.join(root, "Gangsi", "public", "gangsi.js"), "utf8");
+const gangsiStyles = fs.readFileSync(path.join(root, "Gangsi", "public", "gangsi.css"), "utf8");
 const frameworkDoc = fs.readFileSync(path.join(root, "COMMON_ROOM_FRAMEWORK.md"), "utf8");
 const complianceMatrixDoc = fs.readFileSync(path.join(root, "docs", "FRAMEWORK_COMPLIANCE_MATRIX.md"), "utf8");
 const newGameChecklistDoc = fs.readFileSync(path.join(root, "docs", "NEW_GAME_CHECKLIST.md"), "utf8");
@@ -40,7 +43,8 @@ const loveMobileStyles = loveStyles.slice(loveStyles.indexOf("@media (max-width:
   ["Avalon", avalonPage, avalonScript],
   ["Onenightwolf", wolfPage, wolfScript],
   ["CriminalDance", criminalPage, criminalScript],
-  ["LoveLetter", lovePage, loveScript]
+  ["LoveLetter", lovePage, loveScript],
+  ["Gangsi", gangsiPage, gangsiScript]
 ].forEach(([game, page, script]) => {
   assert(page.includes('id="nameInput" maxlength="12"'), `${game} name input must expose the 12 half-width-unit limit`);
   assert(page.includes('<script src="/shared/player-name.js"></script>'), `${game} must load the Shared player-name contract`);
@@ -96,15 +100,30 @@ assert(avalonScript.includes("room.excaliburPublicResult"), "Excalibur public ta
 assert(avalonPage.includes('window.location.href = "/Onenightwolf/"'), "Avalon game selector must navigate to the One Night Wolf index");
 assert(avalonPage.includes('window.location.href = "/CriminalDance/"'), "Avalon game selector must navigate to the CriminalDance index");
 assert(avalonPage.includes('window.location.href = "/LoveLetter/"'), "Avalon game selector must navigate to the LoveLetter index");
+assert(avalonPage.includes('window.location.href = "/Gangsi/"'), "Avalon game selector must navigate to the Gangsi index");
 assert(wolfPage.includes('window.location.href = "/"'), "One Night Wolf game selector must navigate to the Avalon index");
 assert(wolfPage.includes('window.location.href = "/CriminalDance/"'), "One Night Wolf game selector must navigate to the CriminalDance index");
 assert(wolfPage.includes('window.location.href = "/LoveLetter/"'), "One Night Wolf game selector must navigate to the LoveLetter index");
+assert(wolfPage.includes('window.location.href = "/Gangsi/"'), "One Night Wolf game selector must navigate to the Gangsi index");
 assert(criminalPage.includes('window.location.href = "/"'), "CriminalDance game selector must navigate to the Avalon index");
 assert(criminalPage.includes('window.location.href = "/Onenightwolf/"'), "CriminalDance game selector must navigate to the One Night Wolf index");
 assert(criminalPage.includes('window.location.href = "/LoveLetter/"'), "CriminalDance game selector must navigate to the LoveLetter index");
+assert(criminalPage.includes('window.location.href = "/Gangsi/"'), "CriminalDance game selector must navigate to the Gangsi index");
 assert(lovePage.includes('window.location.href = "/"'), "LoveLetter game selector must navigate to the Avalon index");
 assert(lovePage.includes('window.location.href = "/Onenightwolf/"'), "LoveLetter game selector must navigate to the One Night Wolf index");
 assert(lovePage.includes('window.location.href = "/CriminalDance/"'), "LoveLetter game selector must navigate to the CriminalDance index");
+assert(lovePage.includes('window.location.href = "/Gangsi/"'), "LoveLetter game selector must navigate to the Gangsi index");
+assert(gangsiScript.includes('avalon: "/"') && gangsiScript.includes('loveletter: "/LoveLetter/"'), "Gangsi game selector must navigate to the existing game indexes");
+assert(gangsiPage.includes('data-shell-view="join"') && gangsiPage.includes('data-shell-view="room"'), "Gangsi must use the Shared join and room shell");
+assert(gangsiPage.includes('data-shell-layout="lobby"') && gangsiPage.includes('data-shell-layout="game"'), "Gangsi must use the Shared lobby and game layouts");
+assert(gangsiPage.includes('class="gangsi-game-main template-game-main-table"'), "Gangsi board room must expose the shared main-table marker");
+assert(gangsiPage.includes('class="template-game-action-row"'), "Gangsi board room must expose the shared action-row marker");
+assert(gangsiPage.includes("template-game-control-row"), "Gangsi board room must expose the shared control-row marker");
+assert(gangsiScript.includes("template-game-turn-badge") && gangsiScript.includes("template-game-turn-pulse"), "Gangsi board room must expose the shared turn markers");
+assert(gangsiScript.includes("SharedRoomUI.playerMatrix") && gangsiScript.includes("SharedRoomUI.seatNumber"), "Gangsi board room must use the shared player matrix");
+assert(gangsiScript.includes("SharedRoomUI.actionInfoBlock") && gangsiScript.includes("SharedRoomUI.handPanel"), "Gangsi board room must use shared information and hand panels");
+assert(!gangsiPage.includes("status-strip"), "Gangsi board room intentionally removes the four-card desktop status strip");
+assert(!gangsiStyles.includes(".gangsi-room-summary"), "Gangsi board room must keep the desktop status-strip space available for the board");
 assert(criminalPage.includes('href="/favicon.svg?v=2"'), "CriminalDance must use the shared favicon");
 assert(lovePage.includes('href="/favicon.svg?v=2"'), "LoveLetter must use the shared favicon");
 assert(criminalPage.includes('href="/assets/icons/apple-touch-icon.png"'), "CriminalDance must use the shared apple touch icon");
@@ -150,7 +169,8 @@ assert(criminalStyles.includes("--template-game-turn-pulse-shadow") && loveStyle
   assert(criminalScript.includes(className), `CriminalDance shared presentation marker is missing: ${className}`);
   assert(loveScript.includes(className), `LoveLetter shared presentation marker is missing: ${className}`);
 });
-assert(frameworkDoc.includes("新型主遊戲框架目前由 CriminalDance 與 LoveLetter 驗證"), "Framework doc must scope the newer main-game template to CriminalDance/LoveLetter and future games");
+assert(frameworkDoc.includes("新型主遊戲框架由 CriminalDance、LoveLetter 與 Gangsi 驗證"), "Framework doc must include Gangsi in the newer main-game template");
+assert(frameworkDoc.includes("棋盤式主遊戲框架則由 Gangsi 驗證"), "Framework doc must define the board-game specialization");
 assert(frameworkDoc.includes("Avalon 與 Onenightwolf 的既有主流程已穩定，除非重構，不要求為了形式一致而回套所有新型主遊戲"), "Framework doc must not force Avalon/Onenightwolf to backfill newer main-game markers");
 assert(frameworkDoc.includes("docs/FRAMEWORK_COMPLIANCE_MATRIX.md"), "Framework doc must link the compliance matrix");
 assert(frameworkDoc.includes("docs/NEW_GAME_CHECKLIST.md"), "Framework doc must link the new game checklist");
@@ -159,10 +179,12 @@ assert(frameworkDoc.includes("docs/NEW_GAME_CHECKLIST.md"), "Framework doc must 
   "Onenightwolf",
   "CriminalDance",
   "LoveLetter",
+  "Gangsi",
   "Global Shell",
   "Shared Runtime",
   "Roster Template",
   "New Main Game Template",
+  "Board Game Template",
   "Server View Boundary",
   "No-dead-end Coverage"
 ].forEach((item) => assert(complianceMatrixDoc.includes(item), `Compliance matrix is missing: ${item}`));
@@ -172,6 +194,7 @@ assert(complianceMatrixDoc.includes("新增遊戲時，必須更新本矩陣"), 
   "基本註冊",
   "房間與連線",
   "新型主遊戲框架判定",
+  "棋盤式遊戲判定",
   "Template Marker",
   "Server View",
   "Action Info",
@@ -186,6 +209,8 @@ assert(complianceMatrixDoc.includes("新增遊戲時，必須更新本矩陣"), 
   "SharedRoomUI.handPanel()",
   "SharedRoomUI.actionInfoBlock()",
   "template-game-action-row",
+  "合法格、方向與完整路徑由 Server 提供",
+  "實際遊戲是否隱藏每格座標",
   "you.pendingAction",
   "公開訊息不得洩漏秘密牌名",
   "至少跑 10 次完整流程",
@@ -203,9 +228,9 @@ assert(complianceMatrixDoc.includes("新增遊戲時，必須更新本矩陣"), 
   "三層 Visual QA 都必須涵蓋完整房間階段",
   "不可只截主遊戲視窗",
   "準備大廳、主遊戲與結算／等待回大廳",
-  "Shared room shell 的 Visual QA 必須覆蓋四款遊戲",
-  "Avalon、Onenightwolf、CriminalDance、LoveLetter",
-  "新型主遊戲 template marker 檢查只套用在使用該 template 的遊戲",
+  "Shared room shell 的 Visual QA 必須覆蓋五款遊戲",
+  "Avalon、Onenightwolf、CriminalDance、LoveLetter、Gangsi",
+  "新型及棋盤式主遊戲 template marker 檢查只套用在使用該 template 的遊戲",
   "正式 Visual QA 必須載入原本遊戲頁面與原本前端 renderer",
   "使用各遊戲原本 server view schema",
   "不得用手刻靜態 HTML fixture 取代實際遊戲架構截圖",
@@ -222,9 +247,9 @@ assert(complianceMatrixDoc.includes("新增遊戲時，必須更新本矩陣"), 
   "三層測試都必須產出對應截圖或 report",
   "準備大廳、主遊戲與結算／等待回大廳",
   "不可只截主遊戲視窗",
-  "Shared room shell 的 Visual QA 必須覆蓋四款遊戲",
-  "Avalon、Onenightwolf、CriminalDance、LoveLetter",
-  "新型主遊戲 template marker 檢查只套用在使用該 template 的遊戲",
+  "Shared room shell 的 Visual QA 必須覆蓋五款遊戲",
+  "Avalon、Onenightwolf、CriminalDance、LoveLetter、Gangsi",
+  "新型及棋盤式主遊戲 template marker 檢查只套用在使用該 template 的遊戲",
   "正式 Visual QA 必須載入原本遊戲頁面與原本前端 renderer",
   "使用各遊戲原本 server view schema",
   "不得用手刻靜態 HTML fixture 取代實際遊戲架構截圖",
@@ -236,6 +261,7 @@ assert(complianceMatrixDoc.includes("新增遊戲時，必須更新本矩陣"), 
 ].forEach((item) => assert(frameworkDoc.includes(item), `Framework Visual QA contract is missing: ${item}`));
 [
   "新型主遊戲框架實作清單",
+  "棋盤式主遊戲 template",
   "新型 Server View 邊界",
   "Action Info 訊息政策",
   "Template Marker 命名規則"
@@ -244,11 +270,19 @@ assert(complianceMatrixDoc.includes("新增遊戲時，必須更新本矩陣"), 
   "是否需要玩家矩陣",
   "是否需要手牌、角色牌、選牌",
   "是否需要桌面公開區",
+  "是否屬於棋盤式遊戲",
   "是否需要公開資訊欄、私密資訊欄或行動資訊欄",
   "是否需要右上角目前回合提示",
   "是否需要主流程確認／取消按鈕列",
   "手機版主流程順序"
 ].forEach((item) => assert(frameworkDoc.includes(item), `Framework checklist is missing: ${item}`));
+[
+  "結構化地圖",
+  "Server-authoritative 移動",
+  "實際遊戲格子不得常駐顯示座標",
+  "合法移動清單、記錄、提示文字與錯誤訊息都不能成為旁通道",
+  "最大支援地圖"
+].forEach((item) => assert(frameworkDoc.includes(item), `Board-game framework contract is missing: ${item}`));
 [
   "room.players[]",
   "you.pendingAction",
@@ -288,6 +322,7 @@ assert(loveScript.includes("renderTableZones()") && loveScript.includes("${rende
 });
 assert(sharedRoomUi.includes("template-game-player-matrix"), "Shared player matrix helper must render the template marker");
 assert(sharedRoomUi.includes("template-seat-number"), "Shared seat number helper must render the template marker");
+assert(sharedRoomUi.includes("function seatToneClass") && sharedRoomUi.includes("seatToneClass(seatIndex)"), "Shared seat numbers and seat-bound game objects must use one tone helper");
 assert(sharedRoomUi.includes("template-game-action-info-block"), "Shared action info helper must render the template marker");
 assert(sharedRoomUi.includes("template-game-hand-panel"), "Shared hand panel helper must render the template marker");
 assert(sharedRoomUi.includes("function resultRows") && sharedRoomUi.includes("template-result-row"), "Shared result row helper must support reusable result rows");
@@ -304,6 +339,15 @@ assert(loveScript.includes("const playableNow = isPlayableNow(card.uid, isYourTu
 assert(criminalScript.includes("cardDescription(card.id, isTurn)") && criminalScript.includes("isPlayable(card.id)"), "CriminalDance hand rules must remain game-specific");
 assert(criminalScript.includes("titleHtml: renderSeatBadges(title)"), "CriminalDance pending hand panel must preserve seat badge title HTML");
 assert(sharedStyles.includes(".template-seat-number.seat-tone-1"), "Shared template seat number tone styles are missing");
+assertCssRuleIncludes(sharedStyles, ".template-seat-number", "width: 28px");
+assertCssRuleIncludes(sharedStyles, ".template-seat-number", "height: 28px");
+assertCssRuleIncludes(sharedStyles, ".template-seat-number", "border-radius: 50%");
+assertCssRuleIncludes(sharedStyles, ".template-seat-number", "background: var(--seat-tone-bg)");
+assert(gangsiScript.includes("SharedRoomUI.seatToneClass(index)"), "Gangsi adventurer pieces must follow their shared seat tone");
+assert(gangsiScript.includes("seatToneByPlayerId.get(piece.controllerId)"), "Gangsi board pieces must follow their controller seat tone");
+assert(!gangsiScript.includes('gangsi-piece-token is-mummy seat-tone-'), "Gangsi mummy piece must keep its fixed role color");
+assertCssRuleIncludes(gangsiStyles, ".gangsi-piece-token", "background: var(--seat-tone-bg, #fff)");
+assertCssRuleIncludes(gangsiStyles, ".gangsi-board-piece", "background: var(--seat-tone-bg, #fff)");
 assert(sharedRoomUi.includes("template-player-token"), "Shared player tokens must carry the template-player-token marker");
 assert(sharedStyles.includes(".token {"), "Shared player token base style is missing");
 assert(sharedStyles.includes("width: 34px"), "Shared player tokens must align to the player list template size");

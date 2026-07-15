@@ -37,10 +37,15 @@
     return `<div class="${classes}">${players.map((player, index) => renderSeat(player, index)).join("")}</div>`;
   }
 
+  function seatToneClass(index) {
+    const seatIndex = Math.max(0, Number(index) || 0);
+    return `seat-tone-${((seatIndex % 8) + 1)}`;
+  }
+
   function seatNumber(index, className = "") {
     const seatIndex = Math.max(0, Number(index) || 0);
     const seat = seatIndex + 1;
-    const classes = [className, "template-seat-number", `seat-tone-${((seatIndex % 8) + 1)}`].filter(Boolean).join(" ");
+    const classes = [className, "template-seat-number", seatToneClass(seatIndex)].filter(Boolean).join(" ");
     return `<span class="${classes}">#${seat}</span>`;
   }
 
@@ -334,6 +339,7 @@
     token,
     rosterTokens,
     playerMatrix,
+    seatToneClass,
     seatNumber,
     actionInfoBlock,
     handPanel,

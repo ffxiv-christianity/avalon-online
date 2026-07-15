@@ -292,7 +292,13 @@ function adminDashboard() {
     }
 
     function gameLabel(game) {
-      return game === "avalon" ? "阿瓦隆" : game === "onenightwolf" ? "一夜狼人" : game || "未知";
+      return {
+        avalon: "阿瓦隆",
+        onenightwolf: "一夜狼人",
+        criminaldance: "犯人在跳舞",
+        loveletter: "情書",
+        gangsi: "古墓迷蹤"
+      }[game] || game || "未知";
     }
 
     function formatDuration(seconds) {

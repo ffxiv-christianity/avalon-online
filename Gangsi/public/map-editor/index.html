@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f1e8">
+  <title>古墓迷蹤地圖編輯器</title>
+  <link rel="stylesheet" href="/shared/styles.css">
+  <link rel="stylesheet" href="/Gangsi/gangsi.css">
+  <link rel="stylesheet" href="/Gangsi/map-editor/map-editor.css">
+</head>
+<body data-game="gangsi-map-editor">
+  <main class="map-editor-shell">
+    <header class="map-editor-topbar">
+      <div>
+        <p class="eyebrow">Gangsi Map Format v1</p>
+        <h1>古墓迷蹤地圖編輯器</h1>
+      </div>
+      <div class="topbar-actions">
+        <a class="ghost-button editor-back-link" href="/Gangsi/">返回古墓迷蹤</a>
+        <button class="ghost-button rules-button" id="openRulesButton" type="button">遊戲規則</button>
+        <output id="editorStatus" class="editor-status" aria-live="polite">載入中</output>
+      </div>
+    </header>
+
+    <section class="editor-toolbar" aria-label="地圖工具">
+      <div class="tool-group map-source-group">
+        <label for="builtInMap">內建地圖</label>
+        <select id="builtInMap" aria-label="內建地圖"></select>
+        <button id="loadBuiltIn" type="button">載入</button>
+      </div>
+
+      <div class="tool-group mode-group" role="group" aria-label="編輯模式">
+        <button class="mode-button is-active" type="button" data-mode="wall">牆壁</button>
+        <button class="mode-button" type="button" data-mode="void">封閉格</button>
+        <button class="mode-button" type="button" data-mode="entrance">入口</button>
+        <button class="mode-button" type="button" data-mode="dungeon">地牢</button>
+        <button class="mode-button" type="button" data-mode="treasure">寶藏</button>
+      </div>
+
+      <div class="tool-group action-group">
+        <button id="undoButton" type="button" disabled>復原</button>
+        <button id="redoButton" type="button" disabled>重做</button>
+        <button id="newMapButton" type="button">新地圖</button>
+        <button id="importButton" type="button">匯入 JSON</button>
+        <button id="saveButton" class="primary-button" type="button">儲存 JSON</button>
+        <input id="importInput" type="file" accept="application/json,.json" hidden>
+      </div>
+    </section>
+
+    <section class="editor-workspace">
+      <div class="board-workspace">
+        <div class="board-heading">
+          <div>
+            <p class="section-label">MAP MATRIX</p>
+            <h2 id="mapTitle">未命名地圖</h2>
+          </div>
+          <dl class="board-stats" id="boardStats"></dl>
+        </div>
+        <div class="board-scroll">
+          <div id="mapBoard" class="map-board" aria-label="地圖矩陣">
+            <div id="cellLayer" class="cell-layer"></div>
+            <div id="edgeLayer" class="edge-layer"></div>
+          </div>
+        </div>
+        <div class="board-legend" aria-label="地圖圖例">
+          <span><i class="legend-floor"></i>道路</span>
+          <span><i class="legend-wall"></i>牆壁</span>
+          <span><i class="legend-void"></i>封閉格</span>
+          <span><i class="legend-entrance"></i>入口</span>
+          <span><i class="legend-dungeon"></i>地牢</span>
+        </div>
+      </div>
+
+      <aside class="editor-inspector" aria-label="地圖屬性">
+        <section class="inspector-section treasure-section">
+          <div class="section-heading-row">
+            <h2>寶藏位置</h2>
+            <strong id="treasureProgress">0 / 23</strong>
+          </div>
+          <div id="treasurePalette" class="treasure-palette" role="listbox" aria-label="選擇寶藏"></div>
+        </section>
+
+        <section class="inspector-section metadata-section">
+          <div class="section-heading-row"><h2>地圖資訊</h2></div>
+          <div class="field-grid">
+            <label>名稱<input id="mapName" type="text" maxlength="60"></label>
+            <label>作者<input id="mapAuthor" type="text" maxlength="40"></label>
+            <label>日期<input id="mapDate" type="date" readonly></label>
+          </div>
+        </section>
+
+        <section class="inspector-section dimensions-section">
+          <div class="section-heading-row">
+            <h2>棋盤尺寸</h2>
+            <button id="resizeButton" type="button">套用尺寸</button>
+          </div>
+          <div class="field-grid">
+            <label>寬度<input id="mapWidth" type="number" min="6" max="14" step="1"></label>
+            <label>高度<input id="mapHeight" type="number" min="5" max="12" step="1"></label>
+          </div>
+        </section>
+
+        <section class="inspector-section validation-section">
+          <div class="section-heading-row">
+            <h2>地圖驗證</h2>
+            <strong id="validationBadge" class="validation-badge">草稿</strong>
+          </div>
+          <ul id="validationList" class="validation-list"></ul>
+        </section>
+
+        <details class="inspector-section json-section">
+          <summary>JSON 預覽</summary>
+          <textarea id="jsonPreview" readonly spellcheck="false"></textarea>
+          <button id="copyJsonButton" type="button">複製 JSON</button>
+        </details>
+      </aside>
+    </section>
+  </main>
+
+  <div class="rules-overlay hidden" id="rulesOverlay" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <article class="rules-dialog gangsi-rules-dialog">
+      <header class="rules-header">
+        <div>
+          <p class="eyebrow gangsi-brand-mark">Gangsi</p>
+          <h2 id="rulesTitle">古墓迷蹤遊戲規則</h2>
+        </div>
+        <button class="ghost-button" id="closeRulesButton" type="button" aria-label="關閉規則">關閉</button>
+      </header>
+      <div class="rules-content" id="gangsiRulesContent"></div>
+    </article>
+  </div>
+
+  <script src="/Gangsi/map-classes.js"></script>
+  <script src="/Gangsi/map-format.js"></script>
+  <script src="/Gangsi/rules.js"></script>
+  <script src="/Gangsi/map-editor/map-editor.js"></script>
+</body>
+</html>

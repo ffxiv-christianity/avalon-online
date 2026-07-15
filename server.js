@@ -5,11 +5,12 @@ const avalon = require("./Avalon/server");
 const onenightwolf = require("./Onenightwolf/server");
 const criminaldance = require("./CriminalDance/server");
 const loveletter = require("./LoveLetter/server");
+const gangsi = require("./Gangsi/server");
 const { createAdminRouter, combinedStats: collectCombinedStats, gameStats } = require("./Shared/server/admin");
 const { serveSharedStatic } = require("./Shared/server/static");
 
 const PORT = Number(process.env.PORT || 4173);
-const games = { avalon, onenightwolf, criminaldance, loveletter };
+const games = { avalon, onenightwolf, criminaldance, loveletter, gangsi };
 const handleAdmin = createAdminRouter(games);
 
 function createServer() {
@@ -29,6 +30,10 @@ function createServer() {
       loveletter.serveStatic(req, res);
       return;
     }
+    if (requestUrl.pathname === "/Gangsi" || requestUrl.pathname.startsWith("/Gangsi/")) {
+      gangsi.serveStatic(req, res);
+      return;
+    }
     avalon.serveStatic(req, res);
   });
 
@@ -45,6 +50,10 @@ function createServer() {
       loveletter.handleUpgrade(req, socket, head);
       return;
     }
+    if (req.url === "/ws/gangsi") {
+      gangsi.handleUpgrade(req, socket, head);
+      return;
+    }
     avalon.handleUpgrade(req, socket, head);
   });
 
@@ -52,6 +61,7 @@ function createServer() {
   onenightwolf.attachMaintenance(server);
   criminaldance.attachMaintenance(server);
   loveletter.attachMaintenance(server);
+  gangsi.attachMaintenance(server);
   return server;
 }
 

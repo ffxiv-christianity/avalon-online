@@ -1,0 +1,207 @@
+"use strict";
+
+const assert = require("assert");
+const http = require("http");
+const gangsi = require("../server");
+const MapFormat = require("../map-format");
+
+async function run() {
+  const server = http.createServer((req, res) => gangsi.serveStatic(req, res));
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const pageResponse = await fetch(`${base}/Gangsi/`);
+    const page = await pageResponse.text();
+    assert.strictEqual(pageResponse.status, 200);
+    assert(page.includes("古墓迷蹤 Gangsi"));
+    assert(page.includes("玩法以《古墓迷蹤》原版遊戲規則為主"));
+    assert(page.includes("寶藏卡名稱以 FF14 設定改編"));
+    assert(page.includes('id="joinView"'));
+    assert(page.includes('id="gangsiRoomView"'));
+    assert(page.includes('id="gangsiLobbyTemplate"'));
+    assert(page.includes('id="gangsiGameTemplate"'));
+    assert(page.includes('data-shell-layout="game"'));
+    assert(page.includes('class="start-button"') || page.includes("data-gangsi-lobby-start-control"));
+    assert(page.includes("解鎖只能在自己回合開始"));
+    assert(page.includes("黃金渡渡鳥聖像"));
+    assert(page.includes("gangsi-rules-overview"));
+    assert(page.includes("gangsi-rules-dice-grid"));
+    assert(page.includes("gangsi-rules-table"));
+    assert(page.includes("gangsi-rules-movement-table"));
+    assert(page.includes("gangsi-rules-treasures"));
+    assert(page.includes("抓捕冒險者"));
+    assert(page.includes("停在該格且剩餘步數歸零"));
+    assert(page.includes("data-gangsi-token-label"));
+    assert(page.includes('data-gangsi-role="mummy"'));
+    assert(page.includes("data-gangsi-lobby-ready-alert"));
+    assert(page.includes("data-gangsi-lobby-ready-popover"));
+    assert(page.includes('data-gangsi-random-map type="checkbox"'));
+    assert(page.includes("擲 d100"));
+    assert(page.includes('id="gangsiCaptureLightbox"'));
+    assert(page.includes('id="gangsiGameOverLightbox"'));
+    assert(page.includes("identity-lightbox good gangsi-game-over-lightbox"));
+    assert(page.includes('id="gangsiGameOverClose"'));
+    assert(!page.includes('data-info-tab="maps"'));
+    assert(!page.includes('data-info-panel="maps"'));
+    assert(!page.includes('data-info-tab="log"'));
+    assert(!page.includes('data-info-panel="log"'));
+    assert(!page.includes("殭屍"));
+    assert(!page.includes("status-strip"), "Gangsi board room must not use the four-card status strip");
+    assert(!/<img\b/i.test(page), "Gangsi game room must not use board images");
+
+    const editorResponse = await fetch(`${base}/Gangsi/map-editor/`);
+    const editorPage = await editorResponse.text();
+    assert.strictEqual(editorResponse.status, 200);
+    assert(editorPage.includes("古墓迷蹤地圖編輯器"));
+    assert(editorPage.includes("/Gangsi/map-format.js"));
+    assert(editorPage.includes('data-mode="wall"'));
+    assert(editorPage.includes('data-mode="void"'));
+    assert(editorPage.includes('data-mode="entrance"'));
+    assert(editorPage.includes('data-mode="dungeon"'));
+    assert(editorPage.includes('data-mode="treasure"'));
+    assert(editorPage.includes('id="saveButton"'));
+    assert(editorPage.includes('id="importInput"'));
+    assert(editorPage.includes('id="mapDate"'));
+    assert(editorPage.includes('id="mapWidth" type="number" min="6" max="14"'));
+    assert(editorPage.includes('id="rulesOverlay"'));
+    assert(editorPage.includes('class="ghost-button editor-back-link" href="/Gangsi/"'));
+    assert(editorPage.includes('/Gangsi/rules.js'));
+    assert(editorPage.includes('href="/Gangsi/gangsi.css"'));
+    assert(editorPage.includes("gangsi-rules-dialog"));
+    assert(!editorPage.includes('id="loadRandom"'));
+    assert(!editorPage.includes('id="mapId"'));
+    assert(!editorPage.includes('class-section'));
+    assert(!editorPage.includes('target="_blank"'));
+    assert(!editorPage.includes("status-strip"), "Gangsi board editor must not use the four-card status strip");
+    assert(!/<img\b/i.test(editorPage), "Gangsi map editor must not use the original board image");
+    assert(editorPage.indexOf('class="inspector-section treasure-section"') < editorPage.indexOf('class="inspector-section metadata-section"'));
+
+    const scriptResponse = await fetch(`${base}/Gangsi/map-editor/map-editor.js`);
+    assert.strictEqual(scriptResponse.status, 200);
+    const script = await scriptResponse.text();
+    assert(script.includes("GangsiMapFormat"));
+    assert(script.includes("GangsiMapClasses"));
+    assert(script.includes("showSaveFilePicker"));
+    assert(script.includes("localStorage.setItem"));
+    assert(script.includes("Format.validateMap"));
+    assert(script.includes("startTreasureDrag"));
+    assert(script.includes('addEventListener("drop"'));
+    assert(script.includes("Object.entries(Format.GROUPS)"));
+    assert(script.includes("button.draggable = true"));
+    assert(!script.includes("randomCatalogEntry"));
+
+    const cssResponse = await fetch(`${base}/Gangsi/map-editor/map-editor.css`);
+    assert.strictEqual(cssResponse.status, 200);
+    const css = await cssResponse.text();
+    const treasureColors = ["#0057b8", "#00875a", "#f2c300", "#a90f9b", "#d62828"];
+    for (const color of treasureColors) assert(css.includes(color));
+    assert.strictEqual(new Set(treasureColors).size, 5);
+
+    const rulesResponse = await fetch(`${base}/Gangsi/rules.js`);
+    assert.strictEqual(rulesResponse.status, 200);
+    const rules = await rulesResponse.text();
+    assert(rules.includes("GangsiRules"));
+    assert(rules.includes("hydrateFromGameIndex"));
+
+    const gameScriptResponse = await fetch(`${base}/Gangsi/gangsi.js`);
+    assert.strictEqual(gameScriptResponse.status, 200);
+    const gameScript = await gameScriptResponse.text();
+    assert(gameScript.includes('/ws/gangsi'));
+    assert(gameScript.includes('sendAction("toggleReady")'));
+    assert(gameScript.includes('sendAction("chooseRole"'));
+    assert(gameScript.includes('sendAction("roll")'));
+    assert(!gameScript.includes('sendAction("randomizeMap")'));
+    assert(gameScript.includes('sendAction("startGame")'));
+    assert(gameScript.includes('sendAction("moveNumeric"'));
+    assert(gameScript.includes("data-gangsi-confirm-path"));
+    assert(gameScript.includes('sendAction("moveNumeric", { path })'));
+    assert(!gameScript.includes('sendAction("moveNumeric", { cell })'));
+    assert(gameScript.includes("filter(([, count]) => count > 0)"));
+    assert(gameScript.includes('sendAction("moveMummy"'));
+    assert(gameScript.includes('sendAction("selectDie"'));
+    assert(gameScript.includes("renderGameHand"));
+    assert(gameScript.includes("syncGameOverLightbox"));
+    assert(gameScript.includes("dismissGameOverLightbox"));
+    assert(gameScript.includes('sendAction("returnLobby")'));
+    assert(gameScript.includes("boardLegalTargets"));
+    assert(gameScript.includes("SharedRoomUI.playerMatrix"));
+    assert(gameScript.includes("SharedRoomUI.handPanel"));
+    assert(gameScript.includes("SharedRoomUI.actionInfoBlock"));
+    assert(gameScript.includes("snapshot.room.log.slice(-5)"));
+    assert(gameScript.includes('className: "gangsi-action-info-block"'));
+    assert(gameScript.includes('bodyClassName: "gangsi-action-info-body"'));
+    assert(gameScript.includes("revealedTreasureIds"));
+    assert(gameScript.includes("data-gangsi-task-id"));
+    assert(gameScript.includes("data-gangsi-treasure-id"));
+    assert(gameScript.includes("data-gangsi-treasure-origin"));
+    assert(gameScript.includes("handleTaskHintEnter"));
+    assert(gameScript.includes("is-mummy-die"));
+    assert(gameScript.includes("has-mummy-die"));
+    assert(gameScript.includes("請點選一顆亮起的骰子"));
+    assert(gameScript.includes("也可以重新擲所有未鎖定的骰子"));
+    assert(!gameScript.includes("冒險者選擇了${dieFaceLabel(game.lastPublicDie)}骰"));
+    assert(gameScript.includes('classList.toggle("ready", Boolean(player.ready))'));
+    assert(gameScript.includes('classList.toggle("locked", !snapshot.you.isHost)'));
+
+    const gameCssResponse = await fetch(`${base}/Gangsi/gangsi.css`);
+    assert.strictEqual(gameCssResponse.status, 200);
+    const gameCss = await gameCssResponse.text();
+    assert(gameCss.includes(".gangsi-board"));
+    assert(gameCss.includes(".gangsi-board-piece"));
+    assert(gameCss.includes(".gangsi-task-card"));
+    assert(gameCss.includes(".gangsi-capture-lightbox"));
+    assert(gameCss.includes(".gangsi-game-over-lightbox"));
+    assert(gameCss.includes("width: min(570px, 100%)"));
+    assert(gameCss.includes("min-height: 150px"));
+    assert(gameCss.includes("font-size: 1.5rem"));
+    assert(gameCss.includes("pointer-events: auto"));
+    assert(gameCss.includes(".gangsi-board-cell.is-treasure-hint"));
+    assert(!gameScript.includes(">黑骰<"));
+    assert(gameCss.includes(".gangsi-dice-row.has-mummy-die"));
+    assert(gameCss.includes(".gangsi-action-info-block > h3"));
+    assert(gameCss.includes(".gangsi-action-info-body p"));
+    assert(gameCss.includes("overscroll-behavior: auto"));
+    assert(gameCss.includes("--gangsi-brand: #7a5718"));
+    assert(gameCss.includes(".gangsi-brand-mark"));
+    assert(gameCss.includes("color: var(--gangsi-brand)"));
+    assert(gameCss.includes(".gangsi-rules-overview"));
+    assert(gameCss.includes(".gangsi-rules-dice-grid"));
+    assert(gameCss.includes(".gangsi-rules-table-wrap"));
+    assert(gameCss.includes(".gangsi-rules-movement-table th:first-child"));
+    assert(gameCss.includes(".gangsi-rules-treasures"));
+    assert(!gameCss.includes(".gangsi-room-summary"));
+
+    const mapIndexResponse = await fetch(`${base}/Gangsi/maps/index.json`);
+    assert.strictEqual(mapIndexResponse.status, 200);
+    assert.strictEqual(mapIndexResponse.headers.get("content-type"), "application/json; charset=utf-8");
+    const mapIndex = await mapIndexResponse.json();
+    assert.strictEqual(mapIndex.schemaVersion, 1);
+    assert.strictEqual(mapIndex.maps.find((entry) => entry.id === "test-map").name, "蟹制地圖1");
+    assert(!mapIndex.maps.some((entry) => entry.id === "test-map2"));
+    for (const entry of mapIndex.maps) {
+      const mapResponse = await fetch(`${base}/Gangsi/maps/${entry.file}`);
+      assert.strictEqual(mapResponse.status, 200, entry.file);
+      assert.strictEqual(mapResponse.headers.get("content-type"), "application/json; charset=utf-8");
+      const map = await mapResponse.json();
+      assert.strictEqual(map.kind, "gangsi-map", entry.file);
+      assert.strictEqual(map.treasures.length, 23, entry.file);
+      assert.strictEqual(map.id, entry.id, entry.file);
+      assert.strictEqual(map.name, entry.name, entry.file);
+      const validation = MapFormat.validateMap(map);
+      assert.strictEqual(validation.valid, true, `${entry.file}: ${validation.errors.join("; ")}`);
+    }
+    const removedMapResponse = await fetch(`${base}/Gangsi/maps/test-map2.json`);
+    assert.strictEqual(removedMapResponse.status, 404);
+
+    const missingResponse = await fetch(`${base}/Gangsi/not-found.txt`);
+    assert.strictEqual(missingResponse.status, 404);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+  console.log("Gangsi static route tests passed");
+}
+
+run().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

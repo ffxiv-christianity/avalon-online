@@ -89,6 +89,7 @@
   }
 
   function gameLabel(game) {
+    if (game === "gangsi") return "古墓迷蹤";
     if (game === "loveletter") return "情書";
     if (game === "criminaldance") return "犯人在跳舞";
     if (game === "onenightwolf") return "一夜終極狼人";
@@ -126,6 +127,7 @@
       const url = new URL(input, baseUrl);
       if (!url.searchParams.get("room")) return null;
       const pathname = url.pathname.toLowerCase();
+      if (pathname.startsWith("/gangsi")) return "gangsi";
       if (pathname.startsWith("/loveletter")) return "loveletter";
       if (pathname.startsWith("/criminaldance")) return "criminaldance";
       return pathname.startsWith("/onenightwolf") ? "onenightwolf" : "avalon";

@@ -71,6 +71,7 @@ function testRoomCodeParsing() {
   assert.strictEqual(parseRoomCode("not a room"), "");
   assert.strictEqual(inviteGame("https://example.com/?room=ROOM7"), "avalon");
   assert.strictEqual(inviteGame("https://example.com/Onenightwolf/?room=ROOM7"), "onenightwolf");
+  assert.strictEqual(inviteGame("https://example.com/Gangsi/?room=ROOM7"), "gangsi");
   assert.strictEqual(inviteGame("ROOM7"), null);
   assert.strictEqual(roomUrlPath("/", "ab12cd"), "/?room=AB12CD");
   assert.strictEqual(roomUrlPath("/avalon/", "ROOM7"), "/avalon/?room=ROOM7");
@@ -102,6 +103,7 @@ function testInvalidSessionCleanupAndGameLabels() {
 
   assert.strictEqual(gameLabel("avalon"), "阿瓦隆");
   assert.strictEqual(gameLabel("onenightwolf"), "一夜終極狼人");
+  assert.strictEqual(gameLabel("gangsi"), "古墓迷蹤");
 }
 
 testPlayerUnreadOnlyTracksJoinEvents();

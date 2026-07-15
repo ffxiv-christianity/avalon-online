@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#20282b">
+  <title>古墓迷蹤 Gangsi</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/shared/styles.css">
+  <link rel="stylesheet" href="/Gangsi/gangsi.css">
+</head>
+<body data-game="gangsi">
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow gangsi-brand-mark">Gangsi</p>
+        <h1>古墓迷蹤</h1>
+      </div>
+      <div class="topbar-actions">
+        <div class="room-chip" id="connectionChip">請稍後</div>
+        <button class="ghost-button rules-button" id="openRulesButton" type="button">遊戲規則</button>
+      </div>
+    </header>
+
+    <section id="joinView" class="join-view" data-shell-view="join" data-game="gangsi">
+      <div class="hero-panel">
+        <div class="hero-copy">
+          <p class="eyebrow">2～5 人非對稱追逐</p>
+          <h2>古墓迷蹤 Gangsi</h2>
+          <ul class="hero-features">
+            <li>玩法以《古墓迷蹤》原版遊戲規則為主</li>
+            <li>寶藏卡名稱以 FF14 設定改編</li>
+            <li>支援自訂矩形地圖與斷線重連</li>
+          </ul>
+        </div>
+        <form id="joinForm" class="join-form">
+          <label class="field">
+            <span>遊戲模式</span>
+            <select id="gameModeSelect">
+              <option value="avalon">阿瓦隆</option>
+              <option value="onenightwolf">一夜終極狼人</option>
+              <option value="criminaldance">犯人在跳舞</option>
+              <option value="loveletter">情書</option>
+              <option value="gangsi" selected>古墓迷蹤</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>你的名字</span>
+            <input id="nameInput" maxlength="12" required autocomplete="name" aria-description="最多 12 個半形字元；中文、全形字元與表情符號算 2 個">
+          </label>
+          <label class="field">
+            <span>房間代碼或邀請連結</span>
+            <input id="roomInput" maxlength="240" autocomplete="off" autocapitalize="characters" placeholder="貼上代碼或完整連結">
+          </label>
+          <div class="button-row">
+            <button class="primary-button" id="createRoomButton" type="button">建立房間</button>
+            <button class="secondary-button" id="joinRoomButton" type="submit">加入房間</button>
+            <button class="ghost-button hidden" id="rejoinRoomButton" type="button">重新連線</button>
+          </div>
+          <a class="gangsi-editor-link" href="/Gangsi/map-editor/">地圖編輯器</a>
+          <section class="recent-sessions hidden" id="recentSessions" aria-label="最近使用的房間">
+            <div class="recent-sessions-heading">
+              <strong>最近使用</strong>
+              <span>可直接回到原玩家身分</span>
+            </div>
+            <div class="recent-session-list" id="recentSessionList"></div>
+          </section>
+        </form>
+        <details class="changelog" open>
+          <summary>
+            <span>更新日誌</span>
+            <small>最新版本 2026/07/16</small>
+          </summary>
+          <ul>
+            <li><strong>2026/07/16</strong> First release.；新增地圖編輯器。</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section id="gangsiRoomView" class="room-view hidden" data-shell-view="room" data-game="gangsi">
+      <section class="mobile-status-summary" id="mobileStatusSummary" aria-label="遊戲狀態摘要" data-shell-slot="mobile-status-summary"></section>
+      <div class="game-layout" data-shell-layout="game">
+        <aside class="side-panel" data-shell-region="info-sidebar">
+          <nav class="info-tabs" id="infoTabs" aria-label="房間資訊" data-shell-nav="info-tabs">
+            <button class="info-tab active" data-info-tab="chat" type="button">聊天 <span class="tab-badge hidden" id="chatUnread">0</span></button>
+            <button class="info-tab" data-info-tab="roster" type="button">玩家 <span class="tab-badge hidden" id="rosterUnread">0</span></button>
+          </nav>
+          <section class="panel info-panel chat-panel active" data-info-panel="chat" data-shell-panel="chat">
+            <h2>聊天</h2>
+            <div class="chat-list" id="chatList" data-shell-slot="chat-list"></div>
+            <form class="chat-form" id="chatForm" autocomplete="off" data-shell-form="chat">
+              <input id="chatInput" name="gangsi-chat-message" maxlength="240" autocomplete="off" placeholder="輸入訊息">
+              <button class="primary-button" type="submit">送出</button>
+            </form>
+          </section>
+          <section class="panel info-panel roster-panel" data-info-panel="roster" data-shell-panel="players">
+            <h2>玩家順序</h2>
+            <div class="roster" id="roster" data-shell-slot="player-list"></div>
+          </section>
+          <section class="panel room-panel desktop-room-panel" data-shell-panel="invite">
+            <div class="room-code-block">
+              <span>房間代碼</span>
+              <strong class="room-code-value">------</strong>
+            </div>
+            <button class="ghost-button" data-copy-link type="button">複製邀請連結</button>
+          </section>
+        </aside>
+
+        <section class="main-panel gangsi-main-panel" id="mainPanel" data-shell-panel="main"></section>
+        <section class="panel room-panel mobile-room-panel" data-shell-panel="invite">
+          <div class="room-code-block">
+            <span>房間代碼</span>
+            <strong class="room-code-value">------</strong>
+          </div>
+          <button class="ghost-button" data-copy-link type="button">複製邀請連結</button>
+        </section>
+      </div>
+    </section>
+
+    <template id="gangsiLobbyTemplate" data-shell-template="lobby" data-game="gangsi">
+      <div data-template-slot="phase-header"></div>
+      <div class="lobby-grid" data-shell-layout="lobby">
+        <section class="section-block" data-shell-panel="your-status">
+          <h3>你的狀態</h3>
+          <div class="action-card">
+            <span class="ready-alert" data-gangsi-lobby-ready-alert tabindex="0"></span>
+            <span class="ready-alert-popover" data-gangsi-lobby-ready-popover role="tooltip"></span>
+            <div class="action-card-status">
+              <strong data-gangsi-lobby-player-name></strong>
+              <p data-gangsi-role-status></p>
+              <p data-gangsi-lobby-roll-status></p>
+            </div>
+            <label class="field gangsi-token-field">
+              <span>冒險者棋子文字</span>
+              <input data-gangsi-token-label maxlength="1" autocomplete="off">
+            </label>
+            <div class="gangsi-role-control" role="group" aria-label="選擇你的角色">
+              <button data-gangsi-role="adventurer" type="button">冒險者</button>
+              <button data-gangsi-role="mummy" type="button">提燈怪</button>
+            </div>
+            <div class="button-row">
+              <button class="secondary-button" data-gangsi-roll type="button">擲 d100</button>
+              <button class="primary-button" data-gangsi-ready type="button">準備</button>
+            </div>
+          </div>
+          <div class="validation-list" data-gangsi-lobby-validation></div>
+          <div data-gangsi-lobby-start-control></div>
+        </section>
+
+        <section class="section-block" data-shell-panel="host-settings">
+          <div class="section-heading"><h3>房主設定</h3></div>
+          <div class="settings-grid" data-shell-slot="settings-grid">
+            <label class="field">
+              <span>遊戲人數</span>
+              <select data-gangsi-player-count>
+                <option value="2">2 人</option>
+                <option value="3">3 人</option>
+                <option value="4" selected>4 人</option>
+                <option value="5">5 人</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>地圖</span>
+              <select data-gangsi-map-select></select>
+            </label>
+            <label class="gangsi-checkbox-field">
+              <input data-gangsi-random-map type="checkbox">
+              <span>隨機地圖</span>
+            </label>
+          </div>
+          <div class="gangsi-map-summary" data-gangsi-map-summary></div>
+        </section>
+      </div>
+    </template>
+
+    <template id="gangsiGameTemplate" data-shell-template="playing" data-game="gangsi">
+      <div class="gangsi-game-shell">
+        <div data-template-slot="phase-header"></div>
+        <div data-gangsi-turn-badge></div>
+        <div data-gangsi-player-matrix></div>
+        <section class="gangsi-game-main template-game-main-table" data-shell-panel="board-table">
+          <div class="gangsi-board-region">
+            <div class="gangsi-board-heading">
+              <div>
+                <p class="eyebrow">MAP</p>
+                <h3 data-gangsi-board-name></h3>
+              </div>
+              <span data-gangsi-board-size></span>
+            </div>
+            <div class="gangsi-board-scroll">
+              <div class="gangsi-board" data-gangsi-board aria-label="古墓地圖"></div>
+            </div>
+          </div>
+          <aside class="gangsi-control-region">
+            <section class="gangsi-value-strip" aria-label="遊戲數值">
+              <div><span data-gangsi-life-label>生命</span><strong data-gangsi-life>--</strong></div>
+              <div><span data-gangsi-missions-label>任務</span><strong data-gangsi-missions>--</strong></div>
+              <div><span>鎖定骰</span><strong data-gangsi-locked-dice>0 / 5</strong></div>
+            </section>
+            <section class="gangsi-dice-panel template-game-control-row" data-gangsi-dice-panel>
+              <h3>骰子</h3>
+              <div class="gangsi-dice-row" data-gangsi-dice-row></div>
+            </section>
+            <div data-gangsi-action-info></div>
+            <div class="template-game-action-row" data-gangsi-action-row></div>
+          </aside>
+        </section>
+        <div data-gangsi-hand-panel></div>
+      </div>
+    </template>
+  </main>
+
+  <div class="gangsi-capture-lightbox hidden" id="gangsiCaptureLightbox" role="status" aria-live="assertive">
+    <div class="gangsi-capture-message">
+      <strong>提燈怪抓到冒險者</strong>
+      <span id="gangsiCaptureText"></span>
+    </div>
+  </div>
+
+  <div class="identity-overlay hidden" id="gangsiGameOverLightbox" role="dialog" aria-modal="true" aria-labelledby="gangsiGameOverTitle">
+    <section class="identity-lightbox good gangsi-game-over-lightbox">
+      <header class="identity-header">
+        <span class="role-icon good" id="gangsiGameOverIcon">勝</span>
+        <div>
+          <p class="eyebrow gangsi-brand-mark" id="gangsiGameOverEyebrow">GAME OVER</p>
+          <h2 id="gangsiGameOverTitle">遊戲結束</h2>
+          <p id="gangsiGameOverDescription"></p>
+        </div>
+      </header>
+      <div class="identity-clues">
+        <section class="identity-clue good" id="gangsiGameOverResult">
+          <div class="identity-clue-heading">
+            <h3>勝利結果</h3>
+            <p id="gangsiGameOverSummary"></p>
+          </div>
+        </section>
+      </div>
+      <footer class="identity-footer">
+        <span id="gangsiGameOverFooter">關閉後可查看最終盤面。</span>
+        <button class="primary-button" id="gangsiGameOverClose" type="button">關閉</button>
+      </footer>
+    </section>
+  </div>
+
+  <div class="rules-overlay hidden" id="rulesOverlay" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <article class="rules-dialog gangsi-rules-dialog">
+      <header class="rules-header">
+        <div>
+          <p class="eyebrow gangsi-brand-mark">Gangsi</p>
+          <h2 id="rulesTitle">古墓迷蹤規則</h2>
+        </div>
+        <button class="ghost-button" id="closeRulesButton" type="button" aria-label="關閉規則">關閉</button>
+      </header>
+      <div class="rules-content" id="gangsiRulesContent">
+        <section>
+          <h3>遊戲目標</h3>
+          <div class="gangsi-rules-overview">
+            <div><span>遊戲人數</span><strong>2～5 人</strong><small>1 名提燈怪，其餘為冒險者</small></div>
+            <div><span>冒險者</span><strong>揭露 5 張寶藏卡</strong><small>2 人局須共同揭露 10 張</small></div>
+            <div><span>提燈怪</span><strong>收集生命標記</strong><small>依總人數需要 3、4、6 或 7 點</small></div>
+          </div>
+          <div class="gangsi-rules-callout neutral">
+            <strong>版本說明</strong>
+            <span>核心玩法依《古墓迷蹤》原版規則整理；本網站以 FF14 設定改編寶藏卡名稱，並加入 d100 排序與可選地圖。</span>
+          </div>
+        </section>
+        <section>
+          <h3>遊戲準備</h3>
+          <dl class="rules-role-list gangsi-rules-role-list">
+            <div class="good">
+              <dt>冒險者</dt>
+              <dd>每人有 3 點生命，從藍、綠、黃、粉、紅各取得 1 張秘密寶藏卡，棋子從入口出發。</dd>
+            </div>
+            <div class="evil">
+              <dt>提燈怪</dt>
+              <dd>固定由地牢出發，持有六面為 1、1、2、2、3、3 的提燈怪骰，不需擲 d100。</dd>
+            </div>
+          </dl>
+          <ol>
+            <li>準備大廳必須正好有 1 名提燈怪；冒險者各自設定一字棋子。</li>
+            <li>所有冒險者各擲一次 d100，依點數由高到低決定固定行動順序。</li>
+            <li>房主選擇地圖或勾選隨機地圖；隨機結果會在開始遊戲後公開。</li>
+            <li>2 人局由同一名冒險者玩家控制兩枚各有 3 點生命的棋子，每色取得 2 張卡，共用 10 張手牌。</li>
+          </ol>
+        </section>
+        <section>
+          <h3>回合流程</h3>
+          <div class="gangsi-rules-flow" aria-label="每輪流程">
+            <div><span>1</span><strong>冒險者依序行動</strong><small>解鎖、擲骰、移動、決定是否揭露</small></div>
+            <div><span>2</span><strong>提燈怪正常回合</strong><small>擲一次提燈怪骰後移動</small></div>
+            <div><span>3</span><strong>開始下一輪</strong><small>回到第一名仍在場的冒險者</small></div>
+          </div>
+          <p>冒險者回合依序為：決定是否解鎖、擲骰、選擇一顆骰子完成移動，最後決定是否揭露所在格的寶藏。選擇解鎖不會失去自己的回合。</p>
+        </section>
+        <section>
+          <h3>冒險者骰與解鎖</h3>
+          <div class="gangsi-rules-dice-grid">
+            <div>
+              <strong>5 顆冒險者骰</strong>
+              <div class="gangsi-rules-faces" aria-label="冒險者骰六面">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>箭</span><span class="mummy">怪</span>
+              </div>
+              <p>擲出提燈怪面的骰子立即鎖定。若不滿意結果，可不限次數重擲所有未鎖定骰；不能保留其中幾顆再重擲其他骰。</p>
+            </div>
+            <div>
+              <strong>解鎖</strong>
+              <p>解鎖只能在自己回合開始、尚未擲骰前選擇，而且必須一次解鎖全部。提燈怪立即取得最多 N 步的插入回合，N 為解鎖骰數。</p>
+              <p>插入回合結束後歸還五顆骰，該冒險者再繼續擲骰與移動。</p>
+            </div>
+          </div>
+          <div class="gangsi-rules-callout warn">
+            <strong>五顆全部鎖定</strong>
+            <span>當前冒險者立即失去回合；下一名能行動的冒險者必須解鎖，讓提燈怪先進行 5 步插入回合。</span>
+          </div>
+        </section>
+        <section>
+          <h3>移動規則</h3>
+          <div class="gangsi-rules-table-wrap">
+            <table class="gangsi-rules-table gangsi-rules-movement-table">
+              <thead><tr><th>選擇骰面</th><th>移動方式</th><th>其他冒險者</th><th>限制</th></tr></thead>
+              <tbody>
+                <tr><td>數字 1～4</td><td>必須完整走完點數，可轉彎、往返或重複經過同格。</td><td>可以穿越，但不能停在同一格。</td><td>不能進入或穿越牆壁、提燈怪、入口與地牢。</td></tr>
+                <tr><td>箭頭</td><td>選定方向直線前進，停在第一個障礙物前一格。</td><td>視為障礙物，不能穿越。</td><td>至少移動 1 格；不能轉彎或停在原地。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>冒險者選定的骰面會向提燈怪公開。若所選骰面無法合法完成移動，就不能選用；若回合開始時所有骰面都沒有合法移動，整個回合跳過，不能解鎖或擲骰。</p>
+        </section>
+        <section>
+          <h3>寶藏與揭露</h3>
+          <div class="gangsi-rules-treasures" aria-label="五組寶藏卡">
+            <div data-group="A"><span>A・藍</span><strong>黃金渡渡鳥聖像</strong><small>5 個位置</small></div>
+            <div data-group="B"><span>B・綠</span><strong>龍眼</strong><small>4 個位置</small></div>
+            <div data-group="C"><span>C・黃</span><strong>釣場之皇</strong><small>4 個位置</small></div>
+            <div data-group="D"><span>D・粉</span><strong>幻想藥</strong><small>5 個位置</small></div>
+            <div data-group="E"><span>E・紅</span><strong>L 房地契</strong><small>5 個位置</small></div>
+          </div>
+          <ul>
+            <li>只有完成移動並停在自己卡片對應的寶藏格，才可以選擇揭露；途中經過不算。</li>
+            <li>揭露後立即完成該任務，卡片公開，對應寶藏從地圖上移除。</li>
+            <li>本次不揭露後，必須在之後完成另一次移動並再次抵達該格，才會重新取得揭露機會。</li>
+          </ul>
+        </section>
+        <section>
+          <h3>提燈怪回合與抓捕</h3>
+          <dl class="rules-role-list gangsi-rules-role-list">
+            <div class="evil">
+              <dt>正常回合</dt>
+              <dd>提燈怪骰只擲一次，不能重擲。最多移動「骰點＋目前鎖定骰數」步，可以不走或提早停止。</dd>
+            </div>
+            <div class="evil">
+              <dt>插入回合</dt>
+              <dd>冒險者解鎖時觸發，不擲提燈怪骰；最多移動本次解鎖的骰子數量，其他規則與正常回合相同。</dd>
+            </div>
+          </dl>
+          <div class="gangsi-rules-callout danger">
+            <strong>抓捕冒險者</strong>
+            <span>提燈怪主動進入冒險者所在格即完成抓捕，停在該格且剩餘步數歸零。該格所有冒險者各失去 1 點生命；仍有生命者移到地牢，生命歸零者出局。</span>
+          </div>
+          <p>提燈怪每一步只能上下左右移動，不能穿牆；離開地牢後不能再進入入口或地牢。正常回合結束後，鎖定的冒險者骰仍保持鎖定。</p>
+        </section>
+        <section>
+          <h3>入口、地牢與特殊狀況</h3>
+          <dl class="rules-role-list gangsi-rules-role-list">
+            <div><dt>入口</dt><dd>所有冒險者共同等待出發，不受單格一枚棋子的限制；離開後不能主動返回。</dd></div>
+            <div><dt>地牢</dt><dd>被捕且仍有生命的冒險者會移到此處，下次自己的回合可從任一合法出口重新出發。</dd></div>
+            <div><dt>完全封死</dt><dd>若牆壁與提燈怪使冒險者完全沒有合法移動，該回合直接跳過，不能解鎖、擲骰或揭露。</dd></div>
+            <div><dt>插入回合被捕</dt><dd>若觸發解鎖的冒險者被捕但仍有生命，插入回合結束後仍要從地牢繼續自己的擲骰與移動。</dd></div>
+          </dl>
+        </section>
+        <section>
+          <h3>勝利條件</h3>
+          <div class="gangsi-rules-table-wrap">
+            <table class="gangsi-rules-table gangsi-rules-score-table">
+              <thead><tr><th>總玩家數</th><th>冒險者配置</th><th>提燈怪獲勝門檻</th></tr></thead>
+              <tbody>
+                <tr><td>2 人</td><td>1 人控制 2 枚棋子</td><td>3 點生命標記</td></tr>
+                <tr><td>3 人</td><td>2 名冒險者</td><td>4 點生命標記</td></tr>
+                <tr><td>4 人</td><td>3 名冒險者</td><td>6 點生命標記</td></tr>
+                <tr><td>5 人</td><td>4 名冒險者</td><td>7 點生命標記</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <br>
+          <p><strong>冒險者：</strong>3～5 人局中，任一冒險者揭露自己的第 5 張寶藏卡便單獨獲勝；2 人局必須由兩枚棋子共同揭露全部 10 張。</p>
+          <p><strong>提燈怪：</strong>取得表列數量的生命標記時立即獲勝。</p>
+        </section>
+        <section>
+          <h3>公開與隱藏資訊</h3>
+          <ul>
+            <li>寶藏卡內容在揭露前只有持有者能看到；其他玩家只能看到各顏色剩餘數量。</li>
+            <li>冒險者選用的骰面會公開，但完整擲骰結果、移動路線與即時位置不會提供給提燈怪。</li>
+            <li>提燈怪骰結果、提燈怪位置、生命、已揭露寶藏及鎖定骰數量皆為公開資訊。</li>
+            <li>網站不提供完整歷史記錄；玩家需自行記住已公開的行動與位置線索。</li>
+          </ul>
+        </section>
+      </div>
+    </article>
+  </div>
+
+  <script src="/shared/client-state.js"></script>
+  <script src="/shared/room-ui.js"></script>
+  <script src="/shared/player-name.js"></script>
+  <script src="/Gangsi/map-classes.js"></script>
+  <script src="/Gangsi/map-format.js"></script>
+  <script src="/Gangsi/rules.js"></script>
+  <script src="/Gangsi/gangsi.js"></script>
+</body>
+</html>

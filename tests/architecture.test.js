@@ -12,10 +12,13 @@ const criminalServer = fs.readFileSync(path.join(root, "CriminalDance", "server.
 const criminalGame = fs.readFileSync(path.join(root, "CriminalDance", "game.js"), "utf8");
 const loveServer = fs.readFileSync(path.join(root, "LoveLetter", "server.js"), "utf8");
 const loveGame = fs.readFileSync(path.join(root, "LoveLetter", "game.js"), "utf8");
+const gangsiServer = fs.readFileSync(path.join(root, "Gangsi", "server.js"), "utf8");
+const gangsiGame = fs.readFileSync(path.join(root, "Gangsi", "game.js"), "utf8");
+const gangsiEngine = fs.readFileSync(path.join(root, "Gangsi", "engine.js"), "utf8");
 const rootServer = fs.readFileSync(path.join(root, "server.js"), "utf8");
 const frameworkContract = fs.readFileSync(path.join(root, "COMMON_ROOM_FRAMEWORK.md"), "utf8");
 
-[avalonServer, wolfServer, wolfGame, criminalServer, criminalGame, loveServer, loveGame].forEach((source) => {
+[avalonServer, wolfServer, wolfGame, criminalServer, criminalGame, loveServer, loveGame, gangsiServer, gangsiGame, gangsiEngine].forEach((source) => {
   assert(!source.includes("Math.random"), "Game code must not use Math.random");
 });
 
@@ -23,18 +26,24 @@ assert(avalonServer.includes("../Shared/server/random"));
 assert(wolfGame.includes("../Shared/server/random"));
 assert(criminalGame.includes("../Shared/server/random"));
 assert(loveGame.includes("../Shared/server/random"));
+assert(gangsiGame.includes("../Shared/server/random"));
+assert(gangsiEngine.includes("../Shared/server/random"));
 assert(avalonServer.includes("../Shared/server/room-actions"));
 assert(wolfGame.includes("../Shared/server/room-actions"));
 assert(criminalGame.includes("../Shared/server/room-actions"));
 assert(loveGame.includes("../Shared/server/room-actions"));
+assert(gangsiGame.includes("../Shared/server/room-actions"));
 assert(rootServer.includes("./Shared/server/admin"));
 assert(rootServer.includes("./Shared/server/static"));
 assert(avalonServer.includes("../Shared/server/realtime-contract"));
 assert(wolfServer.includes("../Shared/server/realtime-contract"));
 assert(criminalServer.includes("../Shared/server/realtime-contract"));
 assert(loveServer.includes("../Shared/server/realtime-contract"));
+assert(gangsiServer.includes("../Shared/server/realtime-contract"));
 assert(rootServer.includes("./CriminalDance/server"));
 assert(rootServer.includes("./LoveLetter/server"));
+assert(rootServer.includes("./Gangsi/server"));
+assert(rootServer.includes('req.url === "/ws/gangsi"'));
 
 assert(!/function\s+shuffle\s*\(/.test(avalonServer));
 assert(!/function\s+shuffle\s*\(/.test(wolfGame));
