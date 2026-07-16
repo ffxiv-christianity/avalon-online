@@ -145,7 +145,9 @@ function runGame(run, playerCount, mapId, coverage) {
     let action;
     let payload = {};
 
-    if (room.phase === Engine.PHASES.turnStart) {
+    if (room.phase === Engine.PHASES.forcedSkip) {
+      action = "skipAdventurerTurn";
+    } else if (room.phase === Engine.PHASES.turnStart) {
       action = !coverage.actions.has("unlockDice")
         ? "unlockDice"
         : !coverage.actions.has("keepLockedDice")
@@ -224,6 +226,7 @@ for (const phase of Object.values(Engine.PHASES)) {
 for (const action of [
   "unlockDice",
   "keepLockedDice",
+  "skipAdventurerTurn",
   "rollAdventurerDice",
   "selectDie",
   "moveNumeric",

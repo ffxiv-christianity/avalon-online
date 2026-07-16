@@ -500,6 +500,9 @@
 
   function renderGameActions(game) {
     const actions = new Set(game.legal.actions || []);
+    if (actions.has("skipAdventurerTurn")) {
+      return '<button class="primary-button" data-gangsi-game-action="skipAdventurerTurn" type="button">略過回合</button>';
+    }
     if (actions.has("keepLockedDice")) return `
       <button class="secondary-button" data-gangsi-game-action="keepLockedDice" type="button">繼續回合</button>
       <button class="primary-button" data-gangsi-game-action="unlockDice" type="button">解鎖全部骰子</button>`;
@@ -785,6 +788,7 @@
     return {
       lobby: "準備大廳",
       adventurer_turn_start: "回合開始",
+      adventurer_forced_skip: "略過回合",
       mummy_interlude_move: "插入回合",
       adventurer_roll: "冒險者擲骰",
       adventurer_numeric_move: "數字移動",
@@ -803,6 +807,11 @@
       return game.winner.role === "mummy"
         ? `提燈怪 ${winner?.name || ""} 獲勝。`
         : `冒險者 ${winner?.name || ""} 完成全部任務。`;
+    }
+    if (snapshot.room.phase === "adventurer_forced_skip") {
+      return game.forcedSkipReason === "all_dice_locked"
+        ? `${current?.name || "冒險者"} 的五顆骰子全部鎖定，只能略過回合。`
+        : `${current?.name || "冒險者"} 沒有任何合法移動，只能略過回合。`;
     }
     if (snapshot.room.phase === "adventurer_turn_start") return `${current?.name || "冒險者"} 正在決定是否解鎖冒險者骰。`;
     if (snapshot.room.phase === "adventurer_roll") return `${current?.name || "冒險者"} 正在擲骰並選擇本回合的移動方式。`;

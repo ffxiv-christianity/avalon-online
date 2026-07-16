@@ -54,6 +54,14 @@ const sealedEntrance = MapFormat.clone(classic);
 sealedEntrance.walls.push("3,7|4,7");
 assert(MapFormat.validateMap(sealedEntrance).errors.some((error) => error.includes("入口至少需要")));
 
+const multipleEntranceExits = MapFormat.createBlankMap(6, 5);
+multipleEntranceExits.zones.entrance.anchor = "3,3";
+multipleEntranceExits.zones.dungeon.anchor = "6,5";
+assert.deepStrictEqual(
+  MapFormat.refreshZoneExits(multipleEntranceExits).zones.entrance.exits,
+  ["3,2", "2,3", "4,3", "3,4"]
+);
+
 const behaviorOverride = { ...MapFormat.clone(classic), rules: { mummyCanEnterWalls: true } };
 assert(MapFormat.validateMap(behaviorOverride).errors.some((error) => error.includes("不得覆寫固定遊戲屬性")));
 

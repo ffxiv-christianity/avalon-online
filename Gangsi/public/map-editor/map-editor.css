@@ -48,6 +48,31 @@ body[data-game="gangsi-map-editor"] {
   background: #fff;
 }
 
+.editor-help-content ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 1.35em;
+}
+
+.editor-help-zones {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.editor-help-zones > div {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: 5px;
+  padding: 12px;
+}
+
+.editor-help-zones dd {
+  margin: 0;
+}
+
 .editor-back-link {
   display: inline-flex;
   align-items: center;
@@ -325,6 +350,11 @@ body[data-game="gangsi-map-editor"] {
   border-radius: 0;
   background: transparent;
   pointer-events: auto;
+  touch-action: none;
+}
+
+.edge-layer.is-wall-stroke .edge-button {
+  cursor: crosshair;
 }
 
 .edge-button.is-vertical {
@@ -604,6 +634,10 @@ body[data-game="gangsi-map-editor"] {
 }
 
 @media (max-width: 820px) {
+  .editor-help-zones {
+    grid-template-columns: 1fr;
+  }
+
   .map-editor-shell {
     width: min(100% - 20px, 760px);
   }

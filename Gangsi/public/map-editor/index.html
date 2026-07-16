@@ -18,6 +18,7 @@
       </div>
       <div class="topbar-actions">
         <a class="ghost-button editor-back-link" href="/Gangsi/">返回古墓迷蹤</a>
+        <button class="ghost-button rules-button" id="openEditorHelpButton" type="button">編輯器說明</button>
         <button class="ghost-button rules-button" id="openRulesButton" type="button">遊戲規則</button>
         <output id="editorStatus" class="editor-status" aria-live="polite">載入中</output>
       </div>
@@ -43,7 +44,7 @@
         <button id="redoButton" type="button" disabled>重做</button>
         <button id="newMapButton" type="button">新地圖</button>
         <button id="importButton" type="button">匯入 JSON</button>
-        <button id="saveButton" class="primary-button" type="button">儲存 JSON</button>
+        <button id="saveButton" class="primary-button" type="button">下載地圖</button>
         <input id="importInput" type="file" accept="application/json,.json" hidden>
       </div>
     </section>
@@ -117,6 +118,81 @@
       </aside>
     </section>
   </main>
+
+  <div class="rules-overlay hidden" id="editorHelpOverlay" role="dialog" aria-modal="true" aria-labelledby="editorHelpTitle">
+    <article class="rules-dialog gangsi-rules-dialog">
+      <header class="rules-header">
+        <div>
+          <p class="eyebrow gangsi-brand-mark">Gangsi Map Format v1</p>
+          <h2 id="editorHelpTitle">地圖編輯器說明</h2>
+        </div>
+        <button class="ghost-button" id="closeEditorHelpButton" type="button" aria-label="關閉編輯器說明">關閉</button>
+      </header>
+      <div class="rules-content editor-help-content">
+        <section>
+          <h3>基本操作</h3>
+          <ul>
+            <li>使用工具列設定牆壁、封閉格、入口、地牢與寶藏。</li>
+            <li>編輯內容會自動保存在目前使用的瀏覽器中。</li>
+            <li>「復原」與「重做」可還原最近的編輯操作。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>牆壁</h3>
+          <ul>
+            <li>單擊格線可放置或移除一段牆壁。</li>
+            <li>從通道開始拖曳，可沿同一直線連續放置牆壁。</li>
+            <li>從既有牆壁開始拖曳，可沿同一直線連續移除牆壁。</li>
+            <li>拖曳只會影響起始牆段所在的同一條格線，不會修改交叉或相鄰格線。</li>
+            <li>一次拖曳視為一次操作，可使用「復原」還原。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>地圖區域</h3>
+          <dl class="rules-role-list gangsi-rules-role-list editor-help-zones">
+            <div>
+              <dt>封閉格</dt>
+              <dd>不屬於可通行道路，任何棋子都不能進入。</dd>
+            </div>
+            <div class="good">
+              <dt>入口</dt>
+              <dd>所有冒險者開始遊戲時共同等待的位置。冒險者可從任一未被牆壁阻擋的相鄰出口進入地圖，離開後不能主動返回入口。</dd>
+            </div>
+            <div class="evil">
+              <dt>地牢</dt>
+              <dd>提燈怪開始遊戲的位置。被抓且仍有生命的冒險者也會回到地牢，並在下次行動時從任一合法出口重新進入地圖。</dd>
+            </div>
+          </dl>
+          <ul>
+            <li>每張地圖只能設定一個入口與一個地牢，兩者不能位於同一格。</li>
+            <li>入口與地牢本身不是一般道路格，不能放置寶藏。</li>
+            <li>相鄰且未被牆壁阻擋的道路格會自動成為出口；入口與地牢都至少需要一個合法出口。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>寶藏與驗證</h3>
+          <ul>
+            <li>將寶藏標記拖曳到棋格上即可放置或移動。</li>
+            <li>地圖需放置 A1–A5、B1–B4、C1–C4、D1–D5、E1–E5，共 23 個寶藏。</li>
+            <li>同一格只能放置一個寶藏，且不能放在入口、地牢或封閉格。</li>
+            <li>「地圖驗證」會提示缺少的設定、無法抵達的道路與其他錯誤。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>儲存與使用</h3>
+          <ul>
+            <li>「下載地圖」會下載目前的地圖資料（<code>.JSON</code>）。</li>
+            <li>下載完成後，請將 <code>.JSON</code> 檔案傳給網站作者，由作者加入可選地圖。</li>
+            <li>載入內建地圖後仍可繼續編輯；完成修改後，建議先更改地圖名稱，再按「下載地圖」匯出自己的版本。</li>
+          </ul>
+        </section>
+      </div>
+    </article>
+  </div>
 
   <div class="rules-overlay hidden" id="rulesOverlay" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
     <article class="rules-dialog gangsi-rules-dialog">

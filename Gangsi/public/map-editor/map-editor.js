@@ -37,6 +37,8 @@
   let statusTimer = null;
   let draggingTreasureId = null;
   let suppressCellClick = false;
+  let wallStroke = null;
+  let suppressEdgeClick = false;
 
   function setStatus(message, tone = "neutral") {
     editorStatus.textContent = message;
@@ -190,6 +192,78 @@
     }, walls.has(edge) ? `已移除牆壁 ${edge}` : `已放置牆壁 ${edge}`);
   }
 
+  function wallLineKey(edge, orientation) {
+    const [firstCell] = edge.split("|");
+    const [x, y] = firstCell.split(",").map(Number);
+    return orientation === "vertical" ? `x:${x}` : `y:${y}`;
+  }
+
+  function applyWallStrokeEdge(edge, button) {
+    if (!wallStroke || wallStroke.changedEdges.has(edge)) return;
+    if (button.dataset.orientation !== wallStroke.orientation
+      || button.dataset.line !== wallStroke.line) return;
+    const shouldBeWall = wallStroke.operation === "add";
+    if (wallStroke.walls.has(edge) === shouldBeWall) return;
+    wallStroke.changedEdges.add(edge);
+    if (shouldBeWall) wallStroke.walls.add(edge);
+    else wallStroke.walls.delete(edge);
+    map.walls = [...wallStroke.walls];
+    button.classList.toggle("is-wall", shouldBeWall);
+    button.classList.toggle("is-passage", !shouldBeWall);
+    button.title = shouldBeWall ? `移除牆壁 ${edge}` : `放置牆壁 ${edge}`;
+  }
+
+  function beginWallStroke(event, edge, button) {
+    if (mode !== "wall" || event.button !== 0 || wallStroke) return;
+    event.preventDefault();
+    const walls = new Set(map.walls);
+    wallStroke = {
+      pointerId: event.pointerId,
+      operation: walls.has(edge) ? "remove" : "add",
+      orientation: button.dataset.orientation,
+      line: button.dataset.line,
+      before: Format.clone(map),
+      walls,
+      changedEdges: new Set()
+    };
+    suppressEdgeClick = true;
+    edgeLayer.classList.add("is-wall-stroke");
+    applyWallStrokeEdge(edge, button);
+  }
+
+  function continueWallStroke(event) {
+    if (!wallStroke || event.pointerId !== wallStroke.pointerId) return;
+    if ((event.buttons & 1) === 0) {
+      finishWallStroke(event);
+      return;
+    }
+    event.preventDefault();
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(".edge-button");
+    if (target && edgeLayer.contains(target)) applyWallStrokeEdge(target.dataset.edge, target);
+  }
+
+  function finishWallStroke(event) {
+    if (!wallStroke) return;
+    if (event?.pointerId !== undefined && event.pointerId !== wallStroke.pointerId) return;
+    const stroke = wallStroke;
+    wallStroke = null;
+    edgeLayer.classList.remove("is-wall-stroke");
+    if (stroke.changedEdges.size) {
+      undoStack.push(stroke.before);
+      if (undoStack.length > 150) undoStack.shift();
+      redoStack = [];
+      map = Format.refreshZoneExits({ ...map, walls: [...stroke.walls] });
+      persist();
+      render();
+      const action = stroke.operation === "add" ? "放置" : "移除";
+      const [edge] = stroke.changedEdges;
+      setStatus(stroke.changedEdges.size === 1
+        ? `已${action}牆壁 ${edge}`
+        : `已連續${action} ${stroke.changedEdges.size} 段牆壁`);
+    }
+    requestAnimationFrame(() => { suppressEdgeClick = false; });
+  }
+
   function addCellButton(x, y, entranceExits, dungeonExits) {
     const cell = Format.cellKey(x, y);
     const cellClass = Classes.cellClassAt(map, cell);
@@ -255,10 +329,20 @@
     const button = document.createElement("button");
     button.type = "button";
     button.className = `edge-button is-${orientation} is-${edgeClass}`;
+    button.dataset.edge = edge;
+    button.dataset.orientation = orientation;
+    button.dataset.line = wallLineKey(edge, orientation);
     button.style.left = `${leftPercent}%`;
     button.style.top = `${topPercent}%`;
     button.title = edgeClass === "wall" ? `移除牆壁 ${edge}` : `放置牆壁 ${edge}`;
-    button.addEventListener("click", () => handleEdgeClick(edge));
+    button.addEventListener("pointerdown", (event) => beginWallStroke(event, edge, button));
+    button.addEventListener("click", (event) => {
+      if (suppressEdgeClick && event.detail !== 0) {
+        event.preventDefault();
+        return;
+      }
+      handleEdgeClick(edge);
+    });
     edgeLayer.append(button);
   }
 
@@ -498,10 +582,10 @@
     }
   }
 
-  async function saveJson() {
+  async function downloadMap() {
     const payload = Format.refreshZoneExits(map);
     const result = Format.validateMap(payload);
-    if (!result.valid && !window.confirm("地圖尚未通過完整驗證，仍要儲存草稿 JSON 嗎？")) return;
+    if (!result.valid && !window.confirm("地圖尚未通過完整驗證，仍要下載草稿地圖嗎？")) return;
     const json = `${JSON.stringify(payload, null, 2)}\n`;
     const suggestedName = `${payload.id || "gangsi-map"}.json`;
     try {
@@ -521,10 +605,38 @@
         link.click();
         URL.revokeObjectURL(url);
       }
-      setStatus(result.valid ? "可用地圖 JSON 已儲存" : "草稿 JSON 已儲存", result.valid ? "success" : "warning");
+      setStatus(result.valid ? "地圖已下載" : "草稿地圖已下載", result.valid ? "success" : "warning");
     } catch (error) {
-      if (error.name !== "AbortError") setStatus(`儲存失敗：${error.message}`, "error");
+      if (error.name !== "AbortError") setStatus(`下載失敗：${error.message}`, "error");
     }
+  }
+
+  function mountEditorHelp() {
+    const overlay = document.querySelector("#editorHelpOverlay");
+    const openButton = document.querySelector("#openEditorHelpButton");
+    const closeButton = document.querySelector("#closeEditorHelpButton");
+    if (!overlay || !openButton || !closeButton) return;
+
+    function open() {
+      overlay.classList.remove("hidden");
+      document.body.classList.add("modal-open");
+      closeButton.focus();
+    }
+
+    function close() {
+      overlay.classList.add("hidden");
+      document.body.classList.remove("modal-open");
+      openButton.focus();
+    }
+
+    openButton.addEventListener("click", open);
+    closeButton.addEventListener("click", close);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !overlay.classList.contains("hidden")) close();
+    });
   }
 
   function bindActions() {
@@ -545,7 +657,7 @@
       if (file) await importMap(file);
       importInput.value = "";
     });
-    document.querySelector("#saveButton").addEventListener("click", saveJson);
+    document.querySelector("#saveButton").addEventListener("click", downloadMap);
     document.querySelector("#copyJsonButton").addEventListener("click", async () => {
       await navigator.clipboard.writeText(jsonPreview.value);
       setStatus("JSON 已複製");
@@ -566,6 +678,10 @@
       render();
       setStatus("已重做");
     });
+    window.addEventListener("pointermove", continueWallStroke, { passive: false });
+    window.addEventListener("pointerup", finishWallStroke);
+    window.addEventListener("pointercancel", finishWallStroke);
+    window.addEventListener("blur", () => finishWallStroke());
     window.addEventListener("keydown", (event) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       if (event.key.toLowerCase() === "z" && !event.shiftKey) {
@@ -581,6 +697,7 @@
 
   async function start() {
     Rules.mount();
+    mountEditorHelp();
     bindMetadata();
     bindActions();
     await loadCatalog();
