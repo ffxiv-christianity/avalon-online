@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node tests/map-format.test.js && node tests/game.test.js && node tests/engine.test.js && node tests/simulation.test.js && node tests/static.test.js && node tests/realtime.test.js"
+    "test": "node tests/map-format.test.js && node tests/game.test.js && node tests/engine.test.js && node tests/hunt-engine.test.js && node tests/simulation.test.js && node tests/hunt-simulation.test.js && node tests/static.test.js && node tests/realtime.test.js"
   }
 }

@@ -3,6 +3,7 @@
 const { randomIntInclusive, shuffle } = require("../Shared/server/random");
 const MapCatalog = require("./map-catalog");
 const MapFormat = require("./map-format");
+const HuntEngine = require("./hunt-engine");
 
 const PHASES = Object.freeze({
   turnStart: "adventurer_turn_start",
@@ -28,6 +29,7 @@ const DIRECTIONS = Object.freeze({
 });
 
 function setupGame(room) {
+  if (room.settings.mode === "hunt") return HuntEngine.setupGame(room);
   const map = MapCatalog.getBuiltInMap(room.settings.mapId);
   if (!map) throw new Error("Cannot start Gangsi without a valid map");
   const adventurers = room.players.filter((player) => player.role === "adventurer");
@@ -106,6 +108,7 @@ function dealHands(map, adventurers, cardsPerGroup) {
 }
 
 function applyGameAction(room, actor, action, payload = {}) {
+  if (room.settings.mode === "hunt") return HuntEngine.applyGameAction(room, actor, action, payload);
   if (!room.game || room.phase === "lobby") return "遊戲尚未開始。";
   if (room.phase === PHASES.gameOver) return "遊戲已經結束。";
   switch (action) {
@@ -513,6 +516,7 @@ function legalDieIds(room) {
 }
 
 function makeGameView(room, viewer) {
+  if (room.game?.mode === "hunt") return HuntEngine.makeGameView(room, viewer);
   if (!room.game) return null;
   const isMummyViewer = viewer?.role === "mummy";
   const pieces = Object.values(room.game.pieces).map((piece) => {
@@ -604,6 +608,7 @@ function taskProgress(room, playerId) {
 }
 
 function resetGame(room) {
+  if (room.game?.mode === "hunt") return HuntEngine.resetGame(room);
   room.game = null;
 }
 

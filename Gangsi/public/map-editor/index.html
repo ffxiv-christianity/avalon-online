@@ -17,7 +17,7 @@
         <h1>古墓迷蹤地圖編輯器</h1>
       </div>
       <div class="topbar-actions">
-        <a class="ghost-button editor-back-link" href="/Gangsi/">返回古墓迷蹤</a>
+        <a class="ghost-button rules-button editor-back-link" href="/Gangsi/">返回古墓迷蹤</a>
         <button class="ghost-button rules-button" id="openEditorHelpButton" type="button">編輯器說明</button>
         <button class="ghost-button rules-button" id="openRulesButton" type="button">遊戲規則</button>
         <output id="editorStatus" class="editor-status" aria-live="polite">載入中</output>
@@ -36,6 +36,7 @@
         <button class="mode-button" type="button" data-mode="void">封閉格</button>
         <button class="mode-button" type="button" data-mode="entrance">入口</button>
         <button class="mode-button" type="button" data-mode="dungeon">地牢</button>
+        <button class="mode-button" type="button" data-mode="hunt">獵殺標記</button>
         <button class="mode-button" type="button" data-mode="treasure">寶藏</button>
       </div>
 
@@ -70,10 +71,20 @@
           <span><i class="legend-void"></i>封閉格</span>
           <span><i class="legend-entrance"></i>入口</span>
           <span><i class="legend-dungeon"></i>地牢</span>
+          <span><i class="legend-mechanism"></i>機關／出口</span>
         </div>
       </div>
 
       <aside class="editor-inspector" aria-label="地圖屬性">
+        <section class="inspector-section hunt-section">
+          <div class="section-heading-row">
+            <h2>獵殺模式標記</h2>
+            <strong id="huntProgress">0 / 2</strong>
+          </div>
+          <div id="huntPalette" class="hunt-palette" role="listbox" aria-label="選擇獵殺模式標記"></div>
+          <p class="inspector-note">機關完成前不可通行，完成後同一格會轉為逃生出口；經典模式會忽略這些標記。</p>
+        </section>
+
         <section class="inspector-section treasure-section">
           <div class="section-heading-row">
             <h2>寶藏位置</h2>
@@ -133,6 +144,7 @@
           <h3>基本操作</h3>
           <ul>
             <li>使用工具列設定牆壁、封閉格、入口、地牢與寶藏。</li>
+            <li>獵殺模式地圖另需放置機關 A 與機關 B。</li>
             <li>編輯內容會自動保存在目前使用的瀏覽器中。</li>
             <li>「復原」與「重做」可還原最近的編輯操作。</li>
           </ul>
@@ -164,11 +176,16 @@
               <dt>地牢</dt>
               <dd>提燈怪開始遊戲的位置。被抓且仍有生命的冒險者也會回到地牢，並在下次行動時從任一合法出口重新進入地圖。</dd>
             </div>
+            <div>
+              <dt>機關／出口 A、B</dt>
+              <dd>獵殺模式的人類從相鄰道路操作機關；完成前該格不可站立，完成後同一格轉為逃生出口，只有人類能移入並逃脫。</dd>
+            </div>
           </dl>
           <ul>
             <li>每張地圖只能設定一個入口與一個地牢，兩者不能位於同一格。</li>
             <li>入口與地牢本身不是一般道路格，不能放置寶藏。</li>
             <li>相鄰且未被牆壁阻擋的道路格會自動成為出口；入口與地牢都至少需要一個合法出口。</li>
+            <li>兩座機關不能與入口、地牢、封閉格、寶藏或彼此重疊。</li>
           </ul>
         </section>
 

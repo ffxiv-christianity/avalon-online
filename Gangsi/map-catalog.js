@@ -41,7 +41,13 @@ function loadBuiltInMaps() {
     const map = MapFormat.clone(result.map);
     map.id = entry.id;
     map.name = entry.name || map.name;
-    return Object.freeze({ ...entry, map: Object.freeze(map) });
+    const huntValidation = MapFormat.validateHuntMap(payload);
+    return Object.freeze({
+      ...entry,
+      huntCompatible: huntValidation.valid,
+      huntErrors: Object.freeze(huntValidation.errors.slice()),
+      map: Object.freeze(map)
+    });
   });
 }
 
@@ -50,8 +56,8 @@ function getBuiltInMap(mapId) {
   return entry ? MapFormat.clone(entry.map) : null;
 }
 
-function randomBuiltInMap() {
-  const entries = loadBuiltInMaps();
+function randomBuiltInMap(options = {}) {
+  const entries = loadBuiltInMaps().filter((entry) => options.hunt !== true || entry.huntCompatible);
   if (!entries.length) return null;
   return MapFormat.clone(entries[randomIntInclusive(0, entries.length - 1)].map);
 }

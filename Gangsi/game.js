@@ -16,6 +16,9 @@ const Engine = require("./engine");
 
 const PLAYER_COUNTS = Object.freeze([2, 3, 4, 5]);
 const PLAYER_ROLES = Object.freeze({ adventurer: "adventurer", mummy: "mummy" });
+const GAME_MODES = Object.freeze({ classic: "classic", hunt: "hunt" });
+const PROFESSIONS = Object.freeze(["knight", "engineer", "doctor", "wizard"]);
+const MUMMY_TYPES = Object.freeze(["trap", "invisible", "knife"]);
 
 function mapOptions() {
   return MapCatalog.loadBuiltInMaps().map((entry) => ({
@@ -24,7 +27,9 @@ function mapOptions() {
     author: entry.map.author,
     date: entry.map.date,
     width: entry.map.width,
-    height: entry.map.height
+    height: entry.map.height,
+    huntCompatible: entry.huntCompatible === true,
+    huntErrors: entry.huntErrors?.slice() || []
   }));
 }
 
@@ -40,6 +45,7 @@ function makeRoom(hostName, code = roomCode()) {
     hostId: null,
     hostOfflineSince: null,
     settings: {
+      mode: GAME_MODES.classic,
       playerCount: 4,
       mapId: firstMap?.id || "",
       randomMap: false
@@ -68,6 +74,8 @@ function makePlayer(name) {
     ready: false,
     tokenLabel: "",
     role: PLAYER_ROLES.adventurer,
+    profession: null,
+    mummyType: null,
     roll: null,
     rollTie: null,
     seat: null
@@ -105,6 +113,8 @@ function applyRoomAction(room, actor, action, payload = {}) {
     case "updateSettings": return updateSettings(room, actor, payload);
     case "updateTokenLabel": return updateTokenLabel(room, actor, payload.tokenLabel);
     case "chooseRole": return chooseRole(room, actor, payload.role);
+    case "chooseProfession": return chooseProfession(room, actor, payload.profession);
+    case "chooseMummyType": return chooseMummyType(room, actor, payload.mummyType);
     case "roll": return roll(room, actor);
     case "toggleReady": return toggleReady(room, actor);
     case "startGame": return startGame(room, actor);
@@ -146,17 +156,31 @@ function kickOfflinePlayer(room, actor, targetPlayerId) {
 function updateSettings(room, actor, payload) {
   if (room.phase !== "lobby") return "進入遊戲房間後不能更改設定。";
   if (actor.id !== room.hostId) return "只有房主可以更改設定。";
+  const mode = String(payload.mode || room.settings.mode || GAME_MODES.classic);
+  if (!Object.values(GAME_MODES).includes(mode)) return "找不到指定的遊戲模式。";
   const playerCount = Number(payload.playerCount);
-  if (!PLAYER_COUNTS.includes(playerCount)) return "玩家人數必須是 2 到 5 人。";
+  if (!PLAYER_COUNTS.includes(playerCount) || (mode === GAME_MODES.hunt && playerCount < 3)) {
+    return mode === GAME_MODES.hunt ? "獵殺模式必須是 3 到 5 人。" : "玩家人數必須是 2 到 5 人。";
+  }
   if (room.players.length > playerCount) return "目前玩家數超過新的房間人數。";
   const randomMap = Boolean(payload.randomMap);
   const requestedMap = String(payload.mapId || "");
   const maps = mapOptions();
   if (!maps.length) return "目前沒有可用地圖。";
+  const eligibleMaps = maps.filter((map) => mode !== GAME_MODES.hunt || map.huntCompatible);
+  if (randomMap && !eligibleMaps.length) return "目前沒有支援獵殺模式的地圖。";
   if (!randomMap && !maps.some((map) => map.id === requestedMap)) return "找不到指定的地圖。";
+  const modeChanged = room.settings.mode !== mode;
+  room.settings.mode = mode;
   room.settings.playerCount = playerCount;
   room.settings.randomMap = randomMap;
   if (maps.some((map) => map.id === requestedMap)) room.settings.mapId = requestedMap;
+  if (modeChanged) {
+    room.players.forEach((player) => {
+      player.profession = null;
+      player.mummyType = null;
+    });
+  }
   markEveryoneUnready(room);
   touch(room);
   return null;
@@ -181,12 +205,38 @@ function chooseRole(room, actor, role) {
   }
   if (actor.role === role) return null;
   actor.role = role;
+  actor.profession = null;
+  actor.mummyType = null;
   actor.roll = null;
   actor.rollTie = null;
   markEveryoneUnready(room);
   addSystemMessage(room, role === PLAYER_ROLES.mummy
     ? `${actor.name} 選擇擔任提燈怪。`
     : `${actor.name} 改為冒險者。`);
+  touch(room);
+  return null;
+}
+
+function chooseProfession(room, actor, profession) {
+  if (room.phase !== "lobby") return "進入遊戲房間後不能更改職業。";
+  if (room.settings.mode !== GAME_MODES.hunt || actor.role !== PLAYER_ROLES.adventurer) return "只有獵殺模式的冒險者需要選擇職業。";
+  if (!PROFESSIONS.includes(profession)) return "找不到指定的冒險者職業。";
+  const owner = room.players.find((player) => player.id !== actor.id && player.role === PLAYER_ROLES.adventurer && player.profession === profession);
+  if (owner) return `${owner.name} 已選擇這個職業。`;
+  actor.profession = profession;
+  actor.ready = false;
+  markEveryoneUnready(room);
+  touch(room);
+  return null;
+}
+
+function chooseMummyType(room, actor, mummyType) {
+  if (room.phase !== "lobby") return "進入遊戲房間後不能更改提燈怪類型。";
+  if (room.settings.mode !== GAME_MODES.hunt || actor.role !== PLAYER_ROLES.mummy) return "只有獵殺模式的提燈怪需要選擇類型。";
+  if (!MUMMY_TYPES.includes(mummyType)) return "找不到指定的提燈怪類型。";
+  actor.mummyType = mummyType;
+  actor.ready = false;
+  markEveryoneUnready(room);
   touch(room);
   return null;
 }
@@ -206,6 +256,8 @@ function toggleReady(room, actor) {
   if (room.phase !== "lobby") return "已離開準備大廳。";
   if (actor.role === PLAYER_ROLES.adventurer && !actor.tokenLabel) return "請先填寫棋子文字。";
   if (actor.role === PLAYER_ROLES.adventurer && !actor.roll) return "請先擲 d100。";
+  if (room.settings.mode === GAME_MODES.hunt && actor.role === PLAYER_ROLES.adventurer && !actor.profession) return "請先選擇冒險者職業。";
+  if (room.settings.mode === GAME_MODES.hunt && actor.role === PLAYER_ROLES.mummy && !actor.mummyType) return "請先選擇提燈怪類型。";
   actor.ready = !actor.ready;
   touch(room);
   return null;
@@ -217,7 +269,8 @@ function validateLobby(room) {
     errors.push(`需要 ${room.settings.playerCount} 位玩家，目前 ${room.players.length} 位。`);
   }
   const maps = mapOptions();
-  if (!maps.length || (!room.settings.randomMap && !maps.some((map) => map.id === room.settings.mapId))) {
+  const eligibleMaps = maps.filter((map) => room.settings.mode !== GAME_MODES.hunt || map.huntCompatible);
+  if (!eligibleMaps.length || (!room.settings.randomMap && !eligibleMaps.some((map) => map.id === room.settings.mapId))) {
     errors.push("請選擇有效地圖。");
   }
   const mummyCount = room.players.filter((player) => player.role === PLAYER_ROLES.mummy).length;
@@ -227,6 +280,13 @@ function validateLobby(room) {
   }
   if (room.players.some((player) => player.role === PLAYER_ROLES.adventurer && !player.roll)) {
     errors.push("所有冒險者都需要先擲 d100。");
+  }
+  if (room.settings.mode === GAME_MODES.hunt) {
+    const professions = room.players.filter((player) => player.role === PLAYER_ROLES.adventurer).map((player) => player.profession);
+    if (professions.some((profession) => !PROFESSIONS.includes(profession))) errors.push("所有冒險者都需要選擇職業。");
+    if (new Set(professions).size !== professions.length) errors.push("獵殺模式的冒險者職業不能重複。");
+    const mummy = room.players.find((player) => player.role === PLAYER_ROLES.mummy);
+    if (!MUMMY_TYPES.includes(mummy?.mummyType)) errors.push("提燈怪需要選擇類型。");
   }
   if (room.players.some((player) => !player.ready)) errors.push("所有玩家都需要準備。");
   return { errors, warnings: [] };
@@ -238,7 +298,7 @@ function startGame(room, actor) {
   const validation = validateLobby(room);
   if (validation.errors.length) return validation.errors[0];
   if (room.settings.randomMap) {
-    const maps = mapOptions();
+    const maps = mapOptions().filter((map) => room.settings.mode !== GAME_MODES.hunt || map.huntCompatible);
     room.settings.mapId = maps[randomIntInclusive(0, maps.length - 1)].id;
   }
   room.players = playersByTurnOrder(room);
@@ -310,6 +370,9 @@ function makeView(room, playerIdValue) {
         ready: player.ready,
         tokenLabel: player.tokenLabel,
         role: player.role,
+        profession: player.profession,
+        mummyTypeSelected: Boolean(player.mummyType),
+        mummyType: room.phase !== "lobby" || player.id === you?.id ? player.mummyType : null,
         roll: player.roll,
         seat: player.seat,
         index
@@ -322,6 +385,8 @@ function makeView(room, playerIdValue) {
       id: you.id,
       name: you.name,
       role: you.role,
+      profession: you.profession,
+      mummyType: you.mummyType,
       isHost: you.id === room.hostId
     } : null
   };
@@ -385,6 +450,9 @@ function normalizedName(value) {
 module.exports = {
   PLAYER_COUNTS,
   PLAYER_ROLES,
+  GAME_MODES,
+  PROFESSIONS,
+  MUMMY_TYPES,
   mapOptions,
   makeRoom,
   joinRoom,

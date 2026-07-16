@@ -20,6 +20,8 @@
   const mapHeight = document.querySelector("#mapHeight");
   const treasurePalette = document.querySelector("#treasurePalette");
   const treasureProgress = document.querySelector("#treasureProgress");
+  const huntPalette = document.querySelector("#huntPalette");
+  const huntProgress = document.querySelector("#huntProgress");
   const validationBadge = document.querySelector("#validationBadge");
   const validationList = document.querySelector("#validationList");
   const jsonPreview = document.querySelector("#jsonPreview");
@@ -36,6 +38,8 @@
   let catalog = [];
   let statusTimer = null;
   let draggingTreasureId = null;
+  let selectedHuntMarkerId = "mechanism-A";
+  let draggingHuntMarkerId = null;
   let suppressCellClick = false;
   let wallStroke = null;
   let suppressEdgeClick = false;
@@ -80,6 +84,29 @@
     return map.treasures.find((treasure) => treasure.position === cell) || null;
   }
 
+  function huntMarkers() {
+    return Format.HUNT_MECHANISM_IDS.map((gateId) => ({
+      id: `mechanism-${gateId}`,
+      gateId,
+      type: "mechanism",
+      label: `機關／出口 ${gateId}`,
+      position: map.hunt.mechanisms[gateId]
+    }));
+  }
+
+  function huntMarkerAt(cell) {
+    return huntMarkers().find((marker) => marker.position === cell) || null;
+  }
+
+  function huntMarkerById(id) {
+    return huntMarkers().find((marker) => marker.id === id) || null;
+  }
+
+  function clearHuntMarkerAt(cell) {
+    const marker = huntMarkerAt(cell);
+    if (marker) map.hunt.mechanisms[marker.gateId] = null;
+  }
+
   function removeTreasureAt(cell) {
     map.treasures = map.treasures.filter((treasure) => treasure.position !== cell);
   }
@@ -87,6 +114,10 @@
   function placeTreasure(id, cell, { toggle = false } = {}) {
     if (Classes.cellClassAt(map, cell) !== "floor") {
       setStatus("寶藏只能放在一般道路格", "error");
+      return;
+    }
+    if (huntMarkerAt(cell)) {
+      setStatus("寶藏不能與獵殺模式標記重疊", "error");
       return;
     }
     selectedTreasureId = id;
@@ -106,6 +137,29 @@
       if (selected && targetTreasure) map.treasures.push({ id: targetTreasure.id, position: selected.position });
       map.treasures.push({ id, position: cell });
     }, `${id} 已放在 ${cell}`);
+  }
+
+  function placeHuntMarker(id, cell, { toggle = false } = {}) {
+    if (Classes.cellClassAt(map, cell) !== "floor") {
+      setStatus("機關只能放在一般道路格", "error");
+      return;
+    }
+    const selected = huntMarkerById(id);
+    if (!selected) return;
+    selectedHuntMarkerId = id;
+    mode = "hunt";
+    const occupying = huntMarkerAt(cell);
+    if (!toggle && occupying?.id === id) return;
+    commit(() => {
+      const currentPosition = map.hunt.mechanisms[selected.gateId];
+      if (toggle && currentPosition === cell) {
+        map.hunt.mechanisms[selected.gateId] = null;
+        return;
+      }
+      if (occupying) map.hunt.mechanisms[occupying.gateId] = currentPosition;
+      map.hunt.mechanisms[selected.gateId] = cell;
+      removeTreasureAt(cell);
+    }, `${selected.label}已放在 ${cell}`);
   }
 
   function syncModeButtons() {
@@ -136,6 +190,24 @@
     event.dataTransfer.setData("text/plain", id);
   }
 
+  function startHuntMarkerDrag(event, id) {
+    draggingHuntMarkerId = id;
+    selectedHuntMarkerId = id;
+    mode = "hunt";
+    edgeLayer.classList.add("is-disabled");
+    syncModeButtons();
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("application/x-gangsi-hunt-marker", id);
+    event.dataTransfer.setData("text/plain", id);
+  }
+
+  function finishHuntMarkerDrag() {
+    draggingHuntMarkerId = null;
+    suppressCellClick = true;
+    clearDropTargets();
+    requestAnimationFrame(() => { suppressCellClick = false; });
+  }
+
   function finishTreasureDrag() {
     draggingTreasureId = null;
     suppressCellClick = true;
@@ -158,6 +230,7 @@
         else {
           cells.add(cell);
           removeTreasureAt(cell);
+          clearHuntMarkerAt(cell);
         }
         map.voidCells = [...cells];
       }, map.voidCells.includes(cell) ? `已恢復道路 ${cell}` : `已封閉 ${cell}`);
@@ -171,6 +244,7 @@
         zone.anchor = zone.anchor === cell ? null : cell;
         map.voidCells = map.voidCells.filter((entry) => entry !== cell);
         removeTreasureAt(cell);
+        clearHuntMarkerAt(cell);
         const otherType = mode === "entrance" ? "dungeon" : "entrance";
         if (map.zones[otherType].anchor === cell) map.zones[otherType].anchor = null;
       }, `${label}位置已更新`);
@@ -179,6 +253,11 @@
 
     if (mode === "treasure") {
       placeTreasure(selectedTreasureId, cell, { toggle: true });
+      return;
+    }
+
+    if (mode === "hunt") {
+      placeHuntMarker(selectedHuntMarkerId, cell, { toggle: true });
     }
   }
 
@@ -268,11 +347,12 @@
     const cell = Format.cellKey(x, y);
     const cellClass = Classes.cellClassAt(map, cell);
     const treasure = treasureAt(cell);
+    const huntMarker = huntMarkerAt(cell);
     const button = document.createElement("button");
     button.type = "button";
     button.className = `map-cell is-${cellClass}`;
     button.dataset.cell = cell;
-    button.title = `(${cell}) ${Classes.CELL_CLASSES[cellClass].label}${treasure ? ` ${treasure.id}` : ""}`;
+    button.title = `(${cell}) ${Classes.CELL_CLASSES[cellClass].label}${treasure ? ` ${treasure.id}` : ""}${huntMarker ? ` ${huntMarker.label}` : ""}`;
     if (entranceExits.has(cell)) button.classList.add("is-entrance-exit");
     if (dungeonExits.has(cell)) button.classList.add("is-dungeon-exit");
 
@@ -300,11 +380,22 @@
       button.append(token);
     }
 
+    if (huntMarker) {
+      const token = document.createElement("span");
+      token.className = `hunt-marker-token is-${huntMarker.type}`;
+      token.textContent = `機${huntMarker.gateId}`;
+      token.draggable = true;
+      token.title = `拖曳${huntMarker.label}到其他道路格`;
+      token.addEventListener("dragstart", (event) => startHuntMarkerDrag(event, huntMarker.id));
+      token.addEventListener("dragend", finishHuntMarkerDrag);
+      button.append(token);
+    }
+
     button.addEventListener("click", () => {
       if (!suppressCellClick) handleCellClick(cell);
     });
     button.addEventListener("dragover", (event) => {
-      if (!draggingTreasureId || cellClass !== "floor") return;
+      if ((!draggingTreasureId && !draggingHuntMarkerId) || cellClass !== "floor") return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
       button.classList.add("is-drop-target");
@@ -315,6 +406,13 @@
     button.addEventListener("drop", (event) => {
       if (cellClass !== "floor") return;
       event.preventDefault();
+      const markerId = event.dataTransfer.getData("application/x-gangsi-hunt-marker") || draggingHuntMarkerId;
+      if (markerId) {
+        draggingHuntMarkerId = null;
+        clearDropTargets();
+        placeHuntMarker(markerId, cell);
+        return;
+      }
       const id = event.dataTransfer.getData("application/x-gangsi-treasure") || draggingTreasureId;
       draggingTreasureId = null;
       clearDropTargets();
@@ -433,15 +531,43 @@
     treasureProgress.textContent = `${map.treasures.length} / ${Format.TREASURE_IDS.length}`;
   }
 
+  function renderHuntPalette() {
+    huntPalette.replaceChildren();
+    const markers = huntMarkers();
+    for (const marker of markers) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `hunt-marker-choice is-${marker.type}`;
+      button.classList.toggle("is-selected", marker.id === selectedHuntMarkerId);
+      button.classList.toggle("is-placed", Boolean(marker.position));
+      button.dataset.markerId = marker.id;
+      button.draggable = true;
+      button.setAttribute("role", "option");
+      button.setAttribute("aria-selected", String(marker.id === selectedHuntMarkerId));
+      button.innerHTML = `<span>機${marker.gateId}</span><strong>${marker.label}</strong><small>${marker.position || "未放置"}</small>`;
+      button.addEventListener("click", () => {
+        selectedHuntMarkerId = marker.id;
+        setMode("hunt");
+      });
+      button.addEventListener("dragstart", (event) => startHuntMarkerDrag(event, marker.id));
+      button.addEventListener("dragend", finishHuntMarkerDrag);
+      huntPalette.append(button);
+    }
+    huntProgress.textContent = `${markers.filter((marker) => marker.position).length} / ${markers.length}`;
+  }
+
   function renderValidation() {
     const result = Format.validateMap(map);
+    const huntResult = Format.validateHuntMap(map);
     validationList.replaceChildren();
     validationBadge.className = "validation-badge";
     const messages = [];
     if (result.valid) {
-      validationBadge.textContent = "可用地圖";
+      validationBadge.textContent = huntResult.valid ? "經典／獵殺可用" : "經典可用";
       validationBadge.classList.add("is-valid");
       messages.push({ type: "success", text: "結構、連通性與 23 個寶藏均通過" });
+      if (huntResult.valid) messages.push({ type: "success", text: "兩座可轉換機關通過獵殺模式驗證" });
+      else messages.push(...huntResult.errors.filter((text) => !result.errors.includes(text)).map((text) => ({ type: "warning", text: `獵殺模式：${text}` })));
     } else {
       validationBadge.textContent = result.complete ? "需修正" : "草稿";
       validationBadge.classList.add("is-invalid");
@@ -488,6 +614,7 @@
     renderMetadata();
     renderBoard();
     renderPalette();
+    renderHuntPalette();
     renderValidation();
     jsonPreview.value = JSON.stringify(Format.refreshZoneExits(map), null, 2);
     undoButton.disabled = undoStack.length === 0;
@@ -529,6 +656,9 @@
       map.walls = map.walls.filter((edge) => edge.split("|").every((cell) => Format.inBounds(cell, width, height)));
       map.voidCells = map.voidCells.filter((cell) => Format.inBounds(cell, width, height));
       map.treasures = map.treasures.filter((treasure) => Format.inBounds(treasure.position, width, height));
+      for (const id of Format.HUNT_MECHANISM_IDS) {
+        if (!Format.inBounds(map.hunt.mechanisms[id], width, height)) map.hunt.mechanisms[id] = null;
+      }
       for (const type of ["entrance", "dungeon"]) {
         if (!Format.inBounds(map.zones[type].anchor, width, height)) map.zones[type].anchor = null;
       }

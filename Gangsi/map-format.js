@@ -19,6 +19,7 @@
     Array.from({ length: definition.size }, (_, index) => `${group}${index + 1}`)
   )));
   const TREASURE_ID_SET = new Set(TREASURE_IDS);
+  const HUNT_MECHANISM_IDS = Object.freeze(["A", "B"]);
   const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
   function clone(value) {
@@ -109,6 +110,9 @@
         entrance: { anchor: null, exits: [] },
         dungeon: { anchor: null, exits: [] }
       },
+      hunt: {
+        mechanisms: { A: null, B: null }
+      },
       treasures: []
     };
   }
@@ -137,6 +141,12 @@
           .map((cell) => cellKey(cell))
           .filter(Boolean))].sort(compareCells)
       };
+    }
+
+    for (const id of HUNT_MECHANISM_IDS) {
+      map.hunt.mechanisms[id] = cellKey(
+        source.hunt?.mechanisms?.[id] ?? source.hunt?.gates?.[id]?.mechanism
+      );
     }
 
     const treasures = Array.isArray(source.treasures)
@@ -193,9 +203,16 @@
     return result;
   }
 
-  function buildMovementGraph(mapInput) {
+  function huntMarkerCells(map) {
+    return HUNT_MECHANISM_IDS.map((id) => map.hunt?.mechanisms?.[id]).filter(Boolean);
+  }
+
+  function buildMovementGraph(mapInput, options = {}) {
     const map = refreshZoneExits(mapInput);
     const floors = new Set(floorCells(map));
+    if (options.hunt === true) {
+      for (const cell of huntMarkerCells(map)) floors.delete(cell);
+    }
     const walls = new Set(map.walls);
     const passages = {};
     for (const cell of floors) {
@@ -206,6 +223,67 @@
     return {
       passages,
       zones: clone(map.zones)
+    };
+  }
+
+  function validateHuntMap(input, options = {}) {
+    const base = validateMap(input, options);
+    const map = base.map;
+    const errors = base.errors.slice();
+    const warnings = base.warnings.slice();
+    const voidSet = new Set(map.voidCells);
+    const zoneAnchors = new Set([map.zones.entrance.anchor, map.zones.dungeon.anchor].filter(Boolean));
+    const treasureCells = new Set(map.treasures.map((treasure) => treasure.position));
+    const markerCells = new Map();
+
+    for (const id of HUNT_MECHANISM_IDS) {
+      const label = `機關 ${id}`;
+      const cell = map.hunt?.mechanisms?.[id];
+      if (!cell || !inBounds(cell, map.width, map.height)) {
+        errors.push(`${label}尚未設定`);
+        continue;
+      }
+      if (voidSet.has(cell)) errors.push(`${label}不能放在封閉格 ${cell}`);
+      if (zoneAnchors.has(cell)) errors.push(`${label}不能與入口或地牢重疊`);
+      if (treasureCells.has(cell)) errors.push(`${label}不能與寶藏重疊`);
+      if (markerCells.has(cell)) errors.push(`${label}不能與${markerCells.get(cell)}重疊`);
+      else markerCells.set(cell, label);
+    }
+
+    if (base.valid && errors.length === base.errors.length) {
+      const graph = buildMovementGraph(map, { hunt: true });
+      const floorSet = new Set(Object.keys(graph.passages));
+      const entranceExits = map.zones.entrance.exits.filter((cell) => floorSet.has(cell));
+      const visited = new Set(entranceExits);
+      const queue = [...entranceExits];
+      while (queue.length) {
+        const current = queue.shift();
+        for (const next of graph.passages[current] || []) {
+          if (visited.has(next)) continue;
+          visited.add(next);
+          queue.push(next);
+        }
+      }
+      if (!entranceExits.length) errors.push("獵殺模式入口沒有可進入的道路");
+      const dungeonExits = map.zones.dungeon.exits.filter((cell) => floorSet.has(cell));
+      if (!dungeonExits.length) errors.push("獵殺模式地牢沒有可進入的道路");
+      for (const id of HUNT_MECHANISM_IDS) {
+        const mechanism = map.hunt.mechanisms[id];
+        const approaches = neighbors(mechanism, map.width, map.height)
+          .filter((cell) => floorSet.has(cell))
+          .filter((cell) => !map.walls.includes(canonicalEdge(mechanism, cell)));
+        if (!approaches.length) errors.push(`機關 ${id} 沒有可互動的相鄰道路`);
+        else if (!approaches.some((cell) => visited.has(cell))) errors.push(`機關 ${id} 無法從入口抵達`);
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      complete: base.complete,
+      huntCompatible: errors.length === 0,
+      errors: [...new Set(errors)],
+      warnings: [...new Set(warnings)],
+      map
     };
   }
 
@@ -335,7 +413,8 @@
       walls: map.walls.length,
       passages: passageCount,
       voidCells: map.voidCells.length,
-      treasures: map.treasures.length
+      treasures: map.treasures.length,
+      huntMarkers: huntMarkerCells(map).length
     };
   }
 
@@ -345,6 +424,7 @@
     LIMITS,
     GROUPS,
     TREASURE_IDS,
+    HUNT_MECHANISM_IDS,
     clone,
     parseCell,
     cellKey,
@@ -359,8 +439,10 @@
     neighbors,
     deriveZoneExits,
     refreshZoneExits,
+    huntMarkerCells,
     buildMovementGraph,
     validateMap,
+    validateHuntMap,
     mapStats
   });
 });

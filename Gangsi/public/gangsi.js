@@ -22,6 +22,8 @@
   let lastPlayerJoinSerial = 0;
   let numericPath = [];
   let numericSelectionKey = "";
+  let knifeDirectionOpen = false;
+  let knifeSelectionKey = "";
   let observedCaptureSerial = null;
   let captureTimer = null;
   let observedGameOverKey = "";
@@ -253,6 +255,7 @@
       : (map?.name || "未選擇");
     const items = [
       ["階段", phaseLabel(snapshot.room.phase)],
+      ["模式", modeLabel(snapshot.room.settings.mode)],
       ["玩家", `${snapshot.room.players.length}/${snapshot.room.settings.playerCount}`],
       ["地圖", mapLabel]
     ];
@@ -269,7 +272,7 @@
         <div class="seat">${player.index + 1}</div>
         <div>
           <div class="player-name-line"><strong>${escapeHtml(player.name)}</strong></div>
-          <div class="player-meta">${roleLabel(player.role)} · 棋子 ${escapeHtml(pieceLabel(player))}${player.role === "adventurer" ? ` · d100: ${player.roll || "未擲"}` : ""}${player.ready ? " · 已準備" : ""} · ${player.online ? "在線" : "離線"}</div>
+          <div class="player-meta">${roleLabel(player.role)}${lobbySpecialization(player)} · 棋子 ${escapeHtml(pieceLabel(player))}${player.role === "adventurer" ? ` · d100: ${player.roll || "未擲"}` : ""}${player.ready ? " · 已準備" : ""} · ${player.online ? "在線" : "離線"}</div>
           ${SharedRoomUI.hostControls({
             viewerIsHost: snapshot.you.isHost,
             player,
@@ -306,15 +309,18 @@
     observedCaptureSerial = null;
     numericPath = [];
     numericSelectionKey = "";
+    knifeDirectionOpen = false;
+    knifeSelectionKey = "";
     window.clearTimeout(captureTimer);
     page.captureLightbox.classList.add("hidden");
     observedGameOverKey = "";
     dismissedGameOverKey = "";
     hideGameOverLightbox();
     const fragment = page.lobbyTemplate.content.cloneNode(true);
+    const isHunt = snapshot.room.settings.mode === "hunt";
     fragment.querySelector("[data-template-slot='phase-header']").innerHTML = phaseHeader(
       "準備大廳",
-      "自選角色；冒險者設定棋子並擲 d100 後準備。"
+      isHunt ? "選擇陣營與專屬能力；冒險者合作逃離古墓。" : "自選角色；冒險者設定棋子並擲 d100 後準備。"
     );
     fragment.querySelector("[data-gangsi-lobby-player-name]").textContent = snapshot.you.name;
     const player = currentPlayer();
@@ -323,7 +329,7 @@
     readyAlert.classList.toggle("not-ready", !player.ready);
     readyAlert.setAttribute("aria-label", player.ready ? "已準備" : "尚未準備");
     fragment.querySelector("[data-gangsi-lobby-ready-popover]").textContent = player.ready ? "已準備" : "尚未準備";
-    fragment.querySelector("[data-gangsi-role-status]").textContent = `目前角色：${roleLabel(player.role)} · 棋子「${pieceLabel(player)}」`;
+    fragment.querySelector("[data-gangsi-role-status]").textContent = `目前角色：${roleLabel(player.role)}${lobbySpecialization(player)} · 棋子「${pieceLabel(player)}」`;
     const tokenInput = fragment.querySelector("[data-gangsi-token-label]");
     tokenInput.value = player.tokenLabel || "";
     tokenInput.closest(".gangsi-token-field").classList.toggle("hidden", player.role === "mummy");
@@ -337,18 +343,41 @@
       button.setAttribute("aria-pressed", String(role === player.role));
       button.disabled = role === "mummy" && Boolean(currentMummy && currentMummy.id !== player.id);
     });
+    const professionField = fragment.querySelector(".gangsi-profession-field");
+    const professionSelect = fragment.querySelector("[data-gangsi-profession]");
+    professionField.classList.toggle("hidden", !isHunt || player.role !== "adventurer");
+    professionSelect.value = player.profession || "";
+    const takenProfessions = new Set(snapshot.room.players
+      .filter((item) => item.id !== player.id && item.role === "adventurer")
+      .map((item) => item.profession)
+      .filter(Boolean));
+    professionSelect.querySelectorAll("option[value]").forEach((option) => {
+      option.disabled = Boolean(option.value && takenProfessions.has(option.value));
+    });
+    const mummyTypeField = fragment.querySelector(".gangsi-mummy-type-field");
+    const mummyTypeSelect = fragment.querySelector("[data-gangsi-mummy-type]");
+    mummyTypeField.classList.toggle("hidden", !isHunt || player.role !== "mummy");
+    mummyTypeSelect.value = player.mummyType || "";
     const rollButton = fragment.querySelector("[data-gangsi-roll]");
     rollButton.classList.toggle("hidden", player.role === "mummy");
     rollButton.disabled = Boolean(player.roll);
     const readyButton = fragment.querySelector("[data-gangsi-ready]");
     readyButton.textContent = player.ready ? "取消準備" : "準備";
-    readyButton.disabled = player.role === "adventurer" && (!player.tokenLabel || !player.roll);
+    readyButton.disabled = player.role === "adventurer" && (!player.tokenLabel || !player.roll || (isHunt && !player.profession))
+      || player.role === "mummy" && isHunt && !player.mummyType;
 
+    const modeSelect = fragment.querySelector("[data-gangsi-mode]");
+    modeSelect.value = snapshot.room.settings.mode || "classic";
+    modeSelect.disabled = !snapshot.you.isHost;
     const playerCount = fragment.querySelector("[data-gangsi-player-count]");
     playerCount.value = String(snapshot.room.settings.playerCount);
     playerCount.disabled = !snapshot.you.isHost;
     const mapSelect = fragment.querySelector("[data-gangsi-map-select]");
-    mapSelect.innerHTML = snapshot.room.maps.map((map) => `<option value="${escapeHtml(map.id)}">${escapeHtml(map.name)}</option>`).join("");
+    playerCount.querySelector('option[value="2"]').disabled = isHunt;
+    mapSelect.innerHTML = snapshot.room.maps.map((map) => {
+      const unavailable = isHunt && !map.huntCompatible;
+      return `<option value="${escapeHtml(map.id)}" ${unavailable ? "disabled" : ""}>${escapeHtml(map.name)}${unavailable ? "（缺少獵殺機關）" : ""}</option>`;
+    }).join("");
     mapSelect.value = snapshot.room.settings.mapId || snapshot.room.maps[0]?.id || "";
     mapSelect.disabled = !snapshot.you.isHost || snapshot.room.settings.randomMap;
     const randomMap = fragment.querySelector("[data-gangsi-random-map]");
@@ -360,6 +389,7 @@
     fragment.querySelector("[data-gangsi-map-summary]").innerHTML = snapshot.room.settings.randomMap
       ? '<div><span>選圖方式</span><strong>開始遊戲時隨機抽選</strong></div>'
       : (map ? [
+        ["模式相容", isHunt ? (map.huntCompatible ? "可用於獵殺模式" : "缺少兩座獵殺機關") : "可用於經典模式"],
         ["作者", map.author || "未署名"],
         ["日期", map.date],
         ["尺寸", `${map.width} × ${map.height}`]
@@ -384,6 +414,13 @@
       : "";
     if (nextNumericKey !== numericSelectionKey) numericPath = [];
     numericSelectionKey = nextNumericKey;
+    const nextKnifeKey = snapshot.room.phase === "mummy_ability"
+      && snapshot.you.role === "mummy"
+      && (game.legal.actions || []).includes("throwKnife")
+      ? `${game.currentPlayerId}:${game.mummy.abilityCooldown}`
+      : "";
+    if (nextKnifeKey !== knifeSelectionKey) knifeDirectionOpen = false;
+    knifeSelectionKey = nextKnifeKey;
     const fragment = page.gameTemplate.content.cloneNode(true);
     fragment.querySelector("[data-template-slot='phase-header']").innerHTML = phaseHeader(
       game.winner ? "遊戲結束" : "古墓迷蹤",
@@ -397,28 +434,38 @@
     });
     const map = snapshot.room.selectedMap;
     fragment.querySelector("[data-gangsi-board-name]").textContent = map?.name || "未選擇地圖";
-    fragment.querySelector("[data-gangsi-board-size]").textContent = map ? `${map.width} × ${map.height}` : "";
+    const boardSize = fragment.querySelector("[data-gangsi-board-size]");
+    boardSize.textContent = map ? `${map.width}x × ${map.height}y` : "";
+    boardSize.title = map ? `X 軸 ${map.width} 格，Y 軸 ${map.height} 格` : "";
     if (map) renderBoard(fragment.querySelector("[data-gangsi-board]"), map, game);
     const diceRow = fragment.querySelector("[data-gangsi-dice-row]");
     diceRow.classList.toggle("has-mummy-die", Number.isInteger(game.mummy.roll));
     diceRow.innerHTML = renderGameDice(game);
+    const stage = actionStage(snapshot.room.phase);
+    const stageHeading = fragment.querySelector("[data-gangsi-stage-heading]");
+    stageHeading.dataset.stage = stage.tone;
+    fragment.querySelector("[data-gangsi-stage-label]").textContent = stage.label;
     const ownProgress = game.progress.find((progress) => progress.playerId === snapshot.you.id);
     const ownPieces = game.pieces.filter((piece) => piece.controllerId === snapshot.you.id);
     const lifeLabel = fragment.querySelector("[data-gangsi-life-label]");
     const missionsLabel = fragment.querySelector("[data-gangsi-missions-label]");
     if (snapshot.you.role === "mummy") {
       lifeLabel.textContent = "生命標記";
-      missionsLabel.textContent = "已揭露";
-      fragment.querySelector("[data-gangsi-life]").textContent = `${game.mummy.score} / ${game.mummy.target}`;
-      fragment.querySelector("[data-gangsi-missions]").textContent = String(game.revealedTasks.length);
+      missionsLabel.textContent = game.mode === "hunt" ? "團隊寶藏" : "已揭露";
+      fragment.querySelector("[data-gangsi-life]").textContent = game.mode === "hunt" ? String(game.mummy.score) : `${game.mummy.score} / ${game.mummy.target}`;
+      fragment.querySelector("[data-gangsi-missions]").textContent = game.mode === "hunt"
+        ? `${game.revealedTasks.length} / ${game.hunt.treasureGoal}`
+        : String(game.revealedTasks.length);
     } else {
       lifeLabel.textContent = ownPieces.length > 1 ? "棋子生命" : "生命";
-      missionsLabel.textContent = "任務";
+      missionsLabel.textContent = game.mode === "hunt" ? "團隊寶藏" : "任務";
       fragment.querySelector("[data-gangsi-life]").textContent = ownPieces.map((piece) => Math.max(0, piece.life)).join(" / ") || "0";
-      fragment.querySelector("[data-gangsi-missions]").textContent = `${ownProgress?.completed || 0} / ${ownProgress?.total || 0}`;
+      fragment.querySelector("[data-gangsi-missions]").textContent = game.mode === "hunt"
+        ? `${game.revealedTasks.length} / ${game.hunt.treasureGoal}`
+        : `${ownProgress?.completed || 0} / ${ownProgress?.total || 0}`;
     }
     fragment.querySelector("[data-gangsi-locked-dice]").textContent = `${game.lockedDiceCount} / 5`;
-    const infoMessages = snapshot.room.log.slice(-5);
+    const infoMessages = (game.actionInfo || snapshot.room.log.slice(-5)).slice(-5);
     if (snapshot.room.phase === "adventurer_roll" && isYourTurn(game)) {
       const hasRolledFaces = game.dice?.some((die) => !die.locked && die.face);
       if (hasRolledFaces && game.legal.dieIds?.length) {
@@ -428,7 +475,7 @@
       }
     }
     if (snapshot.room.phase === "adventurer_numeric_move" && isYourTurn(game)) {
-      const complete = numericPath.length === Number(game.legal.selectedFace);
+      const complete = isNumericPathComplete(game);
       infoMessages.push(complete
         ? `路徑已選滿 ${game.legal.selectedFace} 步，請確認移動。`
         : `路徑預覽：${numericPath.length} / ${game.legal.selectedFace} 步`);
@@ -440,6 +487,9 @@
       bodyClassName: "gangsi-action-info-body"
     });
     fragment.querySelector("[data-gangsi-action-row]").innerHTML = renderGameActions(game);
+    const huntStatus = fragment.querySelector("[data-gangsi-hunt-status]");
+    huntStatus.classList.toggle("hidden", game.mode !== "hunt");
+    if (game.mode === "hunt") huntStatus.innerHTML = renderHuntStatus(game);
     fragment.querySelector("[data-gangsi-hand-panel]").innerHTML = renderGameHand(game);
     page.mainPanel.replaceChildren(fragment);
     syncCaptureEffect(game);
@@ -460,12 +510,20 @@
     const tokens = player.role === "mummy"
       ? '<span class="gangsi-piece-token is-mummy">怪</span>'
       : pieces.map((piece) => `
-          <span class="gangsi-piece-token ${seatTone} ${piece.eliminated ? "is-eliminated" : ""}">
+          <span class="gangsi-piece-token ${seatTone} ${piece.eliminated ? "is-eliminated" : ""} ${piece.escaped ? "is-escaped" : ""}">
             ${escapeHtml(piece.tokenLabel)}${pieces.length > 1 ? `<small>${piece.ordinal}</small>` : ""}
           </span>`).join("");
+    const huntPiece = pieces[0];
+    const huntState = game.mode === "hunt" && huntPiece
+      ? `${professionLabel(huntPiece.profession)} · ${huntPiece.escaped ? "已逃脫" : huntPiece.eliminated ? "已死亡" : huntPiece.guard ? "受守護" : huntPiece.injured ? "受傷" : "行動中"}`
+      : "";
     const detail = player.role === "mummy"
-      ? `生命標記 ${game.mummy.score}/${game.mummy.target}`
-      : `生命 ${pieces.map((piece) => Math.max(0, piece.life)).join("/")} · 任務 ${progress?.completed || 0}/${progress?.total || 0}`;
+      ? (game.mode === "hunt"
+        ? `${mummyTypeLabel(game.mummy.type)}${snapshot.you.role === "mummy" ? ` · 技能冷卻 ${game.mummy.abilityCooldown}` : ""}`
+        : `生命標記 ${game.mummy.score}/${game.mummy.target}`)
+      : (game.mode === "hunt"
+        ? `生命 ${pieces.map((piece) => Math.max(0, piece.life)).join("/")} · ${huntState}`
+        : `生命 ${pieces.map((piece) => Math.max(0, piece.life)).join("/")} · 任務 ${progress?.completed || 0}/${progress?.total || 0}`);
     return `
       <article class="gangsi-player-seat ${player.id === snapshot.you.id ? "is-self" : ""} ${isCurrent ? "is-current" : ""} ${player.online ? "" : "is-offline"}">
         ${SharedRoomUI.seatNumber(index, "gangsi-seat-number")}
@@ -490,11 +548,11 @@
     }
     const selectable = new Set(game.legal.dieIds || []);
     return game.dice.map((die) => {
-      const label = die.locked ? "怪" : dieFaceLabel(die.face);
+      const label = die.locked ? "怪" : die.disabled ? "停" : dieFaceLabel(die.face);
       if (selectable.has(die.id)) {
         return `<button class="gangsi-die is-selectable" data-gangsi-die="${escapeAttribute(die.id)}" type="button" title="使用 ${escapeAttribute(label)} 骰">${escapeHtml(label)}</button>`;
       }
-      return `<span class="gangsi-die ${die.locked ? "is-locked" : ""}">${escapeHtml(label)}</span>`;
+      return `<span class="gangsi-die ${die.locked ? "is-locked" : ""} ${die.disabled ? "is-disabled" : ""}" ${die.disabled ? 'title="受傷：本回合少用這顆骰子"' : ""}>${escapeHtml(label)}</span>`;
     }).join("") + mummyDie;
   }
 
@@ -506,11 +564,25 @@
     if (actions.has("keepLockedDice")) return `
       <button class="secondary-button" data-gangsi-game-action="keepLockedDice" type="button">繼續回合</button>
       <button class="primary-button" data-gangsi-game-action="unlockDice" type="button">解鎖全部骰子</button>`;
+    if ((snapshot.room.phase === "adventurer_turn_start" && actions.has("rollAdventurerDice")) || actions.has("unlockDice") || actions.has("activateMechanism") || actions.has("useKnightGuard") || actions.has("useWizardUnlock")) {
+      const currentPiece = game.pieces.find((piece) => piece.id === game.currentPieceId);
+      const guardButtons = (game.legal.guardTargets || []).map((pieceId) => {
+        const target = game.pieces.find((piece) => piece.id === pieceId);
+        const player = playerById(target?.controllerId);
+        return `<button class="secondary-button" data-gangsi-guard-target="${escapeAttribute(pieceId)}" type="button">守護 ${escapeHtml(player?.name || "隊友")}</button>`;
+      }).join("");
+      const mechanismButtons = (game.legal.mechanisms || []).map((id) => `<button class="primary-button" data-gangsi-mechanism="${id}" type="button">操作機關 ${id}</button>`).join("");
+      return `
+        ${actions.has("rollAdventurerDice") ? '<button class="primary-button" data-gangsi-game-action="rollAdventurerDice" type="button">擲冒險者骰</button>' : ""}
+        ${actions.has("unlockDice") ? '<button class="secondary-button" data-gangsi-game-action="unlockDice" type="button">解鎖全部骰子</button>' : ""}
+        ${actions.has("useWizardUnlock") ? `<button class="secondary-button" data-gangsi-game-action="useWizardUnlock" type="button">解鎖術（剩餘 ${currentPiece?.wizardCharges || 0} 次）</button>` : ""}
+        ${mechanismButtons}${guardButtons}`;
+    }
     if (actions.has("rollAdventurerDice")) {
       const hasFaces = game.dice?.some((die) => !die.locked && die.face);
       return `<button class="primary-button" data-gangsi-game-action="rollAdventurerDice" type="button">${hasFaces ? "重擲未鎖定骰" : "擲冒險者骰"}</button>`;
     }
-    if (actions.has("moveNumeric")) return numericPath.length === Number(game.legal.selectedFace)
+    if (actions.has("moveNumeric")) return isNumericPathComplete(game)
       ? `<button class="primary-button" data-gangsi-confirm-path type="button">確認移動</button>
          <button class="secondary-button" data-gangsi-reset-path type="button">重新選擇路徑</button>`
       : "";
@@ -526,6 +598,25 @@
     if (actions.has("revealTreasure")) return `
       <button class="primary-button" data-gangsi-game-action="revealTreasure" type="button">揭露寶藏</button>
       <button class="secondary-button" data-gangsi-game-action="declineTreasure" type="button">暫不揭露</button>`;
+    if ((snapshot.room.phase === "mummy_ability" && actions.has("rollMummyDie")) || actions.has("hideMummy") || actions.has("revealMummy") || actions.has("throwKnife") || actions.has("placeTrap") || actions.has("recoverTrap")) {
+      const knife = actions.has("throwKnife")
+        ? knifeDirectionOpen
+          ? `<div class="gangsi-direction-grid" role="group" aria-label="選擇飛刀方向">
+              ${[
+                ["up", "↑"], ["left", "←"], ["down", "↓"], ["right", "→"]
+              ].map(([direction, label]) => `<button class="ghost-button" data-gangsi-knife="${direction}" type="button" title="向${directionLabel(direction)}投擲飛刀">${label}</button>`).join("")}
+            </div>
+            <button class="ghost-button" data-gangsi-close-knife type="button">取消投擲</button>`
+          : '<button class="primary-button" data-gangsi-open-knife type="button" aria-expanded="false">投擲飛刀</button>'
+        : "";
+      return `
+        ${actions.has("hideMummy") ? '<button class="primary-button" data-gangsi-game-action="hideMummy" type="button">進入隱形</button>' : ""}
+        ${actions.has("revealMummy") ? '<button class="secondary-button" data-gangsi-game-action="revealMummy" type="button">現形並結束回合</button>' : ""}
+        ${knife}
+        ${actions.has("placeTrap") ? '<span class="gangsi-action-hint">點選地圖上的亮起格放置陷阱</span>' : ""}
+        ${actions.has("recoverTrap") ? '<span class="gangsi-action-hint">可點選標記格回收相鄰陷阱</span>' : ""}
+        <button class="${actions.has("hideMummy") || actions.has("throwKnife") ? "secondary-button" : "primary-button"}" data-gangsi-game-action="rollMummyDie" type="button">擲提燈怪骰</button>`;
+    }
     if (actions.has("rollMummyDie")) return '<button class="primary-button" data-gangsi-game-action="rollMummyDie" type="button">擲提燈怪骰</button>';
     if (actions.has("stopMummy")) return '<button class="secondary-button" data-gangsi-game-action="stopMummy" type="button">結束移動</button>';
     if (game.winner && snapshot.you.isHost) return '<button class="primary-button" data-gangsi-return-lobby type="button">返回準備大廳</button>';
@@ -572,9 +663,11 @@
     container.style.setProperty("--cols", map.width);
     container.style.setProperty("--rows", map.height);
     const walls = new Set(map.walls);
+    const teamTasksComplete = game.mode === "hunt" && game.revealedTasks.length >= game.hunt.treasureGoal;
+    const visibleMapTreasures = teamTasksComplete ? [] : map.treasures;
     const originalTreasureByCell = new Map(map.treasures.map((treasure) => [treasure.position, treasure]));
     const revealedTreasureIds = new Set(game.revealedTasks.map((task) => task.id));
-    const treasureByCell = new Map(map.treasures
+    const treasureByCell = new Map(visibleMapTreasures
       .filter((treasure) => !revealedTreasureIds.has(treasure.id))
       .map((treasure) => [treasure.position, treasure]));
     const piecesByCell = new Map();
@@ -592,7 +685,25 @@
     }
     const mummyCell = game.mummy.position === "dungeon" ? map.zones.dungeon.anchor : game.mummy.position;
     const legalTargets = new Set(boardLegalTargets(game));
+    const actionableMechanisms = new Set(game.legal.mechanisms || []);
     const selectedPath = new Set(numericPath);
+    const huntMarkers = new Map();
+    if (game.mode === "hunt") {
+      for (const id of Format.HUNT_MECHANISM_IDS) {
+        const position = map.hunt?.mechanisms?.[id];
+        const status = game.hunt.exits[id];
+        const actionable = actionableMechanisms.has(id);
+        if (position) huntMarkers.set(position, {
+          type: status === "open" ? "exit" : "mechanism",
+          id,
+          progress: game.hunt.mechanisms[id],
+          status: status === "open" ? "open" : teamTasksComplete ? "ready" : "closed",
+          actionable
+        });
+      }
+    }
+    const traps = new Set(game.mode === "hunt" ? game.hunt.traps : []);
+    const hatchCell = game.mode === "hunt" && game.hunt.hatch.status === "open" ? game.hunt.hatch.position : null;
     const cells = [];
     for (let y = 1; y <= map.height; y += 1) {
       for (let x = 1; x <= map.width; x += 1) {
@@ -605,6 +716,7 @@
         const cellPieces = piecesByCell.get(cell) || [];
         const labels = { entrance: "入口", dungeon: "地牢" };
         const treasureGroup = treasure ? Format.GROUPS[treasure.id[0]] : null;
+        const huntMarker = huntMarkers.get(cell);
         const pieceMarkup = cellPieces.map((piece) => `
           <span class="gangsi-board-piece ${seatToneByPlayerId.get(piece.controllerId) || ""} ${piece.id === game.currentPieceId ? "is-current" : ""}">
             ${escapeHtml(piece.tokenLabel)}${cellPieces.length > 1 || piece.ordinal > 1 ? `<small>${piece.ordinal}</small>` : ""}
@@ -613,9 +725,12 @@
           ? `<span class="gangsi-board-piece is-mummy ${game.currentPlayerId === game.mummy.playerId ? "is-current" : ""}">怪</span>`
           : "";
         cells.push(`
-          <button type="button" data-gangsi-board-cell="${cell}" ${originalTreasure ? `data-gangsi-treasure-origin="${originalTreasure.id}"` : ""} class="gangsi-board-cell is-${cellClass} ${walls.has(rightEdge) ? "wall-right" : ""} ${walls.has(bottomEdge) ? "wall-bottom" : ""} ${legalTargets.has(cell) ? "is-legal-target" : ""} ${selectedPath.has(cell) ? "is-path-cell" : ""}"
-            aria-label="${escapeAttribute(`${cell} ${labels[cellClass] || "道路"}${treasure ? ` ${treasure.id} ${treasureGroup?.name || "寶藏"}` : ""}`)}">
+          <button type="button" data-gangsi-board-cell="${cell}" ${originalTreasure ? `data-gangsi-treasure-origin="${originalTreasure.id}"` : ""} class="gangsi-board-cell is-${cellClass} ${huntMarker ? `is-hunt-${huntMarker.type} is-${huntMarker.status || "active"} ${huntMarker.actionable ? "is-mechanism-actionable" : ""}` : ""} ${hatchCell === cell ? "is-hatch" : ""} ${traps.has(cell) ? "has-trap" : ""} ${walls.has(rightEdge) ? "wall-right" : ""} ${walls.has(bottomEdge) ? "wall-bottom" : ""} ${legalTargets.has(cell) ? "is-legal-target" : ""} ${selectedPath.has(cell) ? "is-path-cell" : ""}"
+            aria-label="${escapeAttribute(`${cell} ${labels[cellClass] || "道路"}${treasure ? ` ${treasure.id} ${treasureGroup?.name || "寶藏"}` : ""}${huntMarker ? ` ${huntMarker.type === "mechanism" ? "機關" : "逃生出口"} ${huntMarker.id}${huntMarker.actionable ? " 目前可操作" : ""}` : ""}${hatchCell === cell ? " 密道" : ""}`)}">
             ${labels[cellClass] ? `<span class="gangsi-zone-label">${labels[cellClass]}</span>` : ""}
+            ${huntMarker ? `<span class="gangsi-hunt-marker">${huntMarker.type === "mechanism" ? `機${huntMarker.id}<small>${huntMarker.actionable ? "可操作" : `${huntMarker.progress}/3`}</small>` : `出${huntMarker.id}<small>${huntMarker.status === "open" ? "開" : "關"}</small>`}</span>` : ""}
+            ${hatchCell === cell ? '<span class="gangsi-hatch-marker">密</span>' : ""}
+            ${traps.has(cell) ? '<span class="gangsi-trap-marker" title="你放置的陷阱">陷</span>' : ""}
             ${treasure ? `<span class="gangsi-treasure-token" data-gangsi-treasure-id="${treasure.id}" data-group="${treasure.id[0]}" title="${escapeAttribute(`${treasure.id} ${treasureGroup?.name || "寶藏"}`)}">${treasure.id}</span>` : ""}
             <span class="gangsi-board-piece-stack">${pieceMarkup}${mummyMarkup}</span>
           </button>`);
@@ -632,6 +747,10 @@
         .filter(Boolean);
     }
     if (["mummy_interlude_move", "mummy_normal_move"].includes(snapshot.room.phase)) return game.legal.moves || [];
+    if (snapshot.room.phase === "mummy_ability") return [
+      ...(game.legal.trapPlacements || []),
+      ...(game.legal.trapRecoveries || [])
+    ];
     return [];
   }
 
@@ -642,12 +761,31 @@
     if (event.target.closest("[data-gangsi-ready]")) return sendAction("toggleReady");
     if (event.target.closest("[data-gangsi-start]")) return sendAction("startGame");
     if (event.target.closest("[data-gangsi-return-lobby]")) return sendAction("returnLobby");
+    if (event.target.closest("[data-gangsi-open-knife]")) {
+      knifeDirectionOpen = true;
+      renderMain();
+      return;
+    }
+    if (event.target.closest("[data-gangsi-close-knife]")) {
+      knifeDirectionOpen = false;
+      renderMain();
+      return;
+    }
     const gameAction = event.target.closest("[data-gangsi-game-action]");
     if (gameAction) return sendAction(gameAction.dataset.gangsiGameAction);
     const die = event.target.closest("[data-gangsi-die]");
     if (die) return sendAction("selectDie", { dieId: die.dataset.gangsiDie });
     const arrow = event.target.closest("[data-gangsi-arrow]");
     if (arrow) return sendAction("moveArrow", { direction: arrow.dataset.gangsiArrow });
+    const guard = event.target.closest("[data-gangsi-guard-target]");
+    if (guard) return sendAction("useKnightGuard", { pieceId: guard.dataset.gangsiGuardTarget });
+    const mechanism = event.target.closest("[data-gangsi-mechanism]");
+    if (mechanism) return sendAction("activateMechanism", { gateId: mechanism.dataset.gangsiMechanism });
+    const knife = event.target.closest("[data-gangsi-knife]");
+    if (knife) {
+      knifeDirectionOpen = false;
+      return sendAction("throwKnife", { direction: knife.dataset.gangsiKnife });
+    }
     if (event.target.closest("[data-gangsi-confirm-path]")) {
       const path = numericPath.slice();
       numericPath = [];
@@ -672,6 +810,11 @@
     }
     if (["mummy_interlude_move", "mummy_normal_move"].includes(snapshot.room.phase)) {
       sendAction("moveMummy", { cell });
+      return;
+    }
+    if (snapshot.room.phase === "mummy_ability") {
+      if ((game.legal.trapRecoveries || []).includes(cell)) sendAction("recoverTrap", { cell });
+      else if ((game.legal.trapPlacements || []).includes(cell)) sendAction("placeTrap", { cell });
     }
   }
 
@@ -679,12 +822,17 @@
     if (event.target.matches("[data-gangsi-token-label]")) {
       return sendAction("updateTokenLabel", { tokenLabel: event.target.value });
     }
-    if (!event.target.matches("[data-gangsi-player-count], [data-gangsi-map-select], [data-gangsi-random-map]")) return;
+    if (event.target.matches("[data-gangsi-profession]")) return sendAction("chooseProfession", { profession: event.target.value });
+    if (event.target.matches("[data-gangsi-mummy-type]")) return sendAction("chooseMummyType", { mummyType: event.target.value });
+    if (!event.target.matches("[data-gangsi-mode], [data-gangsi-player-count], [data-gangsi-map-select], [data-gangsi-random-map]")) return;
+    const mode = page.mainPanel.querySelector("[data-gangsi-mode]");
     const playerCount = page.mainPanel.querySelector("[data-gangsi-player-count]");
     const mapSelect = page.mainPanel.querySelector("[data-gangsi-map-select]");
     const randomMap = page.mainPanel.querySelector("[data-gangsi-random-map]");
+    const requestedCount = mode.value === "hunt" ? Math.max(3, Number(playerCount.value)) : Number(playerCount.value);
     sendAction("updateSettings", {
-      playerCount: Number(playerCount.value),
+      mode: mode.value,
+      playerCount: requestedCount,
       mapId: mapSelect.value,
       randomMap: randomMap.checked
     });
@@ -751,10 +899,13 @@
 
   function validateLobbyClient() {
     const messages = [];
+    const isHunt = snapshot.room.settings.mode === "hunt";
     if (snapshot.room.players.length !== snapshot.room.settings.playerCount) {
       messages.push(`需要 ${snapshot.room.settings.playerCount} 位玩家，目前 ${snapshot.room.players.length} 位。`);
     }
     if (!snapshot.room.settings.randomMap && !selectedMapOption()) messages.push("請選擇有效地圖。");
+    if (!snapshot.room.settings.randomMap && isHunt && !selectedMapOption()?.huntCompatible) messages.push("這張地圖尚未設定兩座獵殺機關。");
+    if (snapshot.room.settings.randomMap && isHunt && !snapshot.room.maps.some((map) => map.huntCompatible)) messages.push("目前沒有支援獵殺模式的地圖。");
     if (snapshot.room.players.filter((player) => player.role === "mummy").length !== 1) {
       messages.push("需要正好一位玩家選擇擔任提燈怪。");
     }
@@ -763,6 +914,13 @@
     }
     if (snapshot.room.players.some((player) => player.role === "adventurer" && !player.roll)) {
       messages.push("所有冒險者都需要先擲 d100。");
+    }
+    if (isHunt) {
+      const professions = snapshot.room.players.filter((player) => player.role === "adventurer").map((player) => player.profession);
+      if (professions.some((profession) => !profession)) messages.push("所有冒險者都需要選擇職業。");
+      if (new Set(professions.filter(Boolean)).size !== professions.filter(Boolean).length) messages.push("獵殺模式的冒險者職業不能重複。");
+      const mummy = snapshot.room.players.find((player) => player.role === "mummy");
+      if (!mummy?.mummyTypeSelected) messages.push("提燈怪需要選擇類型。");
     }
     if (snapshot.room.players.some((player) => !player.ready)) messages.push("所有玩家都需要準備。");
     return messages;
@@ -780,6 +938,24 @@
     return role === "mummy" ? "提燈怪" : "冒險者";
   }
 
+  function modeLabel(mode) {
+    return mode === "hunt" ? "獵殺模式" : "經典模式";
+  }
+
+  function professionLabel(profession) {
+    return { knight: "騎士", engineer: "工程師", doctor: "醫生", wizard: "魔法師" }[profession] || "未選職業";
+  }
+
+  function mummyTypeLabel(type) {
+    return { trap: "陷阱鬼", invisible: "隱形鬼", knife: "飛刀手" }[type] || "未選類型";
+  }
+
+  function lobbySpecialization(player) {
+    if (snapshot.room.settings.mode !== "hunt") return "";
+    if (player.role === "adventurer") return ` · ${professionLabel(player.profession)}`;
+    return ` · ${player.mummyType ? mummyTypeLabel(player.mummyType) : player.mummyTypeSelected ? "已選擇類型" : "未選類型"}`;
+  }
+
   function pieceLabel(player) {
     return player.role === "mummy" ? "怪" : (player.tokenLabel || "未設定");
   }
@@ -790,6 +966,7 @@
       adventurer_turn_start: "回合開始",
       adventurer_forced_skip: "略過回合",
       mummy_interlude_move: "插入回合",
+      mummy_ability: "提燈怪能力",
       adventurer_roll: "冒險者擲骰",
       adventurer_numeric_move: "數字移動",
       adventurer_arrow_move: "箭頭移動",
@@ -800,9 +977,24 @@
     }[phase] || phase;
   }
 
+  function actionStage(phase) {
+    if (phase === "adventurer_turn_start") return { label: "準備行動", tone: "prepare" };
+    if (phase === "adventurer_forced_skip") return { label: "略過回合", tone: "skip" };
+    if (["adventurer_roll", "mummy_normal_roll"].includes(phase)) return { label: "擲骰", tone: "roll" };
+    if (["adventurer_numeric_move", "adventurer_arrow_move", "mummy_normal_move"].includes(phase)) return { label: "移動", tone: "move" };
+    if (phase === "mummy_interlude_move") return { label: "插入移動", tone: "mummy" };
+    if (phase === "mummy_ability") return { label: "能力選擇", tone: "mummy" };
+    if (phase === "treasure_decision") return { label: "任務判定", tone: "task" };
+    if (phase === "game_over") return { label: "遊戲結束", tone: "complete" };
+    return { label: phaseLabel(phase), tone: "prepare" };
+  }
+
   function gamePhaseDescription(game) {
     const current = playerById(game.currentPlayerId);
     if (game.winner) {
+      if (game.mode === "hunt") return game.winner.role === "mummy"
+        ? "所有冒險者都已死亡，提燈怪完成獵殺。"
+        : "至少一名冒險者成功逃出古墓。";
       const winner = playerById(game.winner.playerId);
       return game.winner.role === "mummy"
         ? `提燈怪 ${winner?.name || ""} 獲勝。`
@@ -813,7 +1005,12 @@
         ? `${current?.name || "冒險者"} 的五顆骰子全部鎖定，只能略過回合。`
         : `${current?.name || "冒險者"} 沒有任何合法移動，只能略過回合。`;
     }
-    if (snapshot.room.phase === "adventurer_turn_start") return `${current?.name || "冒險者"} 正在決定是否解鎖冒險者骰。`;
+    if (snapshot.room.phase === "adventurer_turn_start") return game.mode === "hunt"
+      ? `${current?.name || "冒險者"} 正在選擇能力、機關、解鎖或直接擲骰。`
+      : `${current?.name || "冒險者"} 正在決定是否解鎖冒險者骰。`;
+    if (snapshot.room.phase === "mummy_ability") return game.mummy.type === "invisible" && game.mummy.invisible
+      ? "隱形鬼可維持隱形並擲骰，或現形後立即結束回合。"
+      : `提燈怪可先使用${mummyTypeLabel(game.mummy.type)}能力，或直接擲骰。`;
     if (snapshot.room.phase === "adventurer_roll") return `${current?.name || "冒險者"} 正在擲骰並選擇本回合的移動方式。`;
     if (snapshot.room.phase === "adventurer_numeric_move") return `${current?.name || "冒險者"} 已選擇移動 ${game.legal.selectedFace || game.lastPublicDie} 步。`;
     if (snapshot.room.phase === "adventurer_arrow_move") return `${current?.name || "冒險者"} 已選擇箭頭骰，正在決定移動方向。`;
@@ -842,6 +1039,26 @@
 
   function directionLabel(direction) {
     return { up: "向上", right: "向右", down: "向下", left: "向左" }[direction] || direction;
+  }
+
+  function isNumericPathComplete(game) {
+    return (game.legal.paths || []).some((path) => path.length === numericPath.length
+      && path.every((cell, index) => cell === numericPath[index]));
+  }
+
+  function renderHuntStatus(game) {
+    const currentPiece = game.pieces.find((piece) => piece.controllerId === snapshot.you.id);
+    const ability = snapshot.you.role === "mummy"
+      ? `${mummyTypeLabel(game.mummy.type)}${game.mummy.invisible ? " · 隱形中" : ""} · 冷卻 ${game.mummy.abilityCooldown}`
+      : currentPiece
+        ? `${professionLabel(currentPiece.profession)}${currentPiece.guard ? " · 受守護" : ""}${currentPiece.injured ? " · 受傷" : ""}${currentPiece.profession === "wizard" ? ` · 解鎖術 ${currentPiece.wizardCharges}` : currentPiece.profession === "knight" ? ` · 冷卻 ${currentPiece.abilityCooldown}` : ""}`
+        : "";
+    return `
+      <div><span>團隊寶藏</span><strong>${game.revealedTasks.length} / ${game.hunt.treasureGoal}</strong></div>
+      ${Format.HUNT_MECHANISM_IDS.map((id) => `<div><span>機關 ${id}</span><strong>${game.hunt.mechanisms[id]} / 3 · ${game.hunt.exits[id] === "open" ? "已轉為出口" : "尚未完成"}</strong></div>`).join("")}
+      <div><span>你的能力</span><strong>${escapeHtml(ability)}</strong></div>
+      ${game.hunt.hatch.status === "open" ? `<div><span>密道</span><strong>已在 (${escapeHtml(game.hunt.hatch.position)}) 開啟</strong></div>` : ""}
+      ${game.hunt.trackingReveal ? '<div class="is-alert"><span>追蹤</span><strong>人類位置已暴露</strong></div>' : ""}`;
   }
 
   function playerById(playerId) {
@@ -880,6 +1097,35 @@
     }
     const player = playerById(winner.playerId);
     const mummyWon = winner.role === "mummy";
+    if (game.mode === "hunt") {
+      const escaped = winner.results?.filter((result) => result.outcome === "escaped").length || 0;
+      const dead = winner.results?.filter((result) => result.outcome === "dead").length || 0;
+      page.gameOverDialog.classList.toggle("evil", mummyWon);
+      page.gameOverDialog.classList.toggle("good", !mummyWon);
+      page.gameOverIcon.classList.toggle("evil", mummyWon);
+      page.gameOverIcon.classList.toggle("good", !mummyWon);
+      page.gameOverIcon.textContent = mummyWon ? "怪" : "逃";
+      page.gameOverEyebrow.textContent = mummyWon ? "提燈怪完全勝利" : "冒險者成功逃生";
+      page.gameOverTitle.textContent = mummyWon ? "所有冒險者都已死亡" : `${escaped} 名冒險者逃出古墓`;
+      page.gameOverDescription.textContent = mummyWon
+        ? "提燈怪殺死所有冒險者，獵殺宣告結束。"
+        : "只要至少一名冒險者逃脫，團隊便達成逃生目標。";
+      page.gameOverResult.classList.toggle("evil", mummyWon);
+      page.gameOverResult.classList.toggle("good", !mummyWon);
+      const outcomes = winner.results?.map((result) => {
+        const resultPlayer = playerById(result.playerId);
+        return `${resultPlayer?.name || "冒險者"}：${result.outcome === "escaped" ? "逃脫" : "死亡"}`;
+      }).join("、") || "";
+      page.gameOverSummary.textContent = `逃脫 ${escaped} 人 · 死亡 ${dead} 人${outcomes ? `｜${outcomes}` : ""}`;
+      page.gameOverFooter.textContent = snapshot.you.isHost
+        ? "關閉後可查看最終盤面，並決定何時返回準備大廳。"
+        : "關閉後可查看最終盤面；等待房主返回準備大廳。";
+      if (dismissedGameOverKey !== key) {
+        page.gameOverLightbox.classList.remove("hidden");
+        document.body.classList.add("modal-open");
+      }
+      return;
+    }
     const progress = game.progress.find((item) => item.playerId === winner.playerId);
     page.gameOverDialog.classList.toggle("evil", mummyWon);
     page.gameOverDialog.classList.toggle("good", !mummyWon);

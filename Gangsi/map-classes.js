@@ -25,6 +25,28 @@
       onPass: "none",
       onAdventurerStop: "offer-reveal",
       onMummyStop: "none"
+    }),
+    mechanism: Object.freeze({
+      id: "mechanism",
+      label: "機關",
+      obstacle: true,
+      classicIgnored: true,
+      onAdjacentAdventurerTurn: "activate",
+      onComplete: "convert-to-escape-exit"
+    }),
+    escapeExit: Object.freeze({
+      id: "escapeExit",
+      label: "逃生出口",
+      obstacle: true,
+      classicIgnored: true,
+      runtimeOnly: true,
+      onOpenAdventurerEnter: "escape"
+    }),
+    hatch: Object.freeze({
+      id: "hatch",
+      label: "密道",
+      obstacle: false,
+      runtimeOnly: true
     })
   });
 

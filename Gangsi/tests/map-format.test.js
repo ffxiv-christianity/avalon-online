@@ -36,6 +36,9 @@ assert.deepStrictEqual(
   ["黃金渡渡鳥聖像", "龍眼", "釣場之皇", "幻想藥", "L房地契"]
 );
 assert.strictEqual(MapClasses.OBJECT_CLASSES.treasure.onAdventurerStop, "offer-reveal");
+assert.strictEqual(MapClasses.OBJECT_CLASSES.mechanism.obstacle, true);
+assert.strictEqual(MapClasses.OBJECT_CLASSES.escapeExit.classicIgnored, true);
+assert.strictEqual(MapClasses.OBJECT_CLASSES.escapeExit.runtimeOnly, true);
 assert(/^\d{4}-\d{2}-\d{2}$/.test(MapFormat.createBlankMap().date));
 assert.notStrictEqual(MapFormat.slug("朋友的古墓"), "custom-map");
 assert.strictEqual(typeof Rules.mount, "function");
@@ -74,6 +77,25 @@ assert(MapFormat.validateMap(tooWide).errors.some((error) => error.includes("地
 const maximumBoard = { ...MapFormat.clone(classic), width: 14, height: 12 };
 assert.strictEqual(MapFormat.validateMap(maximumBoard).valid, true);
 
+const huntMap = MapFormat.normalizeMap(classic);
+huntMap.hunt.mechanisms = { A: "4,1", B: "5,2" };
+const huntValidation = MapFormat.validateHuntMap(huntMap);
+assert.strictEqual(huntValidation.valid, true, huntValidation.errors.join("; "));
+assert(MapFormat.buildMovementGraph(huntMap).passages["4,1"]);
+assert.strictEqual(MapFormat.buildMovementGraph(huntMap, { hunt: true }).passages["4,1"], undefined);
+const duplicateMechanism = MapFormat.clone(huntMap);
+duplicateMechanism.hunt.mechanisms.B = duplicateMechanism.hunt.mechanisms.A;
+assert(MapFormat.validateHuntMap(duplicateMechanism).errors.some((error) => error.includes("重疊")));
+const overlappingTreasure = MapFormat.clone(huntMap);
+overlappingTreasure.hunt.mechanisms.A = overlappingTreasure.treasures[0].position;
+assert(MapFormat.validateHuntMap(overlappingTreasure).errors.some((error) => error.includes("寶藏重疊")));
+const legacyHuntMap = MapFormat.normalizeMap({
+  ...classic,
+  hunt: { gates: { A: { mechanism: "4,1", exit: "4,2" }, B: { mechanism: "5,2", exit: "6,2" } } }
+});
+assert.deepStrictEqual(legacyHuntMap.hunt.mechanisms, { A: "4,1", B: "5,2" });
+assert.strictEqual(legacyHuntMap.hunt.gates, undefined);
+
 const catalogIndex = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "maps", "index.json"), "utf8"));
 const builtInMaps = MapCatalog.loadBuiltInMaps();
 assert.strictEqual(builtInMaps.length, catalogIndex.maps.length);
@@ -84,6 +106,7 @@ for (const entry of catalogIndex.maps) {
   assert.strictEqual(validation.valid, true, `${entry.file}: ${validation.errors.join("; ")}`);
   assert.strictEqual(MapCatalog.getBuiltInMap(entry.id).id, entry.id);
   assert.strictEqual(MapCatalog.getBuiltInMap(entry.id).name, entry.name || validation.map.name);
+  assert.strictEqual(typeof builtInMaps.find((candidate) => candidate.id === entry.id).huntCompatible, "boolean");
 }
 const customMapEntry = catalogIndex.maps.find((entry) => entry.id === "test-map");
 assert(customMapEntry);

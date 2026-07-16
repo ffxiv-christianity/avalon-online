@@ -31,7 +31,7 @@
           <ul class="hero-features">
             <li>玩法以《古墓迷蹤》原版遊戲規則為主</li>
             <li>寶藏卡名稱以 FF14 設定改編</li>
-            <li>支援自訂矩形地圖與斷線重連</li>
+            <li>支援經典／獵殺模式、自訂矩形地圖與斷線重連</li>
           </ul>
         </div>
         <form id="joinForm" class="join-form">
@@ -70,9 +70,10 @@
         <details class="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/07/16 v2</small>
+            <small>最新版本 2026/07/16 v3</small>
           </summary>
           <ul>
+            <li><strong>2026/07/16 v3</strong> 新增獵殺模式：冒險者合作完成「人數 × 2 + 1」個寶藏目標，啟動兩座可轉換為出口的機關，並支援最後生還者密道；新增冒險者職業、陷阱鬼、隱形鬼與飛刀手及其能力限制；簡化擲骰與能力操作、新增行動階段與機關狀態提示，並加強位置、冷卻與任務資訊遮蔽；地圖編輯器可放置獵殺模式標記。</li>
             <li><strong>2026/07/16 v2</strong> 改善地圖編輯器：牆壁可沿同一直線連續放置或移除；新增編輯器說明，補充入口、地牢與下載地圖的使用方式，並改善地圖區域排版。</li>
             <li><strong>2026/07/16</strong> First Release：完成古墓迷蹤線上遊戲，支援 2～5 人完整遊戲流程、可選與隨機地圖、斷線重連；新增地圖編輯器，可自訂牆壁、封閉格、入口、地牢與寶藏並下載地圖。</li>
           </ul>
@@ -141,6 +142,25 @@
               <button data-gangsi-role="adventurer" type="button">冒險者</button>
               <button data-gangsi-role="mummy" type="button">提燈怪</button>
             </div>
+            <label class="field gangsi-profession-field hidden">
+              <span>冒險者職業</span>
+              <select data-gangsi-profession>
+                <option value="">請選擇職業</option>
+                <option value="knight">騎士</option>
+                <option value="engineer">工程師</option>
+                <option value="doctor">醫生</option>
+                <option value="wizard">魔法師</option>
+              </select>
+            </label>
+            <label class="field gangsi-mummy-type-field hidden">
+              <span>提燈怪類型</span>
+              <select data-gangsi-mummy-type>
+                <option value="">請選擇類型</option>
+                <option value="trap">陷阱鬼</option>
+                <option value="invisible">隱形鬼</option>
+                <option value="knife">飛刀手</option>
+              </select>
+            </label>
             <div class="button-row">
               <button class="secondary-button" data-gangsi-roll type="button">擲 d100</button>
               <button class="primary-button" data-gangsi-ready type="button">準備</button>
@@ -153,6 +173,13 @@
         <section class="section-block" data-shell-panel="host-settings">
           <div class="section-heading"><h3>房主設定</h3></div>
           <div class="settings-grid" data-shell-slot="settings-grid">
+            <label class="field">
+              <span>遊戲模式</span>
+              <select data-gangsi-mode>
+                <option value="classic">經典模式</option>
+                <option value="hunt">獵殺模式</option>
+              </select>
+            </label>
             <label class="field">
               <span>遊戲人數</span>
               <select data-gangsi-player-count>
@@ -201,9 +228,10 @@
               <div><span>鎖定骰</span><strong data-gangsi-locked-dice>0 / 5</strong></div>
             </section>
             <section class="gangsi-dice-panel template-game-control-row" data-gangsi-dice-panel>
-              <h3>骰子</h3>
+              <h3 data-gangsi-stage-heading><span>行動階段</span><strong data-gangsi-stage-label>準備</strong></h3>
               <div class="gangsi-dice-row" data-gangsi-dice-row></div>
             </section>
+            <section class="gangsi-hunt-status hidden" data-gangsi-hunt-status aria-label="獵殺模式目標"></section>
             <div data-gangsi-action-info></div>
             <div class="template-game-action-row" data-gangsi-action-row></div>
           </aside>
@@ -266,6 +294,11 @@
             <strong>版本說明</strong>
             <span>核心玩法依《古墓迷蹤》原版規則整理；本網站以 FF14 設定改編寶藏卡名稱，並加入 d100 排序與可選地圖。</span>
           </div>
+          <div class="gangsi-rules-overview">
+            <div><span>經典模式</span><strong>2～5 人</strong><small>依原版規則各自完成寶藏，提燈怪收集生命標記</small></div>
+            <div><span>獵殺模式</span><strong>3～5 人</strong><small>2～4 名冒險者合作逃生，提燈怪獵殺全員</small></div>
+          </div>
+          <p>以下「遊戲準備」至「公開與隱藏資訊」為經典模式規則；獵殺模式沿用擲骰、鎖骰、移動、抓捕與地牢核心，再依本頁後段規則覆寫目標與能力。</p>
         </section>
         <section>
           <h3>遊戲準備</h3>
@@ -395,6 +428,48 @@
             <li>冒險者選用的骰面會公開，但完整擲骰結果、移動路線與即時位置不會提供給提燈怪。</li>
             <li>提燈怪骰結果、提燈怪位置、生命、已揭露寶藏及鎖定骰數量皆為公開資訊。</li>
             <li>網站不提供完整歷史記錄；玩家需自行記住已公開的行動與位置線索。</li>
+          </ul>
+        </section>
+        <section>
+          <h3>獵殺模式：合作逃生</h3>
+          <div class="gangsi-rules-flow" aria-label="獵殺模式目標流程">
+            <div><span>1</span><strong>揭露團隊寶藏</strong><small>目標為初始冒險者人數 × 2 + 1</small></div>
+            <div><span>2</span><strong>啟動兩座機關</strong><small>相鄰道路操作，每座累積 3 點</small></div>
+            <div><span>3</span><strong>從出口逃脫</strong><small>移入已開啟出口即離場</small></div>
+          </div>
+          <ul>
+            <li>每名玩家只控制一枚冒險者棋子；冒險者共同完成寶藏，不會因個人手牌完成而立即獲勝。</li>
+            <li>達成團隊寶藏目標後，站在機關相鄰道路的冒險者可消耗整回合操作。一般職業增加 1 點，工程師增加 2 點。機關完成前不可站立。</li>
+            <li>機關達到 3 點後，該機關格直接轉為逃生出口。人類移入後立即逃脫並退出回合順序；提燈怪不能進入出口。</li>
+            <li>所有冒險者死亡時提燈怪獲勝。遊戲會等到每名冒險者都死亡或逃脫後結算；至少一人逃脫即代表人類達成逃生。</li>
+          </ul>
+        </section>
+        <section>
+          <h3>獵殺模式：職業</h3>
+          <dl class="rules-role-list gangsi-rules-role-list">
+            <div><dt>騎士</dt><dd>消耗整回合守護相鄰隊友，抵銷下一次生命損失或受傷，冷卻 6 個自己的正常回合。擋下抓捕仍會被送入地牢。</dd></div>
+            <div><dt>工程師</dt><dd>每次操作機關增加 2 點進度，不需要冷卻。</dd></div>
+            <div><dt>醫生</dt><dd>初始及生命上限為 4 點。</dd></div>
+            <div><dt>魔法師</dt><dd>正常回合開始可免費解鎖 1 顆怪物骰，每個自己的正常回合最多使用一次；不觸發插入回合，全局共 4 次，五骰全鎖時不能使用。</dd></div>
+          </dl>
+          <p>冒險者職業不可重複。陷阱與飛刀只造成「受傷」：受傷者下一個正常回合少用 1 顆未鎖定骰；該骰不會變成怪物骰，也不增加提燈怪步數。</p>
+        </section>
+        <section>
+          <h3>獵殺模式：提燈怪類型</h3>
+          <dl class="rules-role-list gangsi-rules-role-list">
+            <div class="evil"><dt>陷阱鬼</dt><dd>正常回合擲骰前，可在相鄰空道路放置或回收陷阱，最多同時 2 個；放置冷卻 2 回合。人類看不見陷阱，踩中會停步並受傷。陷阱鬼也會踩中自己的陷阱並立即結束回合；觸發後陷阱移除。</dd></div>
+            <div class="evil"><dt>隱形鬼</dt><dd>無冷卻，可在擲骰前隱形並跨回合維持。隱形期間不能抓捕；選擇現形會立即結束回合。若任一方移動發生碰撞，移動者停在前一格，提燈怪現形，該回合結束且不造成傷害。</dd></div>
+            <div class="evil"><dt>飛刀手</dt><dd>向上下左右投擲飛刀後立即結束回合，不能再擲骰或移動。射程不限，冷卻 3 回合；牆壁與障礙物會阻擋。命中第一名冒險者後造成受傷並公開座標，但不公開身分。</dd></div>
+          </dl>
+          <p>主動能力只能在提燈怪正常回合使用，插入回合不能使用。冷卻中的後續 N 個正常回合都不能再次使用，第 N 個回合結束後恢復。</p>
+        </section>
+        <section>
+          <h3>獵殺模式：密道與追蹤</h3>
+          <ul>
+            <li>只剩一名尚未死亡或逃脫的冒險者時，伺服器會在可達且未占用的普通道路隨機開啟密道，位置向所有人公開。</li>
+            <li>密道可生成在包含寶藏在內的任何可達且未被棋子占用的道路格。人類移入即逃脫；提燈怪移入則立即關閉並結束回合，同時將兩座機關直接轉為逃生出口。</li>
+            <li>第一個出口開啟後，伺服器會每隔隨機 3～5 個提燈怪正常回合揭露一次人類精確位置。倒數不公開，觸發時所有人收到提示，揭露只持續該次提燈怪正常回合。</li>
+            <li>寶藏揭露會公開寶藏與原始位置；機關操作會公開機關與進度。兩者都不向提燈怪公開是哪名冒險者執行。</li>
           </ul>
         </section>
       </div>

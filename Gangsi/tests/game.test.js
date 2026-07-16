@@ -96,4 +96,29 @@ assert.strictEqual(replayView.room.selectedMap.width, 10);
 assert.strictEqual(replayView.room.selectedMap.height, 7);
 assert.strictEqual(replayView.room.selectedMap.treasures.length, 23);
 
+{
+  const { room: huntLobby, player: huntHost } = makeRoom("HuntHost", "GH01");
+  assert.strictEqual(applyRoomAction(huntLobby, huntHost, "updateSettings", {
+    mode: "hunt",
+    playerCount: 3,
+    mapId: "classic",
+    randomMap: false
+  }), null);
+  const huntHuman = joinRoom(huntLobby, "HuntHuman").player;
+  const huntMummy = joinRoom(huntLobby, "HuntMummy").player;
+  assert.strictEqual(applyRoomAction(huntLobby, huntMummy, "chooseRole", { role: "mummy" }), null);
+  assert.strictEqual(applyRoomAction(huntLobby, huntHost, "chooseProfession", { profession: "knight" }), null);
+  assert(applyRoomAction(huntLobby, huntHuman, "chooseProfession", { profession: "knight" }).includes("已選擇"));
+  assert.strictEqual(applyRoomAction(huntLobby, huntHuman, "chooseProfession", { profession: "engineer" }), null);
+  assert.strictEqual(applyRoomAction(huntLobby, huntMummy, "chooseMummyType", { mummyType: "invisible" }), null);
+  const hiddenTypeView = makeView(huntLobby, huntHost.id);
+  const mummyLobbyView = makeView(huntLobby, huntMummy.id);
+  assert.strictEqual(hiddenTypeView.room.players.find((player) => player.id === huntMummy.id).mummyType, null);
+  assert.strictEqual(hiddenTypeView.room.players.find((player) => player.id === huntMummy.id).mummyTypeSelected, true);
+  assert.strictEqual(mummyLobbyView.room.players.find((player) => player.id === huntMummy.id).mummyType, "invisible");
+  assert(!validateLobby(huntLobby).errors.some((error) => error.includes("有效地圖")));
+  assert(huntLobby.settings.mode === "hunt");
+  assert(huntLobby.settings.playerCount === 3);
+}
+
 console.log("Gangsi lobby game tests passed");
