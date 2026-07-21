@@ -1,4 +1,4 @@
 interface:
   display_name: "AI Boardgame E2E"
-  short_description: "Plan and run evidence-aware multiplayer board-game E2E"
-  default_prompt: "Use $ai-boardgame-e2e to read its mandatory questionnaire first, define and approve the test contract, reuse sufficient historical evidence or run only the missing Adapter journey, then clean up Run-owned resources."
+  short_description: "Optimize and run evidence-aware multiplayer board-game E2E"
+  default_prompt: "Use $ai-boardgame-e2e to read its mandatory questionnaire first, reuse exact evidence, optimize the fastest legal UI route across all or selected Adapter checkpoints, approve the contract, execute it, and clean up Run-owned resources."

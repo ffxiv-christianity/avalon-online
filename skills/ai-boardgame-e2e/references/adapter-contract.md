@@ -31,6 +31,7 @@ validatePublicEvent(kind, event, context, errors) (optional)
 validatePlayerEvent(kind, event, context, errors) (optional)
 validateResult(result, context, errors) (optional)
 auditRun(context, errors, warnings) (optional)
+coverageModel (optional schema 1.0; required for optimized all-checkpoint traversal)
 ```
 
 Adapter hooks may validate game-specific semantics but must not weaken common evidence, information-isolation, visible-UI, finalization, or logs-only rules.
@@ -49,6 +50,7 @@ Define:
 8. Targeted scenarios, owned parameters, controlled actions, expected checkpoints, and untouched autonomous decisions.
 9. Non-decision waits eligible for scaling; use an empty list when none exists.
 10. Product tests and the certification matrix for declared journeys and scenarios.
+11. For checkpoint suites, the visible states, setup profiles, compatible/co-located CP routes, transitions, prerequisite CPs, reset boundaries, expected costs, and randomness flags in a CoverageModel.
 
 Game-specific nouns such as vote, mission, card, role, score, round, map, or assassination remain in this map. Do not promote them to required core fields.
 
@@ -57,6 +59,10 @@ Game-specific nouns such as vote, mission, card, role, score, round, map, or ass
 All Adapters use generic evidence where possible:
 
 - `journey_started`
+- `coverage_plan_created`
+- `coverage_route_started`
+- `coverage_route_completed`
+- `coverage_replanned`
 - `checkpoint_result`
 - `journey_completed`
 - `phase_observed`
@@ -120,6 +126,16 @@ Every execution appends one `journey_completed` per selected journey after all d
 A feature/checkpoint journey keeps the same product tests, real Server/UI interaction, player identity and decision isolation, source provenance, success criteria, product digest verification, and cleanup. Its pass proves only the declared requirements and criteria; it does not certify complete-game settlement, unrelated rules, normal-user behavior, or the entire Adapter.
 
 `gamesToPlay` remains the compatibility field name and means journey execution count. A full-game journey therefore counts games; a shorter journey counts repetitions of that same journey.
+
+## CoverageModel extension
+
+Read [coverage-planning.md](coverage-planning.md) before defining CP traversal. CoverageModel is declarative Adapter metadata consumed by the generic deterministic planner; it is not executable game logic and does not create another runner.
+
+Declare stable checkpoints, setup profiles, visible states, routes, and transitions. Put every CP that can be proven in the same legal UI state/journey on the same route so the planner may avoid redundant setup. Mark a fresh-game requirement and non-deterministic dependency explicitly. Cost estimates describe expected wall-clock planning cost only and cannot serve as timing evidence.
+
+If an Adapter has catalog journeys with checkpoint completion requirements but no explicit CoverageModel, the core may derive one conservative fresh route per journey. This compatibility fallback cannot invent undeclared CPs or co-location and should be replaced before claiming meaningful `all_declared` optimization.
+
+The planner reuses only exact checkpoint evidence, then minimizes expected wall-clock seconds, resets, randomness, and route ID in that order. Historical route duration medians may replace cost estimates but never replace current correctness evidence. A model with an unreachable requested checkpoint produces `incomplete`, never pass.
 
 ## Adding a feature/CP journey
 

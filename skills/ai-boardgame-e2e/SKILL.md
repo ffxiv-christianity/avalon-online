@@ -1,6 +1,6 @@
 ---
 name: ai-boardgame-e2e
-description: Plan, execute, and audit real multiplayer web board-game E2E tests from a user's perspective using a mandatory preflight questionnaire, conservative historical-evidence reuse, explicit plan approval, isolated AI players, adjustable speed, logs-only evidence, per-game Adapters, and ownership-safe cleanup. Use when Codex must define or ask for a test objective, reuse prior Run evidence, test any catalog game or discover a missing Adapter, vary player counts/settings/journeys/scenarios, verify private-information isolation, certify a game Adapter, or debug a visible feature without hard-coding one game's rules into the core workflow.
+description: Plan, optimize, execute, and audit real multiplayer web board-game E2E tests from a user's perspective using a mandatory preflight questionnaire, conservative historical-evidence reuse, deterministic all-checkpoint route planning, explicit plan approval, isolated AI players, adjustable speed, logs-only evidence, per-game Adapters, and ownership-safe cleanup. Use when Codex must define or ask for a test objective, traverse all or selected checkpoints by the fastest legal UI path, reuse prior Run evidence, test any catalog game or discover a missing Adapter, vary player counts/settings/journeys/scenarios, verify private-information isolation, certify a game Adapter, or debug a visible feature without hard-coding one game's rules into the core workflow.
 ---
 
 # AI Boardgame E2E
@@ -11,7 +11,7 @@ Test the visible website and real Server as users experience them. Keep game rul
 
 ## Plan the test before opening the game
 
-After the mandatory questionnaire, read [test-planning.md](references/test-planning.md) and [config-schema.md](references/config-schema.md).
+After the mandatory questionnaire, read [test-planning.md](references/test-planning.md) and [config-schema.md](references/config-schema.md). For every `feature_cp` request, also read [coverage-planning.md](references/coverage-planning.md) before proposing execution.
 
 1. If the user supplied a complete `schemaVersion: "1.1"` config, validate it.
 2. Otherwise ask only the unanswered questionnaire items: game, user perspective, objective, focus areas, journeys, targeted scenarios, player count, journey repetitions, settings, speed, reconnect coverage, and player styles.
@@ -22,8 +22,9 @@ After the mandatory questionnaire, read [test-planning.md](references/test-plann
 7. Validate the questionnaire artifact. `unanswered` and `conflicts` must be empty. A delegated field still needs a concrete recorded value.
 8. Read [evidence-reuse-contract.md](references/evidence-reuse-contract.md), compute the current product digest when required, and query retained Runs before any browser or Server work unless the approved policy is `ignore_history`.
 9. Present the proposed evidence disposition and execution scope. Free-text matches are candidates only; exact reuse requires direct IDs and every freshness/scope gate.
-10. Create a draft plan contract and summarize completion, pass, fail, not-evaluated, speed/timing, evidence reuse, execution scope, and cleanup boundaries.
-11. Ask for explicit user approval. Only after the user approves that exact summary may the approval artifact be created. Any material change invalidates approval and requires a new draft.
+10. For `feature_cp`, create a deterministic CoveragePlan after exact reuse removes proven CPs. `all_declared` targets every Adapter CoverageModel checkpoint. Optimize expected wall-clock time, then resets, randomness, and route ID; never optimize through hidden state or non-UI shortcuts.
+11. Create a draft plan contract and summarize completion, pass, fail, not-evaluated, speed/timing, evidence reuse, CoveragePlan routes/uncovered CPs, execution scope, and cleanup boundaries.
+12. Ask for explicit user approval. Only after the user approves that exact summary may the approval artifact be created. Any material change invalidates approval and requires a new draft.
 
 Use these approaches:
 
@@ -53,8 +54,11 @@ Query history and create the approval contract first:
 node <skill>/scripts/validate-config.js --config <config.json>
 node <skill>/scripts/index-evidence.js --runs <artifact-root>/runs --output <index.json>
 node <skill>/scripts/query-evidence.js --index <index.json> --query <query.json> --output <assessment.json>
-node <skill>/scripts/plan-contract.js draft --questionnaire <answers.json> --config <config.json> --evidence <assessment.json> --output <draft-plan.json>
+node <skill>/scripts/plan-coverage.js --request <coverage-request.json> --index <index.json> --evidence <assessment.json> --output <coverage-plan.json>
+node <skill>/scripts/plan-contract.js draft --questionnaire <answers.json> --config <config.json> --evidence <assessment.json> --coverage <coverage-plan.json> --output <draft-plan.json>
 ```
+
+Omit the CoveragePlan command and `--coverage` only for non-`feature_cp` work. If a requested game has no Adapter-declared checkpoints/model, report the missing Adapter capability; do not invent CPs in the core.
 
 After presenting the draft and receiving explicit user approval:
 
@@ -95,7 +99,7 @@ For each configured player:
 ## Execute Adapter-declared user journeys
 
 1. Open one tab per player and keep a stable `tab -> playerId` map.
-2. Execute the selected `journeyIds` through semantic visible controls.
+2. Execute the selected `journeyIds` through semantic visible controls. When an approved CoveragePlan exists, append `coverage_plan_created` and follow its ordered routes.
 3. Prove identity using the Adapter's declared identity oracle. Use exact chat messages only when the game exposes shared chat; otherwise use own-identity DOM plus cross-tab isolation.
 4. Configure every room/game setting through UI and verify the rendered value.
 5. Before each material action, read the current tab only and build `PlayerObservation` provenance objects.
@@ -104,8 +108,9 @@ For each configured player:
 8. Record public communication only after it renders in shared UI.
 9. Record phase, action, timer, usability, and Adapter checkpoints with generic event types. Do not infer hidden Server state.
 10. Satisfy the Adapter-derived completion requirements. `terminal_visible` requires a visible terminal and Adapter-valid normalized result; `cross_tab_final_state` requires the same normalized result from every player tab; `checkpoint` requires scoped visible evidence plus `checkpoint_result`.
-11. After all requirements are satisfied, append one `journey_completed` per selected journey with the exact derived `requirementIds`. Do not fabricate terminal, final-state, or checkpoint evidence that the journey does not reach.
-12. Evaluate each configured success criterion with its declared visible oracle. Gameplay outcomes do not determine the E2E verdict unless the stated objective specifically tests that outcome rule.
+11. Around every CoveragePlan route append `coverage_route_started` and `coverage_route_completed` with actual duration and evidence refs. If visible random/current state makes a route unavailable, replan only remaining CPs, log `coverage_replanned`, and preserve the approved objective and verdict rules.
+12. After all requirements are satisfied, append one `journey_completed` per selected journey with the exact derived `requirementIds`. Do not fabricate terminal, final-state, or checkpoint evidence that the journey does not reach.
+13. Evaluate each configured success criterion with its declared visible oracle. Gameplay outcomes do not determine the E2E verdict unless the stated objective specifically tests that outcome rule.
 
 Pause immediately if the user interacts with a test tab.
 
@@ -119,7 +124,7 @@ node <skill>/scripts/append-event.js --run <run-dir> --scope player --player P1 
 node <skill>/scripts/append-event.js --run <run-dir> --scope public --kind timeline --input <event.json>
 ```
 
-Never create screenshots or image evidence. Keep private DOM and console facts in the owning player's directory until the product itself exposes them publicly. Use generic public events such as `journey_started`, `phase_observed`, `action_observed`, `adapter_checkpoint`, `checkpoint_result`, `journey_completed`, `usability_observation`, `terminal_visible`, `result_detail`, and `criterion_result`. Adapter-specific payloads must pass the Adapter validator.
+Never create screenshots or image evidence. Keep private DOM and console facts in the owning player's directory until the product itself exposes them publicly. Use generic public events such as `journey_started`, `coverage_plan_created`, `coverage_route_started`, `coverage_route_completed`, `coverage_replanned`, `phase_observed`, `action_observed`, `adapter_checkpoint`, `checkpoint_result`, `journey_completed`, `usability_observation`, `terminal_visible`, `result_detail`, and `criterion_result`. Adapter-specific payloads must pass the Adapter validator.
 
 The writer serializes concurrent appends, assigns immutable timestamps and order, and uses resumable two-phase finalization. Never batch-recover missing evidence or append after `run_finished`.
 
@@ -148,4 +153,4 @@ Fail a formal result for P0, unresolved P1, decision-isolation failure, invalid 
 
 ## Add game support
 
-Create or revise one Adapter at a time. Keep game-specific selectors, schemas, scenarios, timers, results, and audit hooks outside the core. Declare each journey's completion requirements instead of creating a second runner or completion framework. Promote `planned -> experimental -> supported` only through the evidence gates in [adapter-contract.md](references/adapter-contract.md). The goal is broad game availability through consistent Adapter principles, not one universal hard-coded rule flow.
+Create or revise one Adapter at a time. Keep game-specific selectors, schemas, scenarios, timers, results, coverage checkpoints/routes/states/costs, and audit hooks outside the core. Declare each journey's completion requirements and optional CoverageModel instead of creating a second runner or completion framework. Promote `planned -> experimental -> supported` only through the evidence gates in [adapter-contract.md](references/adapter-contract.md). The goal is broad game availability through consistent Adapter principles, not one universal hard-coded rule flow.

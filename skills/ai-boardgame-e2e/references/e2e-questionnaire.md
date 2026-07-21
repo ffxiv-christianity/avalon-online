@@ -12,9 +12,10 @@ The questionnaire is a planning layer of the single Adapter-driven E2E framework
 4. Create a questionnaire answer JSON and validate it before querying history.
 5. Search immutable historical Runs using the resulting objective and direct criterion, checkpoint, or journey IDs.
 6. Present a proposed disposition: reuse exact evidence, run only the missing checkpoints, or run the full approved journey.
-7. Present the final test contract, including completion, pass, fail, and not-evaluated rules.
-8. Require explicit user approval. Approval of an earlier objective, a config, or general permission to test is not approval of a materially changed contract.
-9. Only after approval may a new Run be initialized or test-owned resources be created.
+7. For `feature_cp`, read [coverage-planning.md](coverage-planning.md) and create a deterministic fastest legal-UI CoveragePlan for the non-reused checkpoints.
+8. Present the final test contract, including completion, pass, fail, not-evaluated rules, and the CoveragePlan route/estimate when applicable.
+9. Require explicit user approval. Approval of an earlier objective, a config, or general permission to test is not approval of a materially changed contract.
+10. Only after approval may a new Run be initialized or test-owned resources be created.
 
 ## Questions and required answers
 
@@ -38,6 +39,11 @@ Reject objectives such as “test everything,” “make a particular side win,�
 - `speedProfile`: `watch`, `fast`, `accelerated`, or `custom` with its values.
 - `reconnectMode`: `none`, `lobby_reload`, or `in_game_reload`.
 - `playerBehavior`: Natural behavior mix or explicitly scoped personas. Silence, mistakes, deception, and non-voting are possible behavior, never mandatory global outcomes unless a declared scenario specifically needs that action boundary.
+- `checkpointCoverage` for `feature_cp`:
+  - `{ "mode": "all_declared", "checkpointIds": [] }` targets the Adapter's complete declared CP set;
+  - `{ "mode": "selected", "checkpointIds": ["stable.cp.id"] }` targets only listed CPs.
+
+Do not ask the user to manually order CPs. The CoveragePlan optimizer co-locates compatible CPs and chooses the fastest expected legal UI route after historical reuse. `Traverse every Adapter-declared checkpoint` is bounded only when the Adapter publishes a finite checkpoint set; list those IDs in the approval summary.
 
 ### C. Completion and verdict
 
@@ -71,6 +77,10 @@ Store the answer as JSON under the artifact root's `plans/` directory or another
   "answers": {
     "game": "gangsi",
     "testType": "feature_cp",
+    "checkpointCoverage": {
+      "mode": "selected",
+      "checkpointIds": ["trap_placement_boundary"]
+    },
     "objective": "Verify a user cannot place a trap on protected cells and can place one on a legal adjacent path.",
     "userPerspective": "experienced_player",
     "focusAreas": ["core_gameplay"],
@@ -124,6 +134,7 @@ Before requesting approval, state all of the following in plain language:
 - requested and actual speed/timing fidelity;
 - historical evidence disposition and cited Run IDs;
 - proposed execution: no new Run, minimal missing-checkpoint Run, or full Run;
+- for `feature_cp`, target/reused/pending CP IDs, ordered route IDs, expected duration, reset/randomness counts, and any uncovered CP;
 - resource ownership and cleanup boundary.
 
 Treat only an explicit affirmative response to this summary as approval. If any field changes afterward, regenerate the draft and ask again.

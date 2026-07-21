@@ -37,7 +37,14 @@ function sanitizedResultEvents(timeline, config) {
     requirementIds: uniqueStrings(Array.isArray(event.requirementIds) ? event.requirementIds : []),
     evidenceRefs: uniqueStrings(Array.isArray(event.evidenceRefs) ? event.evidenceRefs : [])
   }));
-  return { criteria, checkpoints, journeys };
+  const coverageRoutes = timeline.filter((event) => event.type === "coverage_route_completed" && event.routeId).map((event) => ({
+    routeId: String(event.routeId),
+    setupProfileId: String(event.setupProfileId || ""),
+    checkpointIds: uniqueStrings(Array.isArray(event.checkpointIds) ? event.checkpointIds : []),
+    durationMs: Number(event.durationMs),
+    gameSettings: config.gameSettings || {}
+  })).filter((event) => Number.isFinite(event.durationMs) && event.durationMs >= 0);
+  return { criteria, checkpoints, journeys, coverageRoutes };
 }
 
 function indexRun(runDir) {
@@ -91,7 +98,8 @@ function indexRun(runDir) {
     },
     criteria: results.criteria,
     checkpoints: results.checkpoints,
-    journeys: results.journeys
+    journeys: results.journeys,
+    coverageRoutes: results.coverageRoutes
   };
 }
 
@@ -217,6 +225,11 @@ function evaluateCandidate(run, query) {
   if (!blockers.length && directCovered) classification = "exact_reuse";
   else if (blockers.length) classification = "historical_only";
   else classification = "partial_reuse";
+  const reusableCheckpointIds = blockers.length ? [] : run.checkpoints
+    .filter((entry) => checkpointCoverage.matchedIds.includes(entry.id)
+      && Array.isArray(entry.evidenceRefs) && entry.evidenceRefs.length > 0)
+    .map((entry) => entry.id)
+    .sort();
   return {
     runId: run.runId,
     runDir: run.runDir,
@@ -236,6 +249,7 @@ function evaluateCandidate(run, query) {
       journeyIds: journeyMissing
     },
     evidenceRefs: uniqueStrings(citedEntries.flatMap((entry) => entry.evidenceRefs || [])),
+    reusableCheckpointIds,
     blockers: uniqueStrings(blockers)
   };
 }

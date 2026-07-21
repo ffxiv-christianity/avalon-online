@@ -6,7 +6,9 @@ const childProcess = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { resolveConfig, writeJson } = require("./core");
+const { catalog, resolveConfig, writeJson } = require("./core");
+const { loadAdapter } = require("./adapters");
+const { deriveCoverageModel, planCoverage } = require("./coverage-planner");
 const {
   approvePlan,
   createDraftPlan,
@@ -109,8 +111,14 @@ function indexedRun(digest) {
     audit: { passed: true, errorCount: 0, warningCount: 0 },
     productIdentity: { gitHead: "abc", productSourceSha256: digest, sourceTreeDirty: false },
     criteria: [{ id: "visible_result", description: "All terminal results match.", passed: true, evidenceRefs: ["g1-terminal"] }],
-    checkpoints: [{ id: "visible_terminal", passed: true, evidenceRefs: ["g1-terminal"] }],
-    journeys: [{ id: "create_join_complete_game", requirementIds: ["visible_terminal"], evidenceRefs: ["g1-terminal"] }]
+    checkpoints: [
+      { id: "visible_terminal", passed: true, evidenceRefs: ["g1-terminal"] },
+      { id: "reconnect_identity_preserved", passed: true, evidenceRefs: ["g1-reconnect"] }
+    ],
+    journeys: [
+      { id: "create_join_complete_game", requirementIds: ["visible_terminal"], evidenceRefs: ["g1-terminal"] },
+      { id: "reconnect_identity", requirementIds: ["reconnect_identity_preserved"], evidenceRefs: ["g1-reconnect"] }
+    ]
   };
 }
 
@@ -157,6 +165,86 @@ function run() {
     const changed = resolveConfig({ ...rawConfig, gamesToPlay: 2 });
     expectError(() => verifyApprovedPlan(approved, changed), /config hash mismatch/);
 
+    const featureConfig = {
+      ...rawConfig,
+      testPurpose: {
+        ...rawConfig.testPurpose,
+        objective: "Verify reconnect identity checkpoint.",
+        approach: "mixed",
+        focusAreas: ["reconnect"],
+        journeyIds: ["reconnect_identity"],
+        successCriteria: [{
+          id: "reconnect_cp",
+          description: "Identity remains stable after reconnect.",
+          oracle: "visible_ui",
+          required: true
+        }]
+      }
+    };
+    const featureQuestionnaire = questionnaire();
+    Object.assign(featureQuestionnaire.answers, {
+      testType: "feature_cp",
+      checkpointCoverage: { mode: "selected", checkpointIds: ["reconnect_identity_preserved"] },
+      objective: "Verify reconnect identity checkpoint.",
+      focusAreas: ["reconnect"],
+      journeyIntent: "Run only the reconnect identity journey.",
+      passRules: [{ id: "reconnect_cp", description: "Identity remains stable after reconnect.", oracle: "visible_ui" }],
+      evidenceReuse: { policy: "ignore_history", requireCurrentBuild: true, requireProductionTiming: false }
+    });
+    const oneNightEntry = catalog().games.onenightwolf;
+    const coverageModel = deriveCoverageModel(loadAdapter(oneNightEntry), oneNightEntry, "onenightwolf");
+    const coveragePlan = planCoverage(coverageModel, {
+      schemaVersion: "1.0",
+      game: "onenightwolf",
+      targetCheckpointIds: ["reconnect_identity_preserved"],
+      playerCount: 3,
+      gameSettings: featureConfig.gameSettings
+    });
+    const featureDraft = createDraftPlan({
+      questionnaire: featureQuestionnaire,
+      config: featureConfig,
+      evidenceAssessment: { schemaVersion: "1.0", disposition: "no_evidence", candidates: [] },
+      coveragePlan
+    });
+    assert.strictEqual(featureDraft.coveragePlan.planSha256, coveragePlan.planSha256);
+    const featureApproved = approvePlan(featureDraft, { approvedBy: "user", confirmation: "APPROVE" });
+    assert.strictEqual(verifyApprovedPlan(featureApproved, resolveConfig(featureConfig), { forExecution: true }).coveragePlanSha256, coveragePlan.planSha256);
+    const tamperedCoverage = JSON.parse(JSON.stringify(featureApproved));
+    tamperedCoverage.coveragePlan.routes[0].routeSeconds += 1;
+    expectError(() => verifyApprovedPlan(tamperedCoverage, resolveConfig(featureConfig)), /CoveragePlan hash mismatch/);
+
+    const reuseFeatureQuestionnaire = JSON.parse(JSON.stringify(featureQuestionnaire));
+    reuseFeatureQuestionnaire.answers.evidenceReuse.policy = "prefer_reuse";
+    const featureAssessment = queryEvidence(index, {
+      ...baseQuery,
+      requiredCriterionIds: [],
+      requiredCheckpointIds: ["reconnect_identity_preserved"],
+      requiredJourneyIds: ["reconnect_identity"],
+      searchTerms: []
+    });
+    const reusedCoveragePlan = planCoverage(coverageModel, {
+      schemaVersion: "1.0",
+      game: "onenightwolf",
+      targetCheckpointIds: ["reconnect_identity_preserved"],
+      reusedCheckpointIds: ["reconnect_identity_preserved"],
+      playerCount: 3,
+      gameSettings: featureConfig.gameSettings
+    });
+    const reusedFeatureDraft = createDraftPlan({
+      questionnaire: reuseFeatureQuestionnaire,
+      config: featureConfig,
+      evidenceAssessment: featureAssessment,
+      coveragePlan: reusedCoveragePlan
+    });
+    assert.strictEqual(reusedFeatureDraft.executionDecision, "reuse_only");
+    assert.deepStrictEqual(reusedFeatureDraft.coveragePlan.routes, []);
+    expectError(() => createDraftPlan({
+      questionnaire: reuseFeatureQuestionnaire,
+      config: featureConfig,
+      evidenceAssessment: featureAssessment,
+      coveragePlan
+    }), /reused checkpoints/);
+
     const configPath = path.join(tempRoot, "config.json");
     const approvedPlanPath = path.join(tempRoot, "approved-plan.json");
     writeJson(configPath, rawConfig);
@@ -197,6 +285,7 @@ function run() {
     const partial = queryEvidence(index, { ...baseQuery, requiredCheckpointIds: ["visible_terminal", "missing_cp"] });
     assert.strictEqual(partial.disposition, "partial_reuse");
     assert.deepStrictEqual(partial.candidates[0].missing.checkpointIds, ["missing_cp"]);
+    assert.deepStrictEqual(partial.candidates[0].reusableCheckpointIds, ["visible_terminal"]);
     const historical = queryEvidence(index, { ...baseQuery, currentProductSourceSha256: "b".repeat(64) });
     assert.strictEqual(historical.disposition, "historical_only");
     assert(historical.candidates[0].blockers.includes("product_source_mismatch"));
@@ -216,11 +305,20 @@ function run() {
       evidenceRefs: ["P1-private-ref"],
       privateFacts: ["secret role"],
       notes: "secret explanation"
+    }, {
+      type: "coverage_route_completed",
+      routeId: "journey.fixture",
+      setupProfileId: "default",
+      checkpointIds: ["visible_terminal"],
+      durationMs: 1250,
+      privateRationale: "must not be indexed"
     }], rawConfig);
     const serialized = JSON.stringify(sanitized);
     assert(serialized.includes("P1-private-ref"));
     assert(!serialized.includes("secret role"));
     assert(!serialized.includes("secret explanation"));
+    assert(!serialized.includes("must not be indexed"));
+    assert.strictEqual(sanitized.coverageRoutes[0].durationMs, 1250);
     return true;
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });

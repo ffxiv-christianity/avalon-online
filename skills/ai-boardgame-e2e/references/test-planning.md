@@ -6,6 +6,8 @@ Ask only unanswered or contradictory fields. “AI decides” delegates selectio
 
 Before browser or Server work, follow [evidence-reuse-contract.md](evidence-reuse-contract.md). Historical evidence determines whether the approved scope needs no new Run, a minimal missing-checkpoint Run, or a full Run. It never changes the objective or verdict rules without renewed user approval.
 
+For `feature_cp`, also follow [coverage-planning.md](coverage-planning.md). When the user requests every CP, treat the finite Adapter CoverageModel as the boundary, remove exactly reusable CPs, and let the deterministic planner order/co-locate the remainder. Do not ask the user to design a route the Adapter can calculate.
+
 ## AI recommendation
 
 When the user delegates planning:
@@ -32,5 +34,7 @@ A valid purpose answers:
 - Which decisions remain autonomous?
 - Which Adapter scenario, if any, is deliberately constrained?
 - What visible evidence determines pass, fail, or not evaluated?
+
+`Traverse all Adapter-declared CPs` is acceptable only after listing the finite CP set and its observable criteria; it does not imply all settings, outcomes, or game rules.
 
 Reject purposes that merely say “test everything,” prescribe a desired winner, or confuse scenario coverage with normal user behavior.

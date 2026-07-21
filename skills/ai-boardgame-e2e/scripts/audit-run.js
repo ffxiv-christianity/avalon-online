@@ -6,7 +6,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { parseArgs, readJson, writeJson, resolveConfig, isLocalUrl } = require("./core");
 const { loadAdapter } = require("./adapters");
-const { verifyApprovedPlan } = require("./plan-contract");
+const { validateCoveragePlan, verifyApprovedPlan } = require("./plan-contract");
 const legacyV1Adapter = require("./adapters/legacy-v1");
 const {
   containsForbiddenPublicKey,
@@ -238,6 +238,147 @@ function validateDeadlineEvidence(timeline, config, gameIndex, errors) {
   }
 }
 
+function validateCoverageExecution(timeline, approvedPlan, errors) {
+  const coveragePlan = approvedPlan?.coveragePlan || null;
+  const coverageEvents = timeline.filter((event) => String(event.type || "").startsWith("coverage_"));
+  if (!coveragePlan) {
+    if (coverageEvents.length) errors.push("Coverage events require a CoveragePlan bound to plan.approved.json.");
+    return;
+  }
+  if (coveragePlan.status !== "complete") {
+    errors.push("The approved CoveragePlan is incomplete; the Run cannot claim checkpoint coverage.");
+  }
+  const initialEvents = coverageEvents.filter((event) => event.type === "coverage_plan_created" && !event.replanOf);
+  if (initialEvents.length !== 1) {
+    errors.push("Coverage execution requires exactly one initial coverage_plan_created event.");
+    return;
+  }
+  const initial = initialEvents[0];
+  const expectedTargets = [...coveragePlan.targetCheckpointIds].sort();
+  const expectedReused = [...coveragePlan.reusedCheckpointIds].sort();
+  const expectedPending = [...coveragePlan.pendingCheckpointIds].sort();
+  if (initial.planSha256 !== coveragePlan.planSha256
+    || stableStringify(initial.coveragePlan) !== stableStringify(coveragePlan)
+    || stableStringify([...(initial.targetCheckpointIds || [])].sort()) !== stableStringify(expectedTargets)
+    || stableStringify([...(initial.reusedCheckpointIds || [])].sort()) !== stableStringify(expectedReused)
+    || stableStringify([...(initial.pendingCheckpointIds || [])].sort()) !== stableStringify(expectedPending)
+    || stableStringify(initial.routeIds || []) !== stableStringify(coveragePlan.routes.map((route) => route.routeId))) {
+    errors.push("Initial coverage_plan_created event differs from the approved CoveragePlan.");
+  }
+
+  let activePlan = null;
+  let pendingReplan = null;
+  const completedTargets = new Set(expectedReused);
+  const startedRoutes = new Map();
+  const completedByPlan = new Map();
+  for (const event of timeline) {
+    if (event.type === "coverage_plan_created") {
+      let eventPlan = null;
+      try {
+        eventPlan = validateCoveragePlan(event.coveragePlan, coveragePlan.game);
+      } catch (error) {
+        errors.push(`coverage_plan_created contains an invalid CoveragePlan: ${error.message}`);
+      }
+      if (eventPlan?.status !== "complete") errors.push("coverage_plan_created embedded CoveragePlan is incomplete.");
+      if (eventPlan && (event.planSha256 !== eventPlan.planSha256
+        || stableStringify(event.routeIds || []) !== stableStringify(eventPlan.routes.map((route) => route.routeId))
+        || stableStringify([...(event.pendingCheckpointIds || [])].sort()) !== stableStringify(eventPlan.pendingCheckpointIds))) {
+        errors.push("coverage_plan_created summary differs from its embedded CoveragePlan.");
+      }
+      if (!activePlan) {
+        if (event.planSha256 !== coveragePlan.planSha256 || event.replanOf) continue;
+      } else {
+        if (!pendingReplan
+          || event.replanOf !== activePlan.planSha256
+          || event.planSha256 !== pendingReplan.newPlanSha256
+          || stableStringify([...(event.pendingCheckpointIds || [])].sort()) !== stableStringify(pendingReplan.remainingCheckpointIds)) {
+          errors.push("Replanned coverage_plan_created event is not linked to the active plan and remaining checkpoints.");
+        }
+        pendingReplan = null;
+        if (eventPlan?.replan?.previousPlanSha256 !== activePlan.planSha256
+          || !String(eventPlan?.replan?.reason || "").trim()) {
+          errors.push("Replanned embedded CoveragePlan is missing its previous-plan link and reason.");
+        }
+      }
+      if (stableStringify([...(event.targetCheckpointIds || [])].sort()) !== stableStringify(expectedTargets)
+        || stableStringify([...(event.reusedCheckpointIds || [])].sort()) !== stableStringify(expectedReused)
+        || !Array.isArray(event.routeIds)) {
+        errors.push("coverage_plan_created changed the approved target or reused checkpoint set.");
+      }
+      activePlan = {
+        planSha256: event.planSha256,
+        routeIds: [...(event.routeIds || [])],
+        createdOrder: writerOrder(event) || 0
+      };
+      completedByPlan.set(activePlan.planSha256, new Set());
+      continue;
+    }
+    if (event.type === "coverage_replanned") {
+      if (!activePlan || event.previousPlanSha256 !== activePlan.planSha256) {
+        errors.push("coverage_replanned does not reference the active CoveragePlan.");
+        continue;
+      }
+      const remaining = [...new Set((event.remainingCheckpointIds || []).map(String))].sort();
+      const actualRemaining = expectedPending.filter((checkpointId) => !completedTargets.has(checkpointId));
+      if (stableStringify(remaining) !== stableStringify(actualRemaining)) {
+        errors.push("coverage_replanned remainingCheckpointIds do not match observed completed coverage.");
+      }
+      if (!String(event.reason || "").trim() || !/^[a-f0-9]{64}$/.test(String(event.newPlanSha256 || ""))) {
+        errors.push("coverage_replanned requires a reason and a valid new plan hash.");
+      }
+      pendingReplan = { newPlanSha256: event.newPlanSha256, remainingCheckpointIds: remaining };
+      continue;
+    }
+    if (event.type === "coverage_route_started") {
+      if (!activePlan || !activePlan.routeIds.includes(event.routeId)) {
+        errors.push(`Coverage route ${event.routeId || "(missing)"} was started outside the active CoveragePlan.`);
+        continue;
+      }
+      const key = `${event.gameIndex}:${event.routeId}`;
+      if (startedRoutes.has(key)) errors.push(`Coverage route ${event.routeId} was started more than once for game ${event.gameIndex}.`);
+      startedRoutes.set(key, { event, planSha256: activePlan.planSha256 });
+      continue;
+    }
+    if (event.type === "coverage_route_completed") {
+      const key = `${event.gameIndex}:${event.routeId}`;
+      const started = startedRoutes.get(key);
+      if (!started || started.planSha256 !== activePlan?.planSha256) {
+        errors.push(`Coverage route ${event.routeId || "(missing)"} completed without a matching start in the active plan.`);
+        continue;
+      }
+      if (!Number.isFinite(Number(event.durationMs)) || Number(event.durationMs) < 0) {
+        errors.push(`Coverage route ${event.routeId} has an invalid durationMs.`);
+      }
+      if (!Array.isArray(event.checkpointIds) || !event.checkpointIds.length || !Array.isArray(event.evidenceRefs) || !event.evidenceRefs.length) {
+        errors.push(`Coverage route ${event.routeId} must name covered checkpoints and logs-only evidenceRefs.`);
+      }
+      for (const checkpointId of event.checkpointIds || []) {
+        if (!expectedTargets.includes(checkpointId) && !(coveragePlan.supportCheckpointIds || []).includes(checkpointId)) {
+          errors.push(`Coverage route ${event.routeId} claimed undeclared checkpoint ${checkpointId}.`);
+        }
+        completedTargets.add(checkpointId);
+      }
+      completedByPlan.get(activePlan.planSha256)?.add(event.routeId);
+      startedRoutes.delete(key);
+    }
+  }
+  if (pendingReplan) errors.push("coverage_replanned was not followed by its linked coverage_plan_created event.");
+  if (startedRoutes.size) errors.push("One or more CoveragePlan routes were started but not completed.");
+  if (activePlan) {
+    const finalCompleted = completedByPlan.get(activePlan.planSha256) || new Set();
+    for (const routeId of activePlan.routeIds) {
+      if (!finalCompleted.has(routeId)) errors.push(`Final CoveragePlan route ${routeId} was not completed.`);
+    }
+  }
+  const passedCheckpoints = new Set(timeline
+    .filter((event) => event.type === "checkpoint_result" && event.passed === true)
+    .map((event) => String(event.checkpointId || event.requirementId || "")));
+  for (const checkpointId of expectedPending) {
+    if (!completedTargets.has(checkpointId)) errors.push(`CoveragePlan checkpoint ${checkpointId} was not covered by a completed route.`);
+    if (!passedCheckpoints.has(checkpointId)) errors.push(`CoveragePlan checkpoint ${checkpointId} has no passing checkpoint_result.`);
+  }
+}
+
 function validateScopedEvidenceRefs(refs, evidenceByRef, label, errors) {
   if (!Array.isArray(refs) || !refs.length) {
     errors.push(`${label} requires at least one scoped evidenceRef.`);
@@ -440,6 +581,7 @@ function auditRun(runDir, options = {}) {
   const legacy = !["1.0", "1.1"].includes(String(run.schemaVersion || ""));
   const configPath = path.join(resolvedRun, "config.resolved.json");
   const config = fs.existsSync(configPath) ? readJson(configPath) : null;
+  let approvedPlan = null;
   let adapter = genericContract ? null : legacyV1Adapter;
   if (genericContract && config?.adapter?.module) {
     try {
@@ -472,10 +614,12 @@ function auditRun(runDir, options = {}) {
         errors.push("Run declares a preflight plan but plan.approved.json is missing.");
       } else {
         try {
-          const verifiedPlan = verifyApprovedPlan(readJson(planPath), config);
+          approvedPlan = readJson(planPath);
+          const verifiedPlan = verifyApprovedPlan(approvedPlan, config);
           if (verifiedPlan.planSha256 !== run.preflightPlan.planSha256
             || verifiedPlan.executionDecision !== run.preflightPlan.executionDecision
-            || verifiedPlan.evidenceDisposition !== run.preflightPlan.evidenceDisposition) {
+            || verifiedPlan.evidenceDisposition !== run.preflightPlan.evidenceDisposition
+            || (run.preflightPlan.coveragePlanSha256 || null) !== (verifiedPlan.coveragePlanSha256 || null)) {
             errors.push("run.json preflight plan metadata differs from plan.approved.json.");
           }
         } catch (error) {
@@ -504,6 +648,7 @@ function auditRun(runDir, options = {}) {
   const timeline = parseJsonLines(path.join(publicDir, "timeline.jsonl"), errors, warnings);
   const chat = parseJsonLines(path.join(publicDir, "chat.log"), errors, warnings, { optional: true, allowPlainText: legacy });
   const finalStates = parseJsonLines(path.join(publicDir, "final-state.log"), errors, warnings, { optional: true, allowPlainText: legacy });
+  validateCoverageExecution(timeline, approvedPlan, errors);
   validateResourceCleanup(timeline, finalStates, config, run, errors, warnings);
   const strictContract = !legacy && Object.hasOwn(config || {}, "testPurpose");
   const strictOrderedEvents = strictContract ? [...timeline, ...chat, ...finalStates] : [];
@@ -816,6 +961,13 @@ function auditRun(runDir, options = {}) {
       }
     });
   });
+
+  if (approvedPlan?.coveragePlan) {
+    timeline.filter((event) => event.type === "coverage_route_completed").forEach((event) => {
+      validateScopedEvidenceRefs(event.evidenceRefs, scopedEvidenceByRef,
+        `Coverage route ${event.routeId || "(missing)"}`, errors);
+    });
+  }
 
   if (strictContract) {
     const orders = strictOrderedEvents.map(writerOrder);
@@ -1443,6 +1595,7 @@ module.exports = {
   parseJsonLines,
   validateVoteParticipation,
   validateDeadlineEvidence,
+  validateCoverageExecution,
   resolvedCompletionRequirements,
   requiresCompletionKind,
   validateJourneyCompletion,

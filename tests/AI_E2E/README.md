@@ -17,11 +17,15 @@ Game settings, rules, phases, legal actions, timers, private regions, terminal o
 
 Runs use one requirement-driven completion contract. Full-game journeys typically require a visible terminal plus matching final state from every tab; feature/CP journeys may require only Adapter-declared visible checkpoints. Both use the same player isolation, evidence writer, audit, report, and cleanup path. A narrow pass proves only its declared requirements and criteria; it does not certify complete-game flow or unrelated settings.
 
+Feature/CP work additionally uses one hash-bound CoveragePlan inside that same framework. An Adapter declares checkpoints, visible states, setup profiles, compatible shared routes, transitions, expected cost, reset boundaries, and randomness. The planner removes exactly reusable CP evidence, then chooses the minimum expected wall-clock route; ties prefer fewer resets, less randomness, and lexical route ID. Missing routes produce an incomplete plan, not a passing result.
+
 ## Planning choices
 
 Every new E2E request begins with the Skill's mandatory `references/e2e-questionnaire.md`, even when the user supplies a config or asks for a narrow feature test. The completed questionnaire defines objective, scope, completion, pass, fail, not-evaluated, timing, history-reuse, and cleanup boundaries. The Skill asks only missing or conflicting fields and requires explicit approval of the resolved contract before initializing a schema 1.1 Run.
 
 Before opening a game or starting a Server, the Skill builds a sanitized read-only index of retained Runs and queries direct criterion/checkpoint/journey IDs. Exact current-build evidence can answer the request without a new Run; partial evidence reduces execution to missing requirements; stale or scope-mismatched evidence is historical context only. Free-text matches never prove an exact pass by themselves, and the index never copies private observations or rationales.
+
+For a request to traverse all CPs, the questionnaire records `checkpointCoverage.mode: "all_declared"`; the user does not manually order CPs. Audited prior route durations can improve the time estimate, while all non-reused CPs still require new visible-UI evidence. Runtime replanning is limited to still-uncovered CPs when observed state invalidates a route.
 
 - `natural_user`: autonomous bounded users; no forced winner, action, mistake, or behavior quota.
 - `targeted_scenario`: controls only an Adapter-declared scenario.
@@ -35,6 +39,10 @@ The test purpose may come from a user questionnaire, provided config, or explici
 New Runs use generic events such as:
 
 - `journey_started`
+- `coverage_plan_created`
+- `coverage_route_started`
+- `coverage_route_completed`
+- `coverage_replanned`
 - `phase_observed`
 - `action_observed`
 - `adapter_checkpoint`

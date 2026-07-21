@@ -2,7 +2,7 @@
 
 Create new configs with `schemaVersion: "1.1"`. Version `1.0` is compatibility-only for retained One Night Werewolf Runs.
 
-The config is only the executable portion of the approved test contract. Before initializing a new 1.1 Run, complete [e2e-questionnaire.md](e2e-questionnaire.md), query history under [evidence-reuse-contract.md](evidence-reuse-contract.md), and create an approved plan with `scripts/plan-contract.js`. `init-run.js` rejects a new 1.1 Run without a matching approved plan. Existing immutable Runs and direct library fixtures remain readable without retroactive approval files.
+The config is only the executable portion of the approved test contract. Before initializing a new 1.1 Run, complete [e2e-questionnaire.md](e2e-questionnaire.md), query history under [evidence-reuse-contract.md](evidence-reuse-contract.md), create a CoveragePlan under [coverage-planning.md](coverage-planning.md) for `feature_cp`, and create an approved plan with `scripts/plan-contract.js`. `init-run.js` rejects a new 1.1 Run without a matching approved plan. Existing immutable Runs and direct library fixtures remain readable without retroactive approval files.
 
 ## Generic config
 
@@ -165,6 +165,8 @@ A narrow feature test uses the same config and Run framework. Select an Adapter-
 ```
 
 The resolved config adds the Adapter-derived `completionRequirements`. Each execution records the same identity, isolation, Observation/Decision, visible action, criterion, `journey_completed`, product-integrity, and cleanup evidence as any other Run. A checkpoint requirement additionally records scoped private/public visible evidence plus `checkpoint_result`. Do not interpret a narrow journey pass as complete-game certification.
+
+The questionnaire, not the config, selects `checkpointCoverage.mode` as `all_declared` or `selected`. The separate immutable CoveragePlan orders the required Adapter routes after historical reuse and is hash-bound into `plan.approved.json`. Its target IDs must exactly equal the resolved checkpoint completion requirements. Runtime replanning may change only the path for remaining CPs, never this config's objective, requirements, or verdict rules.
 
 ## Common boundaries
 

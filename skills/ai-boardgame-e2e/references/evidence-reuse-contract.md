@@ -11,7 +11,8 @@ Historical evidence can reduce unnecessary E2E execution, but it cannot broaden 
 5. Query direct criterion, checkpoint, and journey IDs. Free-text terms may discover candidates but never establish exact reuse by themselves.
 6. Inspect the cited public events and re-audit any exact candidate with the current auditor.
 7. Classify the evidence, show the classification to the user, and include it in the approval contract.
-8. Initialize a Run only when the approved disposition requires new execution.
+8. For `feature_cp`, remove only exactly reusable CPs and create the CoveragePlan for the remainder under [coverage-planning.md](coverage-planning.md).
+9. Initialize a Run only when the approved disposition requires new execution.
 
 ## Classifications
 
@@ -52,6 +53,8 @@ The index may contain:
 It must not contain private observations, private rationales, role/hand contents, private console text, chat content, screenshots, or copied evidence text. Evidence reference IDs are pointers, not disclosure permission.
 
 The generated index is a disposable cache. The immutable Run remains the source of truth.
+
+The sanitized index may also contain `coverage_route_completed` route IDs, setup-profile IDs, checkpoint IDs, duration milliseconds, and public game settings. These fields refine expected route cost only. They contain no private facts or evidence text and cannot establish feature correctness. The planner uses the median audited duration for the same game, globally unique route ID, player count, and settings; otherwise it uses the Adapter baseline.
 
 ## Query request
 

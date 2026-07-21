@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "game": "replace-with-catalog-game-id",
+  "targetCheckpointIds": [
+    "replace.with.adapter.checkpoint.id"
+  ],
+  "completedCheckpointIds": [],
+  "reusedCheckpointIds": [],
+  "excludedRouteIds": [],
+  "playerCount": 3,
+  "gameSettings": {},
+  "currentSetupProfileId": null,
+  "currentStateId": null
+}

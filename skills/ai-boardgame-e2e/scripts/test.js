@@ -22,6 +22,7 @@ const gangsiAdapter = require("./adapters/gangsi");
 const criminalDanceAdapter = require("./adapters/criminaldance");
 const loveLetterAdapter = require("./adapters/loveletter");
 const { run: runPreflightTests } = require("./preflight-test");
+const { runCoveragePlannerTests } = require("./coverage-planner-test");
 
 function baseConfig(artifactRoot) {
   return {
@@ -185,6 +186,7 @@ function execFile(file, args) {
 
 async function run() {
   runPreflightTests();
+  runCoveragePlannerTests();
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-boardgame-e2e-"));
   try {
     const registry = catalog();
