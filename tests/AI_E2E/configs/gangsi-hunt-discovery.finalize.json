@@ -1,0 +1,19 @@
+{
+  "status": "incomplete",
+  "productVerdict": "not_evaluated",
+  "findings": {
+    "P0": 0,
+    "P1": 1,
+    "P2": 0,
+    "decisionIsolationFailures": 1
+  },
+  "games": [
+    { "gameIndex": 1, "status": "incomplete" }
+  ],
+  "serverManagedBySkill": "reused_existing_server",
+  "notes": [
+    "Exploratory visible-UI evidence mapped Hunt setup, random map resolution, professions, mummy type, shared objectives, numeric and arrow movement, and one mummy ability.",
+    "This run is quarantined because an evidence-authoring mistake copied a hidden trap target into a public action record; the product UI itself kept the detail isolated.",
+    "A clean replacement Hunt discovery run is required and this run must not be used as certification or catalog evidence."
+  ]
+}

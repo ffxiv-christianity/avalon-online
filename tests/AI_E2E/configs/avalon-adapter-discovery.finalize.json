@@ -1,0 +1,19 @@
+{
+  "status": "incomplete",
+  "productVerdict": "not_evaluated",
+  "findings": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0,
+    "decisionIsolationFailures": 0
+  },
+  "games": [
+    { "gameIndex": 1, "status": "incomplete" }
+  ],
+  "serverManagedBySkill": "reused_existing_server",
+  "notes": [
+    "Discovery-only evidence mapped the visible Avalon room, settings, identity, proposal, team-vote, quest, leader-rotation, rules, assassination, and terminal surfaces.",
+    "The discovery Run predates the formal Adapter contract and intentionally remains not_evaluated.",
+    "Its evidence is not certification evidence and must not be interpreted as a product pass or fail."
+  ]
+}

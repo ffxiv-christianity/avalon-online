@@ -1,0 +1,19 @@
+{
+  "status": "aborted",
+  "productVerdict": "not_evaluated",
+  "findings": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0,
+    "decisionIsolationFailures": 0
+  },
+  "games": [],
+  "isolation": {
+    "tabIdentity": "not_evaluated",
+    "privateUi": "not_evaluated",
+    "decisionContext": "not_evaluated"
+  },
+  "notes": [
+    "Run 僅完成前置檢查，尚未開始 UI 遊戲；測試分頁中斷後不沿用。"
+  ]
+}

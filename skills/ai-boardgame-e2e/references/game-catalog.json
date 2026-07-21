@@ -1,0 +1,489 @@
+{
+  "schemaVersion": "1.0",
+  "games": {
+    "onenightwolf": {
+      "displayName": "一夜終極狼人",
+      "status": "experimental",
+      "purposeStatus": {
+        "behavior_matrix": "experimental",
+        "natural_play": "experimental",
+        "rules_matrix": "experimental"
+      },
+      "evidenceCoverage": {
+        "behavior_matrix": "strict-contract run required",
+        "natural_play": "strict-contract run required",
+        "rules_matrix": "strict-contract run required"
+      },
+      "entryUrl": "http://localhost:4173/Onenightwolf/",
+      "adapterModule": "scripts/adapters/onenightwolf.js",
+      "adapterContractVersion": "2.2",
+      "capabilities": {
+        "identityProof": "public_chat_and_own_dom",
+        "publicCommunication": true,
+        "journeys": [
+          {
+            "id": "create_join_complete_game",
+            "title": "Create, join, and complete a game",
+            "completionRequirements": [
+              { "id": "visible_terminal", "kind": "terminal_visible" },
+              { "id": "cross_tab_result", "kind": "cross_tab_final_state" }
+            ]
+          },
+          {
+            "id": "repeat_complete_game",
+            "title": "Return to lobby and complete another game",
+            "completionRequirements": [
+              { "id": "visible_terminal", "kind": "terminal_visible" },
+              { "id": "cross_tab_result", "kind": "cross_tab_final_state" }
+            ]
+          },
+          {
+            "id": "reconnect_identity",
+            "title": "Reload or reconnect without identity leakage",
+            "completionRequirements": [
+              { "id": "reconnect_identity_preserved", "kind": "checkpoint", "checkpointId": "reconnect_identity_preserved" }
+            ]
+          }
+        ],
+        "scenarios": [
+          { "id": "vote_all_submission", "title": "Every player submits the final action" },
+          { "id": "vote_no_submission", "title": "No player submits before the deadline" },
+          { "id": "vote_partial_submission", "title": "A configured subset submits before the deadline" },
+          { "id": "communication_behavior_coverage", "title": "Exercise public communication behaviors" }
+        ],
+        "oracles": ["visible_ui", "public_log", "cross_tab_consistency"]
+      },
+      "playerCount": { "min": 3, "max": 10 },
+      "testCommand": "npm --prefix Onenightwolf test",
+      "scalableWaits": [
+        "onenightwolf.night-placeholder",
+        "onenightwolf.doppel-insomniac"
+      ],
+      "gameReference": "references/game-onenightwolf.md",
+      "strictCertificationEvidence": {
+        "behavior_matrix": [],
+        "natural_play": [],
+        "rules_matrix": []
+      },
+      "compatibilityEvidence": {
+        "reason": "These retained runs predate the strict contract, and some exercised temporary E2E-induced UI that was not part of the original product (120/900-second choices or a dawn private-result region). They are regression data only, not certification evidence for the original user experience.",
+        "behavior_matrix": [
+          "20260717-234541-onenightwolf-5p",
+          "20260718-011715-onenightwolf-5p"
+        ]
+      },
+      "supersededEvidence": {
+        "reason": "Certification evidence was backfilled after finalization and remains compatibility data only.",
+        "runs": [
+          "20260717-182241-onenightwolf-5p",
+          "20260717-184906-onenightwolf-5p"
+        ]
+      }
+    },
+    "avalon": {
+      "displayName": "Avalon",
+      "status": "experimental",
+      "purposeStatus": {
+        "natural_play": "experimental",
+        "core_rules": "experimental",
+        "expansions": "planned"
+      },
+      "evidenceCoverage": {
+        "natural_play": "complete strict-contract production-time five-player baseline run; assassination branch still required for supported",
+        "core_rules": "proposal, team-vote, rejection, quest, leader-rotation, isolation, and three-failed-quests terminal covered; assassination branch still required",
+        "expansions": "visible rules mapped; targeted execution evidence required"
+      },
+      "entryUrl": "http://localhost:4173/",
+      "adapterModule": "scripts/adapters/avalon.js",
+      "adapterContractVersion": "2.2",
+      "capabilities": {
+        "identityProof": "public_chat_and_own_dom",
+        "publicCommunication": true,
+        "journeys": [
+          {
+            "id": "create_join_complete_game",
+            "title": "Create, join, and complete a five-player baseline game",
+            "completionRequirements": [
+              { "id": "visible_terminal", "kind": "terminal_visible" },
+              { "id": "cross_tab_result", "kind": "cross_tab_final_state" }
+            ]
+          }
+        ],
+        "scenarios": [],
+        "oracles": ["visible_ui", "public_log", "cross_tab_consistency"],
+        "certifiedPlayerCounts": [5],
+        "executableSettings": {
+          "deckPreset": ["recommended"],
+          "leaderMode": ["standard"],
+          "publicResultDelaySeconds": [0],
+          "excalibur": [false],
+          "ladyOfTheLake": [false],
+          "questTeamSizes": [[2, 3, 2, 3, 3]]
+        },
+        "mappedButUncertified": [
+          "player counts 4 and 6-10",
+          "custom deck",
+          "appointed leader mode",
+          "3/5-second public result delay",
+          "Excalibur",
+          "Lady of the Lake",
+          "assassination branch in a complete strict-contract natural Run"
+        ]
+      },
+      "playerCount": { "min": 4, "max": 10 },
+      "testCommand": "npm --prefix Avalon test",
+      "scalableWaits": ["avalon.public-result"],
+      "gameReference": "references/game-avalon.md",
+      "strictCertificationEvidence": {
+        "natural_play": ["20260718-143303-avalon-5p"],
+        "core_rules": ["20260718-143303-avalon-5p"],
+        "expansions": []
+      },
+      "discoveryEvidence": {
+        "run": "20260718-140404-avalon-5p",
+        "productVerdict": "not_evaluated",
+        "scope": "Visible five-player baseline, role isolation, proposals, team ballots, quests, clockwise leaders, expansion rules, assassination, and terminal normalization"
+      }
+    },
+    "criminaldance": {
+      "displayName": "犯人在跳舞",
+      "status": "experimental",
+      "purposeStatus": {
+        "natural_play": "experimental",
+        "core_rules": "experimental",
+        "inspector_expansion": "planned",
+        "juvenile_expansion": "planned",
+        "combined_expansions": "planned"
+      },
+      "evidenceCoverage": {
+        "natural_play": "certified by 20260719-113144-criminaldance-8p at maximum player count",
+        "core_rules": "eight-player base match completed through visible UI with isolated agents",
+        "inspector_expansion": "visible setting and replacement mapped; targeted formal Run required",
+        "juvenile_expansion": "visible setting and replacement mapped; targeted formal Run required",
+        "combined_expansions": "both visible settings are selectable together; combined targeted formal Run required"
+      },
+      "entryUrl": "http://localhost:4173/CriminalDance/",
+      "adapterModule": "scripts/adapters/criminaldance.js",
+      "adapterContractVersion": "2.2",
+      "capabilities": {
+        "identityProof": "public_chat_reconnect_entry_and_own_dom",
+        "publicCommunication": true,
+        "journeys": [
+          {
+            "id": "discover_user_journeys",
+            "title": "Discover visible user journeys and verify the draft Adapter",
+            "completionRequirements": [
+              { "id": "adapter_map_complete", "kind": "checkpoint", "checkpointId": "adapter_map_complete" }
+            ]
+          },
+          {
+            "id": "create_join_complete_match",
+            "title": "Create, join, and complete a score-to-10 match",
+            "completionRequirements": [
+              { "id": "visible_terminal", "kind": "terminal_visible" },
+              { "id": "cross_tab_result", "kind": "cross_tab_final_state" }
+            ]
+          }
+        ],
+        "scenarios": [
+          { "id": "forced_first_finder", "title": "Verify the forced First Finder opening" },
+          { "id": "detective_resolution", "title": "Verify Detective target and result confirmation" },
+          { "id": "dog_forced_discard", "title": "Verify Dog target forced discard and transfer" },
+          { "id": "witness_visibility", "title": "Verify Witness result is actor-private" },
+          { "id": "information_exchange", "title": "Verify simultaneous Information Exchange" },
+          { "id": "rumor_simultaneous_draw", "title": "Verify staged Rumor draws" },
+          { "id": "trade_exchange", "title": "Verify the two-player Trade reply" },
+          { "id": "culprit_last_card", "title": "Verify Culprit is playable only as the last card" },
+          { "id": "inspector_public_marker", "title": "Verify Inspector public marker and round-result override" },
+          { "id": "juvenile_opening_clue", "title": "Verify Juvenile private opening-clue isolation" }
+        ],
+        "oracles": ["visible_ui", "public_log", "cross_tab_consistency"],
+        "certifiedPlayerCounts": [8],
+        "executableSettings": {
+          "inspector": [false, true],
+          "juvenile": [false, true]
+        },
+        "selectableTestProfiles": [
+          {
+            "id": "base",
+            "settings": { "inspector": false, "juvenile": false },
+            "scenarioIds": [],
+            "status": "experimental"
+          },
+          {
+            "id": "inspector",
+            "settings": { "inspector": true, "juvenile": false },
+            "scenarioIds": ["inspector_public_marker"],
+            "status": "planned"
+          },
+          {
+            "id": "juvenile",
+            "settings": { "inspector": false, "juvenile": true },
+            "scenarioIds": ["juvenile_opening_clue"],
+            "status": "planned"
+          },
+          {
+            "id": "inspector_juvenile",
+            "settings": { "inspector": true, "juvenile": true },
+            "scenarioIds": ["inspector_public_marker", "juvenile_opening_clue"],
+            "status": "planned"
+          }
+        ],
+        "mappedButUncertified": [
+          "player counts 3-7",
+          "Inspector expansion",
+          "Juvenile expansion",
+          "combined expansions",
+          "Culprit last-card targeted terminal"
+        ]
+      },
+      "playerCount": { "min": 3, "max": 8 },
+      "testCommand": "npm --prefix CriminalDance test",
+      "scalableWaits": [],
+      "gameReference": "references/game-criminaldance.md",
+      "strictCertificationEvidence": {
+        "natural_play": ["20260719-113144-criminaldance-8p"],
+        "core_rules": ["20260719-113144-criminaldance-8p"],
+        "inspector_expansion": [],
+        "juvenile_expansion": [],
+        "combined_expansions": []
+      },
+      "discoveryEvidence": {
+        "run": "20260718-154041-criminaldance-4p",
+        "productVerdict": "not_evaluated",
+        "scope": "Visible four-player base settings, lobby, identity, private cards, legal actions, forced flows, reload recovery, round settlement, and terminal normalization"
+      },
+      "formalAttempts": [
+        {
+          "run": "20260718-191500-criminaldance-8p",
+          "status": "incomplete",
+          "productVerdict": "not_evaluated",
+          "profile": "base",
+          "playerCount": 8,
+          "serverTimeScale": 1.0,
+          "terminalReached": true,
+          "auditPassed": false,
+          "reason": "Append-only Observation/Decision provenance did not satisfy the formal recorder contract; this attempt is not certification evidence."
+        },
+        {
+          "run": "20260719-113144-criminaldance-8p",
+          "status": "complete",
+          "productVerdict": "pass",
+          "profile": "base",
+          "playerCount": 8,
+          "serverTimeScale": 1.0,
+          "terminalReached": true,
+          "auditPassed": true,
+          "scope": "Eight-player base game only; Inspector, Juvenile, and combined expansion profiles remain planned."
+        }
+      ]
+    },
+    "loveletter": {
+      "displayName": "情書",
+      "status": "experimental",
+      "statusNotes": {
+        "natural_play": "Audited complete formal natural Runs certify the two-player default and four-player custom profiles; the full 2-6 player matrix remains incomplete.",
+        "settings": "Visible 2-6 player selector and target-heart range 1-9 mapped; target 6 is certified at two players and target 1 at four players.",
+        "special_rules": "Formal evidence covers protection, elimination restrictions, Prince-forced Princess elimination, Chancellor choice, private Priest results, and an informed Guard elimination; remaining branches stay uncertified."
+      },
+      "entryUrl": "http://localhost:4173/LoveLetter/",
+      "adapterModule": "scripts/adapters/loveletter.js",
+      "adapterContractVersion": "2.2",
+      "capabilities": {
+        "identityProof": "public_chat_reconnect_entry_and_own_dom",
+        "publicCommunication": true,
+        "journeys": [
+          {
+            "id": "discover_user_journeys",
+            "title": "Discover visible user journeys and verify the draft Adapter",
+            "completionRequirements": [
+              { "id": "adapter_map_complete", "kind": "checkpoint", "checkpointId": "adapter_map_complete" }
+            ]
+          },
+          {
+            "id": "create_join_complete_match",
+            "title": "Create, join, and complete a target-heart match",
+            "completionRequirements": [
+              { "id": "visible_terminal", "kind": "terminal_visible" },
+              { "id": "cross_tab_result", "kind": "cross_tab_final_state" }
+            ]
+          }
+        ],
+        "scenarios": [],
+        "oracles": ["visible_ui", "public_log", "cross_tab_consistency"],
+        "certifiedPlayerCounts": [2, 4],
+        "executableSettings": {
+          "targetHearts": [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        },
+        "selectableTestProfiles": [
+          {
+            "id": "two_player_default",
+            "playerCount": 2,
+            "settings": { "targetHearts": 6 },
+            "scenarioIds": [],
+            "status": "experimental"
+          },
+          {
+            "id": "four_player_custom",
+            "playerCount": 4,
+            "settings": { "targetHearts": 1 },
+            "scenarioIds": [],
+            "status": "experimental"
+          }
+        ],
+        "mappedButUncertified": [
+          "player counts 3, 5, and 6",
+          "target-heart values 2-5 and 7-9, plus unexercised player-count and target combinations",
+          "deck-exhaustion settlement and ties",
+          "forced Countess with King or Prince",
+          "broader multi-player protection, elimination, and no-target combinations"
+        ]
+      },
+      "playerCount": { "min": 2, "max": 6 },
+      "testCommand": "npm --prefix LoveLetter test",
+      "scalableWaits": [],
+      "gameReference": "references/game-loveletter.md",
+      "strictCertificationEvidence": {
+        "two_player_default": ["20260719-225603-loveletter-2p"],
+        "four_player_custom": ["20260719-233201-loveletter-4p"]
+      },
+      "formalAttempts": [
+        {
+          "run": "20260719-225603-loveletter-2p",
+          "status": "complete",
+          "productVerdict": "pass",
+          "profile": "two_player_default",
+          "playerCount": 2,
+          "settings": { "targetHearts": 6 },
+          "serverTimeScale": 1,
+          "terminalReached": true,
+          "auditPassed": true,
+          "scope": "Complete natural default-target match through seven visible rounds with two persistent isolated agents."
+        },
+        {
+          "run": "20260719-233201-loveletter-4p",
+          "status": "complete",
+          "productVerdict": "pass",
+          "profile": "four_player_custom",
+          "playerCount": 4,
+          "settings": { "targetHearts": 1 },
+          "serverTimeScale": 1,
+          "terminalReached": true,
+          "auditPassed": true,
+          "scope": "Complete natural custom-target match with four persistent isolated agents and visible protection, elimination, Chancellor, Prince, Priest, and Guard coverage."
+        }
+      ]
+    },
+    "gangsi": {
+      "displayName": "Gangsi",
+      "status": "experimental",
+      "statusNotes": {
+        "natural_play": "Complete strict-contract production-time Runs certify the three-player Classic fixed-map and Hunt random-map profiles; the Adapter remains experimental because the full player, map, ability, and outcome matrix is incomplete.",
+        "settings": "Classic 2-5 and Hunt 3-5 settings are validated; only Classic fixed mapId classic and Hunt random-map selection at three players are certified.",
+        "information_isolation": "Both certified Runs passed isolated-player observation/decision provenance, mission and position masking, actor-only ability state, reconnect identity, and cross-tab terminal checks."
+      },
+      "entryUrl": "http://localhost:4173/Gangsi/",
+      "adapterModule": "scripts/adapters/gangsi.js",
+      "adapterContractVersion": "2.2",
+      "capabilities": {
+        "identityProof": "public_chat_reconnect_entry_and_own_dom",
+        "publicCommunication": true,
+        "journeys": [
+          {
+            "id": "discover_user_journeys",
+            "title": "Discover visible Gangsi user journeys and verify the draft Adapter",
+            "completionRequirements": [
+              { "id": "adapter_map_complete", "kind": "checkpoint", "checkpointId": "adapter_map_complete" }
+            ]
+          },
+          {
+            "id": "create_join_complete_classic_game",
+            "title": "Create, join, complete, and reset one classic game",
+            "completionRequirements": [
+              { "id": "visible_terminal", "kind": "terminal_visible" },
+              { "id": "cross_tab_result", "kind": "cross_tab_final_state" }
+            ]
+          },
+          {
+            "id": "create_join_complete_hunt_game",
+            "title": "Create, join, complete, and reset one Hunt game",
+            "completionRequirements": [
+              { "id": "visible_terminal", "kind": "terminal_visible" },
+              { "id": "cross_tab_result", "kind": "cross_tab_final_state" }
+            ]
+          }
+        ],
+        "scenarios": [],
+        "oracles": ["visible_ui", "public_log", "cross_tab_consistency"],
+        "certifiedPlayerCounts": [3],
+        "executableSettings": {
+          "mode": ["classic", "hunt"],
+          "mapSelection": ["fixed", "random"],
+          "mapId": ["classic", "test-map", null]
+        },
+        "selectableTestProfiles": [
+          {
+            "id": "classic_fixed_3p",
+            "playerCount": 3,
+            "settings": { "mode": "classic", "mapSelection": "fixed", "mapId": "classic" },
+            "scenarioIds": [],
+            "status": "experimental"
+          },
+          {
+            "id": "hunt_random_3p",
+            "playerCount": 3,
+            "settings": { "mode": "hunt", "mapSelection": "random" },
+            "scenarioIds": [],
+            "status": "experimental"
+          }
+        ],
+        "mappedButUncertified": [
+          "player counts 2, 4, and 5",
+          "classic random-map and fixed test-map combinations",
+          "Hunt fixed-map combinations",
+          "unexercised profession and mummy-type combinations",
+          "every ability target, cooldown, trap trigger/recovery, mechanism-face, seal, secret-passage, capture, death, and escape branch",
+          "reconnect during every in-game phase"
+        ]
+      },
+      "playerCount": { "min": 2, "max": 5 },
+      "testCommand": "npm --prefix Gangsi test",
+      "scalableWaits": [],
+      "gameReference": "references/game-gangsi.md",
+      "discoveryEvidence": {
+        "classic_fixed_3p": ["20260720-090257-gangsi-3p"],
+        "hunt_random_3p": ["20260720-092223-gangsi-3p"]
+      },
+      "strictCertificationEvidence": {
+        "classic_fixed_3p": ["20260720-184703-gangsi-3p"],
+        "hunt_random_3p": ["20260720-192210-gangsi-3p"]
+      },
+      "formalAttempts": [
+        {
+          "run": "20260720-184703-gangsi-3p",
+          "status": "complete",
+          "productVerdict": "pass",
+          "profile": "classic_fixed_3p",
+          "playerCount": 3,
+          "settings": { "mode": "classic", "mapSelection": "fixed", "mapId": "classic" },
+          "serverTimeScale": 1,
+          "terminalReached": true,
+          "auditPassed": true,
+          "scope": "Complete natural Classic fixed-map game with three persistent isolated agents; P2 mummy won at four of four life tokens and all tabs returned to the reset lobby."
+        },
+        {
+          "run": "20260720-192210-gangsi-3p",
+          "status": "complete",
+          "productVerdict": "pass",
+          "profile": "hunt_random_3p",
+          "playerCount": 3,
+          "settings": { "mode": "hunt", "mapSelection": "random" },
+          "serverTimeScale": 1,
+          "terminalReached": true,
+          "auditPassed": true,
+          "scope": "Complete natural Hunt random-map game with three persistent isolated agents; random selection resolved after start to test-map, P2 mummy eliminated both adventurers, and all tabs returned to the reset lobby."
+        }
+      ]
+    }
+  }
+}

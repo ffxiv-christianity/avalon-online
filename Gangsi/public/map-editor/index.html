@@ -213,12 +213,18 @@
 
   <div class="rules-overlay hidden" id="rulesOverlay" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
     <article class="rules-dialog gangsi-rules-dialog">
-      <header class="rules-header">
-        <div>
+      <header class="rules-header gangsi-rules-header">
+        <div class="gangsi-rules-heading">
           <p class="eyebrow gangsi-brand-mark">Gangsi</p>
           <h2 id="rulesTitle">古墓迷蹤遊戲規則</h2>
         </div>
-        <button class="ghost-button" id="closeRulesButton" type="button" aria-label="關閉規則">關閉</button>
+        <div class="gangsi-rules-header-actions">
+          <div class="gangsi-rules-tabs" role="tablist" aria-label="選擇規則模式">
+            <button class="gangsi-rules-tab is-active" id="classicRulesTab" type="button" role="tab" aria-selected="true" aria-controls="classicRulesPanel" data-gangsi-rules-tab="classic">經典模式</button>
+            <button class="gangsi-rules-tab" id="huntRulesTab" type="button" role="tab" aria-selected="false" aria-controls="huntRulesPanel" tabindex="-1" data-gangsi-rules-tab="hunt">獵殺模式</button>
+          </div>
+          <button class="ghost-button" id="closeRulesButton" type="button" aria-label="關閉規則">關閉</button>
+        </div>
       </header>
       <div class="rules-content" id="gangsiRulesContent"></div>
     </article>

@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "1.1",
+  "game": "criminaldance",
+  "playerCount": 4,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "inspector": true,
+    "juvenile": true
+  },
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "Complete one four-player match with both expansions enabled and verify both the public Inspector marker contract and private Juvenile opening-clue isolation without constraining player strategy.",
+    "approach": "targeted_scenario",
+    "userPerspective": "mixed_experience",
+    "focusAreas": [
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "result_consistency"
+    ],
+    "journeyIds": ["create_join_complete_match"],
+    "scenarioIds": ["inspector_public_marker", "juvenile_opening_clue"],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "combined_settings_visible",
+        "description": "The host enables both expansion toggles and every tab visibly mirrors the same settings and replacement deck description.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "inspector_marker_public",
+        "description": "A naturally dealt Inspector produces a cross-tab-consistent public marker and valid optional round-result override.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "juvenile_clue_isolated",
+        "description": "A naturally dealt Juvenile produces exactly one holder-private prompt, zero non-holder prompts, and no public holder identity or clue content.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "terminal_result_consistent",
+        "description": "All four tabs complete the score-to-10 match and show the same normalized terminal result while all other private card data remains isolated.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      }
+    ],
+    "recommendationRationale": "This optional composition profile proves the two visible replacement settings can coexist. One complete four-player production-time match must naturally expose both declared checkpoints; no fixture or deck-order control is allowed. All card and target choices remain autonomous, and absence of either checkpoint makes the Run incomplete rather than passing it by assumption."
+  },
+  "speed": { "profile": "fast" },
+  "players": [
+    { "id": "P1", "name": "舞者甲", "style": "evidence_first", "traits": ["cautious", "methodical"] },
+    { "id": "P2", "name": "舞者乙", "style": "social_persuasion", "traits": ["curious", "adaptive"] },
+    { "id": "P3", "name": "舞者丙", "style": "risk_tolerant_contrarian", "traits": ["direct", "willing_to_revise"] },
+    { "id": "P4", "name": "舞者丁", "style": "evidence_first", "traits": ["conservative", "uncertain"] }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "none" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 60
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1.1",
+  "game": "avalon",
+  "playerCount": 5,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "deckPreset": "recommended",
+    "leaderMode": "standard",
+    "publicResultDelaySeconds": 0,
+    "excalibur": false,
+    "ladyOfTheLake": false,
+    "questTeamSizes": [2, 3, 2, 3, 3]
+  },
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "Verify five independent users can create, join, retain identity, complete one baseline Avalon game through legal visible actions, keep private assignment information isolated, and reach one consistent explained terminal result.",
+    "approach": "natural_user",
+    "userPerspective": "mixed_experience",
+    "focusAreas": [
+      "room_flow",
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "timing",
+      "result_consistency"
+    ],
+    "journeyIds": ["create_join_complete_game"],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "identity_fixed",
+        "description": "Every tab proves its own identity before play, and a one-tab reload preserves that identity without changing peer tabs.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "baseline_settings_visible",
+        "description": "The host applies the recommended five-player deck, standard clockwise leaders, no result delay, and disabled expansions through visible controls, and all tabs render the same settings.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "private_views_isolated",
+        "description": "No tab or isolated player agent receives another player's private assignment information or player-associated quest card before the terminal state.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "legal_core_flow",
+        "description": "Visible proposal, team-vote, quest, leader-rotation, and any naturally reached assassination controls accept only Adapter-legal owning-player actions.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "terminal_result_consistent",
+        "description": "All five tabs reach the same normalized terminal result and public quest history, regardless of which side naturally wins.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      }
+    ],
+    "recommendationRationale": "The visible five-player recommended deck is the smallest official-style core game. Standard clockwise rotation removes an extra leadership choice, no-delay avoids an unnecessary wait, and disabled expansions isolate the first certification attempt to the baseline loop without prescribing a winner."
+  },
+  "speed": { "profile": "fast" },
+  "players": [
+    { "id": "P1", "name": "P1-Ada", "style": "evidence_first", "traits": ["cautious", "concise"] },
+    { "id": "P2", "name": "P2-Ben", "style": "social_persuasion", "traits": ["talkative", "adaptive"] },
+    { "id": "P3", "name": "P3-Cleo", "style": "risk_tolerant_contrarian", "traits": ["skeptical", "willing_to_revise"] },
+    { "id": "P4", "name": "P4-Dara", "style": "evidence_first", "traits": ["quiet", "methodical"] },
+    { "id": "P5", "name": "P5-Eli", "style": "social_persuasion", "traits": ["friendly", "uncertain"] }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "none" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 45
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

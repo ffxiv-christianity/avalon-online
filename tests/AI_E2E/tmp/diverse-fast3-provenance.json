@@ -1,0 +1,14 @@
+{
+  "type": "agent_provenance",
+  "mode": "isolated_subagents",
+  "forkTurns": "none",
+  "browserAccess": false,
+  "projectAccess": false,
+  "players": [
+    { "id": "P1", "agent": "/root/fast3_p1_ada" },
+    { "id": "P2", "agent": "/root/fast3_p2_ben" },
+    { "id": "P3", "agent": "/root/fast3_p3_cleo" },
+    { "id": "P4", "agent": "/root/fast3_p4_dara" },
+    { "id": "P5", "agent": "/root/fast3_p5_eli" }
+  ]
+}

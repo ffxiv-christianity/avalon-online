@@ -1,0 +1,8 @@
+{
+  "type": "isolation_check",
+  "gameIndex": 1,
+  "playerTabs": true,
+  "privateUi": true,
+  "agentContext": true,
+  "evidenceRefs": true
+}

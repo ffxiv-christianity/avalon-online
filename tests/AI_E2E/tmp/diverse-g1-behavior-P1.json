@@ -1,0 +1,1 @@
+{ "type": "behavior_evaluation", "gameIndex": 1, "playerId": "P1", "configuredBehavior": "evidence_sharing", "observedIntent": "evidence_sharing", "spoke": true, "claimAssessment": "truthful", "settlementEvidence": "Night history confirms P1 saw P2 as Werewolf before the P1/P2 swap." }

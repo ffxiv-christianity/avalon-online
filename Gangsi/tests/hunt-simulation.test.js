@@ -113,18 +113,24 @@ function runSimulation(run) {
     const view = Hunt.makeGameView(room, actor);
     const actions = view.legal.actions;
     assert(actions.length, `no legal action in ${room.phase}`);
+    assert(actions.every((action) => Hunt.PHASE_ACTIONS[room.phase]?.includes(action)), `phase whitelist mismatch in ${room.phase}`);
     let error = null;
     if (actions.includes("skipAdventurerTurn")) error = Hunt.applyGameAction(room, actor, "skipAdventurerTurn");
-    else if (room.phase === Hunt.PHASES.turnStart) {
-      const action = actions.includes("rollAdventurerDice") ? "rollAdventurerDice" : "unlockDice";
-      error = Hunt.applyGameAction(room, actor, action);
+    else if (actions.includes("finishAdventurerTurn")) error = Hunt.applyGameAction(room, actor, "finishAdventurerTurn");
+    else if (room.phase === Hunt.PHASES.adventurerPrepare) {
+      if (actions.includes("activateMechanism") && random() < 0.3) {
+        error = Hunt.applyGameAction(room, actor, "activateMechanism", { gateId: choose(view.legal.mechanisms, random) });
+      } else {
+        const action = actions.includes("rollAdventurerDice") ? "rollAdventurerDice" : "unlockDice";
+        error = Hunt.applyGameAction(room, actor, action);
+      }
     } else if (room.phase === Hunt.PHASES.adventurerRoll && view.legal.dieIds?.length && random() < 0.8) {
       error = Hunt.applyGameAction(room, actor, "selectDie", { dieId: choose(view.legal.dieIds, random) });
     } else if (actions.includes("rollAdventurerDice")) error = Hunt.applyGameAction(room, actor, "rollAdventurerDice");
     else if (actions.includes("moveNumeric")) error = Hunt.applyGameAction(room, actor, "moveNumeric", { path: choose(view.legal.paths, random) });
     else if (actions.includes("moveArrow")) error = Hunt.applyGameAction(room, actor, "moveArrow", { direction: choose(Object.keys(view.legal.directions), random) });
-    else if (actions.includes("revealTreasure")) error = Hunt.applyGameAction(room, actor, "declineTreasure");
-    else if (room.phase === Hunt.PHASES.mummyAbility) error = Hunt.applyGameAction(room, actor, "rollMummyDie");
+    else if (actions.includes("revealTreasure")) error = Hunt.applyGameAction(room, actor, random() < 0.75 ? "revealTreasure" : "declineTreasure");
+    else if (room.phase === Hunt.PHASES.monsterPrepare) error = Hunt.applyGameAction(room, actor, "rollMummyDie");
     else if (actions.includes("rollMummyDie")) error = Hunt.applyGameAction(room, actor, "rollMummyDie");
     else if (actions.includes("moveMummy")) {
       const moves = view.legal.moves || [];

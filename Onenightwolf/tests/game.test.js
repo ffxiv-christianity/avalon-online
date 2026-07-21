@@ -632,6 +632,56 @@ function testCenterRoleDelayAndMissingRoleSkip() {
   assert.strictEqual(room.nightStage.role, "robber");
 }
 
+function testE2eScaleShortensOnlyForcedNightWaits() {
+  const previousMode = process.env.AI_E2E_MODE;
+  const previousScale = process.env.AI_E2E_TIME_SCALE;
+  process.env.AI_E2E_MODE = "1";
+  process.env.AI_E2E_TIME_SCALE = "0.1";
+  try {
+    const { room, players } = setup(4);
+    room.phase = "night";
+    room.settings.deck = ["werewolf", "werewolf", "seer", "robber", "troublemaker", "villager", "villager"];
+    room.initialCards = {
+      [players[0].id]: "werewolf",
+      [players[1].id]: "werewolf",
+      [players[2].id]: "robber",
+      [players[3].id]: "troublemaker"
+    };
+    room.cards = { ...room.initialCards };
+    room.centerCards = ["seer", "villager", "villager"];
+    room.centerInitial = [...room.centerCards];
+    room.effectiveRoles = { ...room.initialCards };
+    room.privateInfo = Object.fromEntries(players.map((player) => [player.id, []]));
+    room.nightRoleIndex = NIGHT_ORDER.indexOf("werewolf");
+    setNightStage(room, "werewolf", [players[0].id, players[1].id]);
+
+    const beforeForcedWait = Date.now();
+    assert.strictEqual(applyRoomAction(room, players[0], "nightAction"), null);
+    assert.strictEqual(applyRoomAction(room, players[1], "nightAction"), null);
+    assert.strictEqual(room.nightStage.role, "seer");
+    const scaledDelay = room.nightStage.delayUntil - beforeForcedWait;
+    assert(scaledDelay >= 500 && scaledDelay <= 1000, `expected a 0.1x night wait, received ${scaledDelay}ms`);
+
+    const beforeDiscussion = Date.now();
+    room.nightRoleIndex = NIGHT_ORDER.indexOf("doppelInsomniac");
+    room.nightStage = {
+      role: "doppelInsomniac",
+      actorIds: [],
+      completedIds: [],
+      delayUntil: beforeDiscussion - 1
+    };
+    assert.strictEqual(advanceTimedNight(room, beforeDiscussion), true);
+    assert.strictEqual(room.phase, "discussion");
+    const discussionDelay = room.discussionEndsAt - beforeDiscussion;
+    assert(discussionDelay >= 299000 && discussionDelay <= 301000, `discussion deadline was scaled to ${discussionDelay}ms`);
+  } finally {
+    if (previousMode === undefined) delete process.env.AI_E2E_MODE;
+    else process.env.AI_E2E_MODE = previousMode;
+    if (previousScale === undefined) delete process.env.AI_E2E_TIME_SCALE;
+    else process.env.AI_E2E_TIME_SCALE = previousScale;
+  }
+}
+
 function testSameRolePlayersActInOneStage() {
   const { room, players } = setup(4);
   room.phase = "night";
@@ -1440,6 +1490,7 @@ testRecommendedDecks();
 testStartAndPrivateView();
 testPrivateInfoIsServerScopedPerViewer();
 testCenterRoleDelayAndMissingRoleSkip();
+testE2eScaleShortensOnlyForcedNightWaits();
 testSameRolePlayersActInOneStage();
 testWerewolfContextsAndRules();
 testMinionMasonAndPrivateContexts();

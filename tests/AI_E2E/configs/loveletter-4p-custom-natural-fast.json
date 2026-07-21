@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "1.1",
+  "game": "loveletter",
+  "playerCount": 4,
+  "gamesToPlay": 1,
+  "gameSettings": { "targetHearts": 1 },
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "Verify four isolated natural users can create and join a Love Letter room, retain fixed identities, select a visible non-default one-heart target, complete the full match through legal UI actions without forced card strategy, preserve all private hands and actor-only results, and reach one cross-tab-consistent terminal result.",
+    "approach": "natural_user",
+    "userPerspective": "mixed_experience",
+    "focusAreas": [
+      "room_flow",
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "timing",
+      "result_consistency"
+    ],
+    "journeyIds": ["create_join_complete_match"],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "four_identities_fixed",
+        "description": "All four tabs retain distinct fixed identities from room entry through terminal.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "custom_target_visible",
+        "description": "The host selects one heart instead of the visible four-player default of four, and every tab visibly agrees.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "protection_elimination_enforced",
+        "description": "Protected, eliminated, waiting, or otherwise restricted players cannot perform actions absent from their own visible UI.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "private_information_isolated",
+        "description": "Exact hands, draws, pending choices, and actor-only results never appear on non-owner tabs or in non-owner Observations.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "public_state_consistent",
+        "description": "Public cards, player states, heart totals, and current player agree across all four tabs.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "terminal_result_consistent",
+        "description": "All four tabs normalize the full one-heart match to the same result.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      }
+    ],
+    "recommendationRationale": "One heart is a legal visible value and differs from the four-player UI default of four. It minimizes repetitive rounds while retaining a genuine complete match, natural card decisions, multi-player targeting, protection/elimination checks, and production server timing."
+  },
+  "speed": { "profile": "fast" },
+  "players": [
+    { "id": "P1", "name": "四人甲", "style": "evidence_first", "traits": ["cautious", "methodical"] },
+    { "id": "P2", "name": "四人乙", "style": "adaptive", "traits": ["curious", "willing_to_revise"] },
+    { "id": "P3", "name": "四人丙", "style": "risk_tolerant", "traits": ["direct", "fallible"] },
+    { "id": "P4", "name": "四人丁", "style": "conservative", "traits": ["patient", "observant"] }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "in_game_reload" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 90
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "certificationCandidate": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

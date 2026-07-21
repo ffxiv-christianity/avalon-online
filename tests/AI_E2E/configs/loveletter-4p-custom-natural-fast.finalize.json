@@ -1,0 +1,51 @@
+{
+  "status": "complete",
+  "productVerdict": "pass",
+  "findings": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0,
+    "decisionIsolationFailures": 0
+  },
+  "games": [
+    { "gameIndex": 1, "status": "complete" }
+  ],
+  "isolation": {
+    "playerTabs": "pass",
+    "privateUi": "pass",
+    "agentDecisionContext": "pass",
+    "evidenceRefs": "pass"
+  },
+  "serverManagedBySkill": "reused_existing_server",
+  "capability": {
+    "enabled": false,
+    "status": 404,
+    "timeScale": 1,
+    "timingFidelity": "production"
+  },
+  "agentProvenance": {
+    "mode": "isolated_subagents",
+    "forkTurns": "none",
+    "browserAccess": false,
+    "projectAccess": false,
+    "players": [
+      { "id": "P1", "agent": "/root/love_formal4_p1" },
+      { "id": "P2", "agent": "/root/love_formal4_p2" },
+      { "id": "P3", "agent": "/root/love_formal4_p3" },
+      { "id": "P4", "agent": "/root/love_formal4_p4" }
+    ]
+  },
+  "productBuild": {
+    "passed": true,
+    "command": "npm --prefix LoveLetter test",
+    "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+    "productSourceSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+    "sourceTreeDirty": true
+  },
+  "notes": [
+    "The host visibly changed the legal four-player target from the UI default of four to one, and every tab synchronized to the custom target.",
+    "Four persistent fork_turns none agents naturally completed the match without a prescribed winner, card, target, elimination, or fixed strategy.",
+    "The Run visibly covered Handmaid protection, eliminated-player restrictions, Prince-forced Princess elimination, Chancellor keep selection, private Priest information, and a memory-grounded Guard guess.",
+    "All operations used the in-app Browser visible UI and logs_only evidence; no screenshot or image evidence was created."
+  ]
+}

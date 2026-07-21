@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "1.1",
+  "game": "criminaldance",
+  "playerCount": 4,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "inspector": true,
+    "juvenile": false
+  },
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "Complete one four-player Inspector-expansion match through visible UI and verify the public Inspector marker, any result override, private-card isolation, and normalized terminal consistency.",
+    "approach": "targeted_scenario",
+    "userPerspective": "mixed_experience",
+    "focusAreas": [
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "result_consistency"
+    ],
+    "journeyIds": ["create_join_complete_match"],
+    "scenarioIds": ["inspector_public_marker"],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "inspector_setting_visible",
+        "description": "The host enables Inspector and disables Juvenile, and every tab visibly mirrors the same settings.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "inspector_marker_public",
+        "description": "A naturally dealt Inspector is played through its owning tab and its actor, target, public marker, and optional round-result override are consistent across all tabs.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "private_cards_isolated",
+        "description": "Exact hands, draws, received cards, and actor-private results remain confined to the owning tab and owning agent Observation.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "terminal_result_consistent",
+        "description": "All four tabs complete the score-to-10 match and show the same normalized terminal result.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      }
+    ],
+    "recommendationRationale": "This is the smallest dedicated Inspector certification candidate: four isolated players, only the Inspector replacement enabled, and one complete production-time match. The scenario constrains only the visible expansion checkpoint; all card and target decisions remain autonomous. If no Inspector checkpoint occurs naturally, the Run lacks required evidence and cannot pass."
+  },
+  "speed": { "profile": "fast" },
+  "players": [
+    { "id": "P1", "name": "舞者甲", "style": "evidence_first", "traits": ["cautious", "methodical"] },
+    { "id": "P2", "name": "舞者乙", "style": "social_persuasion", "traits": ["curious", "adaptive"] },
+    { "id": "P3", "name": "舞者丙", "style": "risk_tolerant_contrarian", "traits": ["direct", "willing_to_revise"] },
+    { "id": "P4", "name": "舞者丁", "style": "evidence_first", "traits": ["conservative", "uncertain"] }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "none" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 60
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

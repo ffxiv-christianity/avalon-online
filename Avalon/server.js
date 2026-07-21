@@ -15,6 +15,7 @@ const {
 const { serveSharedStatic } = require("../Shared/server/static");
 const { cleanPlayerName } = require("../Shared/public/player-name");
 const { bytesToMb, roomConnectionCount } = require("../Shared/server/admin");
+const { deadlineAfter } = require("../Shared/server/e2e-time");
 const {
   createRealtimeMetrics,
   shouldSendFullState,
@@ -680,7 +681,7 @@ function finishVote(room) {
   const reject = room.players.length - approve;
   room.voteResult = { approve, reject, passed: approve > reject, votes: { ...room.votes } };
   room.phase = "voteResult";
-  room.resultReadyAt = Date.now() + room.settings.resultDelaySeconds * 1000;
+  room.resultReadyAt = deadlineAfter(room.settings.resultDelaySeconds * 1000);
   addLog(room, `投票${room.voteResult.passed ? "通過" : "未通過"}：${approve} 同意、${reject} 不同意。`);
 }
 
@@ -738,7 +739,7 @@ function finishMission(room) {
   room.excaliburTargetId = null;
   room.pendingExcaliburResult = null;
   room.phase = "missionResult";
-  room.resultReadyAt = Date.now() + room.settings.resultDelaySeconds * 1000;
+  room.resultReadyAt = deadlineAfter(room.settings.resultDelaySeconds * 1000);
   if (excalibur && !excalibur.used) addLog(room, excaliburLogText(room, excalibur));
   addLog(room, `第 ${room.round + 1} 次任務${result === "success" ? "成功" : "失敗"}，失敗牌 ${fails} 張。`);
 }

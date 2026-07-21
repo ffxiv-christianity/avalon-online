@@ -1,0 +1,7 @@
+{
+  "type": "server_capability",
+  "endpoint": "http://localhost:4175/__ai-e2e/capabilities",
+  "status": 404,
+  "response": { "error": "AI E2E mode is not enabled" },
+  "serverManagement": "reused_existing_server"
+}

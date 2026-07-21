@@ -1,0 +1,13 @@
+{
+  "status": "aborted",
+  "productVerdict": "not_evaluated",
+  "findings": { "P0": 0, "P1": 0, "P2": 0, "decisionIsolationFailures": 0 },
+  "games": [
+    { "gameIndex": 1, "status": "discussion_timeout_before_ui_vote", "winner": "werewolf", "formalResult": "not_evaluated" }
+  ],
+  "isolation": { "playerTabs": "pass", "privateUi": "pass", "agentDecisionContext": "pass", "evidenceRefs": "pass" },
+  "notes": [
+    "The real 600-second discussion deadline expired before the referee could execute the already-recorded vote Decisions through UI.",
+    "The Server settled with five non-votes. This Run is negative deadline evidence and cannot certify the adapter."
+  ]
+}

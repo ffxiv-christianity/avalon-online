@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.1",
+  "game": "gangsi",
+  "playerCount": 3,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "mode": "hunt",
+    "mapSelection": "random"
+  },
+  "testPurpose": {
+    "selectionSource": "provided_config",
+    "objective": "Map the visible three-player Hunt Gangsi create, join, random-map, identity, role-specialization, profession, monster-ability, tracking, private-view, terminal, and return-to-lobby journeys without issuing a product verdict.",
+    "approach": "exploratory",
+    "userPerspective": "first_time_player",
+    "focusAreas": [
+      "onboarding",
+      "room_flow",
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "reconnect",
+      "usability",
+      "accessibility",
+      "result_consistency"
+    ],
+    "journeyIds": [
+      "discover_user_journeys"
+    ],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "draft_hunt_adapter_map",
+        "description": "Visible Hunt settings, random-map boundary, identities, professions, monster types, semantic controls, private regions, legal actions, terminal oracle, and normalized result fields are mapped from real UI evidence.",
+        "oracle": "visible_ui",
+        "required": true
+      }
+    ]
+  },
+  "speed": {
+    "profile": "watch"
+  },
+  "players": [
+    {
+      "id": "P1",
+      "name": "獵人甲",
+      "style": "careful first-time host",
+      "traits": ["reads visible instructions"]
+    },
+    {
+      "id": "P2",
+      "name": "獵人乙",
+      "style": "curious first-time player",
+      "traits": ["explores visible legal controls"]
+    },
+    {
+      "id": "P3",
+      "name": "獵鬼丙",
+      "style": "deliberate first-time pursuer",
+      "traits": ["uses visible ability guidance"]
+    }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": {
+    "mode": "logs_only"
+  },
+  "reconnect": {
+    "mode": "lobby_reload"
+  },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 120
+  },
+  "allowExperimental": false,
+  "allowDiscovery": true,
+  "certificationCandidate": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

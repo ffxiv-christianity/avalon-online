@@ -1,0 +1,19 @@
+{
+  "status": "incomplete",
+  "productVerdict": "not_evaluated",
+  "findings": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0,
+    "decisionIsolationFailures": 0
+  },
+  "games": [
+    { "gameIndex": 1, "status": "incomplete" }
+  ],
+  "serverManagedBySkill": "reused_existing_server",
+  "notes": [
+    "Exploratory visible-UI evidence mapped the Gangsi classic lobby, identity, reconnect, setup, per-player information boundaries, numeric and arrow movement, treasure reveal, and mummy turn.",
+    "The exploratory game intentionally stopped after representative core journeys; terminal and return-to-lobby certification are reserved for the formal run.",
+    "This discovery evidence is not certification evidence and does not express a product verdict."
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "verifiedAt": "2026-07-19T11:02:12.0998954+08:00",
+  "source": "D:\\Codex\\avalon-online\\skills\\ai-boardgame-e2e",
+  "installed": "C:\\Users\\louis\\.codex\\skills\\ai-boardgame-e2e",
+  "algorithm": "SHA256",
+  "mismatchCount": 0,
+  "files": [
+    { "file": "SKILL.md", "sha256": "91bbd02ec6635f29e72d483eb580bb8fbf69b0381cb917bbea56753fcadd34c6", "matches": true },
+    { "file": "references\\adapter-contract.md", "sha256": "f31ae8220cf3b9337c4cce43240a3d7258472ada73fc70a27608bfe92ec4f841", "matches": true },
+    { "file": "references\\config-schema.md", "sha256": "ee01793892dab70bffa61625451c587fd5a0f77a98831df2b4d9ecc6ffe16986", "matches": true },
+    { "file": "references\\game-catalog.json", "sha256": "5331d3e8365c7cb74a9dfe34eed562669d2de02df29bf9d659562c58e2b05a53", "matches": true },
+    { "file": "references\\game-criminaldance.md", "sha256": "fb41f817ffdb7d284900de755f9eddc74ac630c151c037aa7118a4fa7dd2a8da", "matches": true },
+    { "file": "scripts\\adapters\\criminaldance.js", "sha256": "eeafb877908bb7c6e5df9e3bfe375b68091ff25eb8d62ed3300c1601a07e2e09", "matches": true },
+    { "file": "scripts\\audit-run.js", "sha256": "770c7fc47e45d7dd06981b437ddb1de6a1a6dd9a4acfab6e2ba1e1471e14f4cb", "matches": true },
+    { "file": "scripts\\core.js", "sha256": "8ad12a442cbe87139a4d6f0bc24631e24ed6206c6d6f15d061f3c729e7098149", "matches": true },
+    { "file": "scripts\\test.js", "sha256": "1dcd3fa828ef2d87309ad65857e638408c2e2ec02f0b6d098d7f7328f97ed471", "matches": true }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "type": "product_test",
+  "command": "npm test",
+  "passed": true,
+  "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+  "productSourceSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+  "sourceTreeDirty": true
+}

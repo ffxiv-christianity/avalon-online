@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "1.1",
+  "game": "criminaldance",
+  "playerCount": 4,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "inspector": false,
+    "juvenile": true
+  },
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "Complete one four-player Juvenile-expansion match through visible UI and verify the private opening clue reaches exactly its holder without leaking identity or content to other tabs.",
+    "approach": "targeted_scenario",
+    "userPerspective": "mixed_experience",
+    "focusAreas": [
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "result_consistency"
+    ],
+    "journeyIds": ["create_join_complete_match"],
+    "scenarioIds": ["juvenile_opening_clue"],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "juvenile_setting_visible",
+        "description": "The host disables Inspector and enables Juvenile, and every tab visibly mirrors the same settings.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "juvenile_clue_isolated",
+        "description": "A naturally dealt Juvenile produces exactly one holder-private opening prompt, zero non-holder prompts, and no public holder identity or clue content.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "private_cards_isolated",
+        "description": "Exact hands, draws, received cards, and actor-private results remain confined to the owning tab and owning agent Observation.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "terminal_result_consistent",
+        "description": "All four tabs complete the score-to-10 match and show the same normalized terminal result.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      }
+    ],
+    "recommendationRationale": "This is the smallest dedicated Juvenile certification candidate: four isolated players, only the Juvenile replacement enabled, and one complete production-time match. The public timeline records only aggregate isolation counts and an opaque private evidence reference. If no Juvenile checkpoint occurs naturally, the Run lacks required evidence and cannot pass."
+  },
+  "speed": { "profile": "fast" },
+  "players": [
+    { "id": "P1", "name": "舞者甲", "style": "evidence_first", "traits": ["cautious", "methodical"] },
+    { "id": "P2", "name": "舞者乙", "style": "social_persuasion", "traits": ["curious", "adaptive"] },
+    { "id": "P3", "name": "舞者丙", "style": "risk_tolerant_contrarian", "traits": ["direct", "willing_to_revise"] },
+    { "id": "P4", "name": "舞者丁", "style": "evidence_first", "traits": ["conservative", "uncertain"] }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "none" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 60
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

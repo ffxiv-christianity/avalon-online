@@ -1,0 +1,22 @@
+{
+  "status": "incomplete",
+  "productVerdict": "not_evaluated",
+  "findings": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 2,
+    "decisionIsolationFailures": 0
+  },
+  "games": [
+    { "gameIndex": 1, "status": "incomplete" }
+  ],
+  "serverManagedBySkill": "reused_existing_server",
+  "notes": [
+    "The UI journey itself reached a real eight-round Match End in room 3F7724. All four tabs visibly agreed on winner 舞者甲 and final scores P1=10 P2=6 P3=9 P4=7.",
+    "This remains exploratory Adapter discovery with productVerdict not_evaluated. Referee-selected exploratory actions are mapping evidence, not natural-user certification evidence.",
+    "The strict audit rejects early public evidence records whose contentClass was recorded as public instead of public_ui and the exploratory player Observations that reference those records. Evidence was not edited or backfilled after the fact.",
+    "P2 finding 1: a rejected player-count reduction leaves the host select temporarily showing the rejected value while peer tabs retain the accepted value.",
+    "P2 finding 2: the shared-browser recent-room entry exposes every public identity previously used by that browser, increasing accidental tab-identity remapping risk without exposing private cards.",
+    "Formal forward execution was not started because the available runtime cannot provide four simultaneous persistent fork_turns none player agents with tools disabled; the Catalog therefore remains planned."
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0",
+  "answers": {
+    "game": "onenightwolf",
+    "testType": "natural_user",
+    "objective": "Describe the user-visible outcome or product risk this test must decide.",
+    "userPerspective": "mixed_experience",
+    "focusAreas": [
+      "core_gameplay",
+      "information_isolation",
+      "result_consistency"
+    ],
+    "journeyIntent": "Describe the user journey in plain language.",
+    "scenarioIntent": "none",
+    "playerCount": 3,
+    "gamesToPlay": 1,
+    "gameSettings": {},
+    "speedProfile": {
+      "profile": "fast"
+    },
+    "reconnectMode": "none",
+    "playerBehavior": "Natural, bounded user behavior outside explicitly selected Adapter checkpoints.",
+    "completionStatement": "Describe the visible state that ends the selected journey.",
+    "passRules": [
+      {
+        "id": "replace_with_stable_id",
+        "description": "Describe the visible behavior that passes.",
+        "oracle": "visible_ui"
+      }
+    ],
+    "failRules": [
+      {
+        "id": "replace_with_stable_id",
+        "description": "Describe the visible behavior that fails.",
+        "severity": "P1"
+      }
+    ],
+    "notEvaluated": [],
+    "stopConditions": [
+      "User interacts with a test tab",
+      "Required isolated player context is unavailable"
+    ],
+    "evidenceReuse": {
+      "policy": "prefer_reuse",
+      "requireCurrentBuild": true,
+      "requireProductionTiming": false
+    }
+  },
+  "delegatedFields": [],
+  "unanswered": [],
+  "conflicts": []
+}

@@ -1,0 +1,1 @@
+{ "type": "behavior_evaluation", "gameIndex": 2, "playerId": "P5", "configuredBehavior": "adaptive", "observedIntent": "evidence_sharing", "spoke": true, "claimAssessment": "partial", "settlementEvidence": "P5 truthfully reported the Robber swap and Insomniac card but did not account for P4's later P1/P2 swap." }

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "1.1",
+  "game": "onenightwolf",
+  "entryUrl": "http://localhost:4173/Onenightwolf/",
+  "playerCount": 3,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "deckPreset": "recommended",
+    "discussionSeconds": 180
+  },
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "At the minimum supported three-player boundary, verify mixed-experience users can create, join, reload one identity, configure the recommended deck, make only visible legal decisions, complete one natural game, and receive an isolated and cross-tab-consistent terminal result.",
+    "approach": "natural_user",
+    "userPerspective": "mixed_experience",
+    "focusAreas": [
+      "room_flow",
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "reconnect",
+      "usability",
+      "result_consistency"
+    ],
+    "journeyIds": [
+      "create_join_complete_game"
+    ],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "minimum_player_journey_complete",
+        "description": "All three players complete the create, join, start, play, and terminal journey through enabled visible UI controls.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "identity_reload_stable",
+        "description": "Each tab proves its own identity and exact chat authorship; reloading one lobby tab preserves that identity without changing peer tabs.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "recommended_settings_visible",
+        "description": "The lobby visibly reflects three players, a 180-second discussion timer, and the Adapter-recommended deck before start.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "private_information_isolated",
+        "description": "Before terminal disclosure, no player tab or isolated player agent receives another player's nonpublic role or night details.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "terminal_result_consistent",
+        "description": "Every player tab visibly exposes the same complete Adapter-normalized terminal result.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      }
+    ],
+    "recommendationRationale": "The three-player minimum is a high-risk boundary for recommended-deck composition, role flow, identity mapping, and terminal normalization. One complete natural-user journey provides broad production-time confidence while leaving speech, deception, silence, belief changes, vote participation, targets, and winner unconstrained."
+  },
+  "speed": {
+    "profile": "fast"
+  },
+  "players": [
+    {
+      "id": "P1",
+      "name": "P1-Ada",
+      "style": "careful first-time observer",
+      "traits": ["asks what visible evidence supports", "may revise beliefs"]
+    },
+    {
+      "id": "P2",
+      "name": "P2-Ben",
+      "style": "conversational regular player",
+      "traits": ["comfortable making tentative claims", "may stay concise"]
+    },
+    {
+      "id": "P3",
+      "name": "P3-Cleo",
+      "style": "intuitive risk-tolerant player",
+      "traits": ["can challenge public assumptions", "accepts uncertainty"]
+    }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": {
+    "mode": "logs_only"
+  },
+  "reconnect": {
+    "mode": "lobby_reload"
+  },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 30
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

@@ -1,0 +1,1 @@
+{ "type": "behavior_evaluation", "gameIndex": 2, "playerId": "P3", "configuredBehavior": "deceptive_claim", "observedIntent": "deceptive_claim", "spoke": true, "claimAssessment": "false", "settlementEvidence": "Settlement shows P3 was Werewolf, not Seer; night history shows center 2 was Werewolf when P3 inspected it." }

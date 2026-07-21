@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.1",
+  "game": "onenightwolf",
+  "entryUrl": "http://localhost:4175/Onenightwolf/",
+  "playerCount": 5,
+  "gamesToPlay": 3,
+  "gameSettings": { "deckPreset": "recommended", "discussionSeconds": 300 },
+  "testPurpose": {
+    "selectionSource": "user_questionnaire",
+    "objective": "Evaluate whether mixed-experience users can complete several games naturally while private views remain isolated and results agree.",
+    "approach": "natural_user",
+    "userPerspective": "mixed_experience",
+    "focusAreas": ["room_flow", "core_gameplay", "information_isolation", "result_consistency", "usability"],
+    "journeyIds": ["create_join_complete_game", "repeat_complete_game"],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "complete_three_games",
+        "description": "The group completes three games through visible legal UI actions.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "consistent_results",
+        "description": "Every player tab shows the same normalized terminal result in each game.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "private_views_isolated",
+        "description": "Private role and night information remain isolated until terminal disclosure.",
+        "oracle": "visible_ui",
+        "required": true
+      }
+    ]
+  },
+  "speed": { "profile": "fast" },
+  "players": [],
+  "interaction": { "maximumDecisionPasses": 3, "allowInaction": true, "userPacing": "human_like" },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "none" },
+  "limits": { "maxInvalidDecisions": 3, "maxDecisionSeconds": 120, "maxMinutesPerGame": 30 },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

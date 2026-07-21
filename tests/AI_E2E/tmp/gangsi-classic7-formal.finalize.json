@@ -1,0 +1,49 @@
+{
+  "status": "incomplete",
+  "productVerdict": "not_evaluated",
+  "findings": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0,
+    "decisionIsolationFailures": 0
+  },
+  "games": [
+    { "gameIndex": 1, "status": "incomplete" }
+  ],
+  "isolation": {
+    "playerTabs": "pass",
+    "privateUi": "pass",
+    "agentDecisionContext": "pass",
+    "evidenceRefs": "fail"
+  },
+  "serverManagedBySkill": "reused_existing_server",
+  "capability": {
+    "enabled": false,
+    "status": 404,
+    "timeScale": 1,
+    "timingFidelity": "production"
+  },
+  "agentProvenance": {
+    "mode": "isolated_subagents",
+    "forkTurns": "none",
+    "browserAccess": false,
+    "projectAccess": false,
+    "players": [
+      { "id": "P1", "agent": "/root/gangsi_p1" },
+      { "id": "P2", "agent": "/root/gangsi_p2" },
+      { "id": "P3", "agent": "/root/gangsi_p3" }
+    ]
+  },
+  "productBuild": {
+    "passed": true,
+    "command": "npm --prefix Gangsi test",
+    "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+    "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+    "sourceTreeDirty": true
+  },
+  "notes": [
+    "Visible gameplay completed the exact Classic fixed-map profile and all tabs agreed on P2 winning at4/4 before lobby return.",
+    "This attempt is quarantined because strict finalization found seven publicFacts text abbreviations that were not byte-identical to their source evidenceText.",
+    "No product defect or isolation failure was established; immutable logs are preserved and a clean formal rerun is required."
+  ]
+}

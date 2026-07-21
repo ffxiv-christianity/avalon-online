@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0",
+  "game": "onenightwolf",
+  "playerCount": 3,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "deckPreset": "recommended",
+    "discussionSeconds": 300
+  },
+  "speed": { "profile": "watch" },
+  "players": [
+    { "id": "P1", "name": "P1-Ada", "style": "evidence_first" },
+    { "id": "P2", "name": "P2-Ben", "style": "social_persuasion" },
+    { "id": "P3", "name": "P3-Cleo", "style": "risk_tolerant_contrarian" }
+  ],
+  "discussion": {
+    "maximumPublicPasses": 2,
+    "allowStrategicSilence": true,
+    "behaviorMix": "balanced",
+    "enforceBehaviorCoverage": false
+  },
+  "testPurpose": {
+    "mode": "natural_play",
+    "voteParticipation": "agent_decides",
+    "settlementTrigger": "natural",
+    "decisionPacing": "human_like",
+    "allowNonVoting": true
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "lobby_reload" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 30
+  },
+  "allowExperimental": true,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

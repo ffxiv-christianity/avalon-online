@@ -1,0 +1,19 @@
+{
+  "status": "incomplete",
+  "productVerdict": "not_evaluated",
+  "findings": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0,
+    "decisionIsolationFailures": 0
+  },
+  "games": [
+    { "gameIndex": 1, "status": "incomplete" }
+  ],
+  "serverManagedBySkill": "reused_existing_server",
+  "notes": [
+    "Clean visible-UI evidence mapped Hunt random-map resolution to 蟹制地圖1, professions, mummy type, shared objectives, arrow movement, all-dice auto-skip, and an isolated mummy ability.",
+    "The exploratory game intentionally stopped after representative journeys; mechanisms, escape, terminal, and return-to-lobby remain for formal certification.",
+    "This discovery evidence is not certification evidence and does not express a product verdict."
+  ]
+}

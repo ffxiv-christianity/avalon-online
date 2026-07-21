@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "1.1",
+  "game": "criminaldance",
+  "playerCount": 4,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "inspector": false,
+    "juvenile": false
+  },
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "Verify four isolated users can create, join, retain fixed identities, complete one visible base-deck Criminal Dance match through legal UI actions, keep every exact hand and draw result isolated, and reach one consistent normalized terminal result.",
+    "approach": "natural_user",
+    "userPerspective": "mixed_experience",
+    "focusAreas": [
+      "room_flow",
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "timing",
+      "result_consistency"
+    ],
+    "journeyIds": ["create_join_complete_match"],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "identity_fixed",
+        "description": "All four tabs retain distinct fixed player identities for the entire match.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "base_settings_visible",
+        "description": "The host selects four players with Inspector and Juvenile disabled, and every tab visibly renders the same settings.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "private_cards_isolated",
+        "description": "Exact hands, draws, received cards, forced discard choices, and actor-private card results appear only on the owning tab and in the owning agent Observation.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "legal_visible_actions",
+        "description": "Every strategic card, target, cancel, confirm, and forced action is legal in the same player's visible UI and references that player's current Observation.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "public_state_consistent",
+        "description": "Seat order, current player, hand counts, played piles, public cards, scores, and public log remain consistent across all four tabs.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "terminal_result_consistent",
+        "description": "All four tabs reach the same score-to-10 normalized terminal result, regardless of winner, strategy quality, or match length.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      }
+    ],
+    "recommendationRationale": "Four players and the visible base deck are the requested lowest-risk first baseline. Disabling both expansions isolates the core loop. The fast profile removes only harness operation delay and resolves to production serverTimeScale 1.0; the game declares no scalable non-decision waits. No targeted scenario is forced, so all strategic cards and targets remain autonomous."
+  },
+  "speed": { "profile": "fast" },
+  "players": [
+    { "id": "P1", "name": "舞者甲", "style": "evidence_first", "traits": ["cautious", "methodical"] },
+    { "id": "P2", "name": "舞者乙", "style": "social_persuasion", "traits": ["curious", "adaptive"] },
+    { "id": "P3", "name": "舞者丙", "style": "risk_tolerant_contrarian", "traits": ["direct", "willing_to_revise"] },
+    { "id": "P4", "name": "舞者丁", "style": "evidence_first", "traits": ["conservative", "uncertain"] }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "none" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 60
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

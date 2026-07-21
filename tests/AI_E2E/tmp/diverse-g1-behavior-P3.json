@@ -1,0 +1,1 @@
+{ "type": "behavior_evaluation", "gameIndex": 1, "playerId": "P3", "configuredBehavior": "deceptive_claim", "observedIntent": "deceptive_claim", "spoke": true, "claimAssessment": "false", "settlementEvidence": "Settlement shows P3 was Villager; night history shows P5, not P3, was Troublemaker and performed the P1/P2 swap." }

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.1",
+  "game": "onenightwolf",
+  "playerCount": 3,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "deckPreset": "recommended",
+    "discussionSeconds": 300
+  },
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "Verify first-time users can complete the main journey through visible legal UI actions with isolated private information and consistent results.",
+    "approach": "natural_user",
+    "userPerspective": "first_time_player",
+    "focusAreas": ["onboarding", "core_gameplay", "information_isolation", "result_consistency"],
+    "journeyIds": ["create_join_complete_game"],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "complete_visible_journey",
+        "description": "All players reach one consistent visible terminal result through Adapter-legal UI actions.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "private_views_isolated",
+        "description": "Private information remains inside the owning tab and player agent until visibly public.",
+        "oracle": "visible_ui",
+        "required": true
+      }
+    ],
+    "recommendationRationale": "A short natural-user journey provides the broadest initial playability signal without forcing game-specific outcomes."
+  },
+  "speed": { "profile": "fast" },
+  "players": [],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "none" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 30
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

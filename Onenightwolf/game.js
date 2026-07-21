@@ -13,6 +13,7 @@ const {
   kickOfflinePlayer: sharedKickOfflinePlayer
 } = require("../Shared/server/room-actions");
 const { cleanPlayerName } = require("../Shared/public/player-name");
+const { scaleNonDecisionWait } = require("../Shared/server/e2e-time");
 
 const ROLE_DEFS = {
   doppelganger: {
@@ -594,11 +595,12 @@ function advanceNightStage(room, now = Date.now()) {
 function makeNightStage(role, actorIds, now, options = {}) {
   const minDelay = role === "doppelInsomniac" ? DOPPEL_INSOMNIAC_DELAY_MIN_MS : CENTER_DELAY_MIN_MS;
   const maxDelay = role === "doppelInsomniac" ? DOPPEL_INSOMNIAC_DELAY_MAX_MS : CENTER_DELAY_MAX_MS;
+  const forcedDelay = scaleNonDecisionWait(randomDelay(minDelay, maxDelay));
   return {
     role,
     actorIds,
     completedIds: [],
-    delayUntil: actorIds.length && !options.forceDelay ? null : now + randomDelay(minDelay, maxDelay)
+    delayUntil: actorIds.length && !options.forceDelay ? null : now + forcedDelay
   };
 }
 

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1.1",
+  "game": "criminaldance",
+  "playerCount": 4,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "inspector": false,
+    "juvenile": false
+  },
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "Map the visible four-player baseline create, join, configure, start, private-hand, legal-action, reconnect, and terminal journeys needed for a Criminal Dance Adapter without issuing a product verdict.",
+    "approach": "exploratory",
+    "userPerspective": "first_time_player",
+    "focusAreas": [
+      "onboarding",
+      "room_flow",
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "reconnect",
+      "result_consistency"
+    ],
+    "journeyIds": [
+      "discover_user_journeys"
+    ],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "draft_adapter_map",
+        "description": "Visible settings, identity, roster, turn, private regions, legal actions, public state, reconnect behavior, and terminal normalization are mapped from real UI evidence.",
+        "oracle": "visible_ui",
+        "required": true
+      }
+    ],
+    "recommendationRationale": "A four-player baseline exposes the default lobby and deck while keeping the first discovery journey small enough to complete at production time; expansion settings are mapped but remain uncertified."
+  },
+  "speed": {
+    "profile": "fast"
+  },
+  "players": [
+    {
+      "id": "P1",
+      "name": "舞者甲",
+      "style": "cautious first-time player",
+      "traits": ["reads visible instructions"]
+    },
+    {
+      "id": "P2",
+      "name": "舞者乙",
+      "style": "curious social player",
+      "traits": ["explores legal targets"]
+    },
+    {
+      "id": "P3",
+      "name": "舞者丙",
+      "style": "direct pragmatic player",
+      "traits": ["prefers simple legal actions"]
+    },
+    {
+      "id": "P4",
+      "name": "舞者丁",
+      "style": "uncertain first-time player",
+      "traits": ["may revise choices"]
+    }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "fast_decisions"
+  },
+  "evidence": {
+    "mode": "logs_only"
+  },
+  "reconnect": {
+    "mode": "in_game_reload"
+  },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 60
+  },
+  "allowExperimental": false,
+  "allowDiscovery": true,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

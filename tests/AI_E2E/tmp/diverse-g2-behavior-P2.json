@@ -1,0 +1,1 @@
+{ "type": "behavior_evaluation", "gameIndex": 2, "playerId": "P2", "configuredBehavior": "selective_disclosure", "observedIntent": "selective_disclosure", "spoke": true, "claimAssessment": "partial", "settlementEvidence": "P2 truthfully claimed Drunk and a center swap but withheld that the selected card was center 2." }

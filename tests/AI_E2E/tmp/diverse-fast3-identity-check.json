@@ -1,0 +1,1 @@
+{ "type": "identity_check", "passed": true, "roomCode": "28AB98", "playerNames": ["P1-Ada", "P2-Ben", "P3-Cleo", "P4-Dara", "P5-Eli"], "reload": { "playerId": "P1", "identityPreserved": true, "explicitReconnectRequired": true, "otherTabsUnaffected": true } }

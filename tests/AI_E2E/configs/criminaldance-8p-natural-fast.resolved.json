@@ -1,0 +1,306 @@
+{
+  "schemaVersion": "1.1",
+  "game": "criminaldance",
+  "gameDisplayName": "犯人在跳舞",
+  "adapterStatus": "planned",
+  "entryUrl": "http://localhost:4173/CriminalDance/",
+  "playerCount": 8,
+  "gamesToPlay": 1,
+  "gameSettings": {
+    "inspector": false,
+    "juvenile": false
+  },
+  "speed": {
+    "profile": "fast",
+    "operationDelayMs": 0,
+    "pollIntervalMs": 100,
+    "serverTimeScale": 1,
+    "narration": "milestones",
+    "timingFidelity": "production"
+  },
+  "players": [
+    {
+      "id": "P1",
+      "name": "舞者甲",
+      "style": "evidence_first",
+      "traits": [
+        "cautious",
+        "methodical"
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "舞者乙",
+      "style": "social_persuasion",
+      "traits": [
+        "curious",
+        "adaptive"
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "舞者丙",
+      "style": "risk_tolerant_contrarian",
+      "traits": [
+        "direct",
+        "willing_to_revise"
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "舞者丁",
+      "style": "evidence_first",
+      "traits": [
+        "conservative",
+        "uncertain"
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "舞者戊",
+      "style": "social_persuasion",
+      "traits": [
+        "observant",
+        "patient"
+      ]
+    },
+    {
+      "id": "P6",
+      "name": "舞者己",
+      "style": "risk_tolerant_contrarian",
+      "traits": [
+        "bold",
+        "fallible"
+      ]
+    },
+    {
+      "id": "P7",
+      "name": "舞者庚",
+      "style": "evidence_first",
+      "traits": [
+        "quiet",
+        "adaptive"
+      ]
+    },
+    {
+      "id": "P8",
+      "name": "舞者辛",
+      "style": "social_persuasion",
+      "traits": [
+        "expressive",
+        "willing_to_revise"
+      ]
+    }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "Verify eight isolated natural users can create, join, retain fixed identities, complete one full-deck Criminal Dance match through legal visible UI actions, preserve every private hand and draw boundary, and reach one cross-tab-consistent normalized terminal result.",
+    "approach": "natural_user",
+    "userPerspective": "mixed_experience",
+    "focusAreas": [
+      "room_flow",
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "timing",
+      "result_consistency"
+    ],
+    "journeyIds": [
+      "create_join_complete_match"
+    ],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "eight_identities_fixed",
+        "description": "All eight tabs retain distinct fixed player identities from room entry through the visible match terminal.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "maximum_base_settings_visible",
+        "description": "The host selects eight players with Inspector and Juvenile disabled, and every tab visibly renders the same full base-deck settings.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "private_information_isolated",
+        "description": "Exact hands, draws, transfers, forced choices, and actor-private results appear only on the owning tab and in the owning player's Observation.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "natural_legal_actions",
+        "description": "Every strategic card, target, cancel, confirm, and forced response is selected autonomously by the owning player and is legal in that same player's visible UI.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "public_state_consistent",
+        "description": "Seat order, current player, hand counts, played piles, public cards, scores, and public log remain consistent across all eight tabs.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "terminal_result_consistent",
+        "description": "All eight tabs complete the score-to-10 match and display the same normalized terminal result regardless of winner, strategy quality, or match length.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      }
+    ],
+    "recommendationRationale": "Eight players is the Adapter maximum requested by the user and exercises the complete 32-card base deck. Natural-user mode forbids forced scenarios, so both optional expansions remain disabled and every strategic action stays autonomous. Fast removes only harness operation delay; Criminal Dance declares no scalable waits, so the resolved Server scale remains production-time 1.0."
+  },
+  "evidence": {
+    "mode": "logs_only"
+  },
+  "reconnect": {
+    "mode": "none"
+  },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 90
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "certificationCandidate": true,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E",
+  "adapter": {
+    "id": "criminaldance",
+    "contractVersion": "2.0",
+    "module": "scripts/adapters/criminaldance.js",
+    "manifest": null,
+    "testCommand": "npm --prefix CriminalDance test",
+    "scalableWaits": [],
+    "capabilities": {
+      "identityProof": "public_chat_reconnect_entry_and_own_dom",
+      "publicCommunication": true,
+      "journeys": [
+        {
+          "id": "discover_user_journeys",
+          "title": "Discover visible user journeys and verify the draft Adapter"
+        },
+        {
+          "id": "create_join_complete_match",
+          "title": "Create, join, and complete a score-to-10 match"
+        }
+      ],
+      "scenarios": [
+        {
+          "id": "forced_first_finder",
+          "title": "Verify the forced First Finder opening"
+        },
+        {
+          "id": "detective_resolution",
+          "title": "Verify Detective target and result confirmation"
+        },
+        {
+          "id": "dog_forced_discard",
+          "title": "Verify Dog target forced discard and transfer"
+        },
+        {
+          "id": "witness_visibility",
+          "title": "Verify Witness result is actor-private"
+        },
+        {
+          "id": "information_exchange",
+          "title": "Verify simultaneous Information Exchange"
+        },
+        {
+          "id": "rumor_simultaneous_draw",
+          "title": "Verify staged Rumor draws"
+        },
+        {
+          "id": "trade_exchange",
+          "title": "Verify the two-player Trade reply"
+        },
+        {
+          "id": "culprit_last_card",
+          "title": "Verify Culprit is playable only as the last card"
+        },
+        {
+          "id": "inspector_public_marker",
+          "title": "Verify Inspector public marker and round-result override"
+        },
+        {
+          "id": "juvenile_opening_clue",
+          "title": "Verify Juvenile private opening-clue isolation"
+        }
+      ],
+      "oracles": [
+        "visible_ui",
+        "public_log",
+        "cross_tab_consistency"
+      ],
+      "certifiedPlayerCounts": [],
+      "executableSettings": {
+        "inspector": [
+          false,
+          true
+        ],
+        "juvenile": [
+          false,
+          true
+        ]
+      },
+      "selectableTestProfiles": [
+        {
+          "id": "base",
+          "settings": {
+            "inspector": false,
+            "juvenile": false
+          },
+          "scenarioIds": [],
+          "status": "planned"
+        },
+        {
+          "id": "inspector",
+          "settings": {
+            "inspector": true,
+            "juvenile": false
+          },
+          "scenarioIds": [
+            "inspector_public_marker"
+          ],
+          "status": "planned"
+        },
+        {
+          "id": "juvenile",
+          "settings": {
+            "inspector": false,
+            "juvenile": true
+          },
+          "scenarioIds": [
+            "juvenile_opening_clue"
+          ],
+          "status": "planned"
+        },
+        {
+          "id": "inspector_juvenile",
+          "settings": {
+            "inspector": true,
+            "juvenile": true
+          },
+          "scenarioIds": [
+            "inspector_public_marker",
+            "juvenile_opening_clue"
+          ],
+          "status": "planned"
+        }
+      ],
+      "mappedButUncertified": [
+        "player counts 3-8",
+        "Inspector expansion",
+        "Juvenile expansion",
+        "full Trade reply",
+        "Culprit last-card terminal",
+        "complete natural match to 10"
+      ]
+    }
+  }
+}

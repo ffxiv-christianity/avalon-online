@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.1",
+  "game": "loveletter",
+  "playerCount": 2,
+  "gamesToPlay": 1,
+  "gameSettings": {},
+  "testPurpose": {
+    "selectionSource": "user_questionnaire",
+    "objective": "Verify two isolated natural users can create and join a Love Letter room, retain fixed identities, use the visible two-player default target, complete every round through legal visible UI actions, preserve private hands and actor-only results, and reach one cross-tab-consistent full-match terminal result.",
+    "approach": "natural_user",
+    "userPerspective": "mixed_experience",
+    "focusAreas": [
+      "room_flow",
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "reconnect",
+      "result_consistency"
+    ],
+    "journeyIds": ["create_join_complete_match"],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "identities_fixed",
+        "description": "Both tabs retain distinct fixed player identities through visible reconnect and match terminal.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "default_target_visible",
+        "description": "Both tabs visibly agree on the two-player UI default target of six hearts.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "private_information_isolated",
+        "description": "Exact hands, draws, pending choices, and actor-only card results stay on the owning tab and in the owning agent Observation.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "natural_legal_actions",
+        "description": "Every card, target, guess, pending choice, and confirmation comes from the acting player's current visible legal controls and isolated Decision.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "public_state_consistent",
+        "description": "Settings, current player, hand counts, discards, protection, elimination, hearts, and public action log agree on both tabs.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      },
+      {
+        "id": "terminal_result_consistent",
+        "description": "Both tabs complete the full target-heart match and normalize to the same winner, round history, and heart totals.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      }
+    ]
+  },
+  "speed": { "profile": "fast" },
+  "players": [
+    { "id": "P1", "name": "正式甲", "style": "evidence_first", "traits": ["cautious", "methodical"] },
+    { "id": "P2", "name": "正式乙", "style": "adaptive", "traits": ["curious", "fallible"] }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "in_game_reload" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 120
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "certificationCandidate": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

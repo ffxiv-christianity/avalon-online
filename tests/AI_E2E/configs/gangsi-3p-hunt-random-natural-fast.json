@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.1",
+  "game": "gangsi",
+  "playerCount": 3,
+  "gamesToPlay": 1,
+  "gameSettings": { "mode": "hunt", "mapSelection": "random" },
+  "testPurpose": {
+    "selectionSource": "provided_config",
+    "objective": "Verify three isolated natural users can create and join a random-map Hunt Gangsi room, choose distinct visible abilities, retain identities through lobby reload, complete the game through legal visible UI actions, preserve missions, positions, and ability details, see one consistent terminal result, and return to the reset lobby.",
+    "approach": "natural_user",
+    "userPerspective": "mixed_experience",
+    "focusAreas": ["room_flow", "settings", "core_gameplay", "information_isolation", "reconnect", "usability", "accessibility", "result_consistency"],
+    "journeyIds": ["create_join_complete_hunt_game"],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      { "id": "hunt_settings_visible", "description": "All tabs visibly agree on three players, Hunt mode, random selection, and the resolved map after start.", "oracle": "cross_tab_consistency", "required": true },
+      { "id": "identities_and_reload", "description": "Three distinct identities are proved in chat and one lobby reload reconnects to the same identity.", "oracle": "visible_ui", "required": true },
+      { "id": "hunt_abilities_visible", "description": "The lobby enforces distinct adventurer professions and one mummy type, with own ability state visible in game.", "oracle": "visible_ui", "required": true },
+      { "id": "private_information_isolated", "description": "Mission cards, hidden positions, traps, and actor-only ability results remain in the owning tab and Observation.", "oracle": "visible_ui", "required": true },
+      { "id": "natural_legal_actions", "description": "Every turn, ability, mechanism, movement, reveal, capture, and escape action comes from current visible enabled controls and an isolated Decision.", "oracle": "visible_ui", "required": true },
+      { "id": "hunt_terminal_consistent", "description": "All tabs reach and normalize the same Hunt winner, player result rows, and escaped/dead totals.", "oracle": "cross_tab_consistency", "required": true },
+      { "id": "return_to_lobby", "description": "After terminal review, the host returns every tab to a visibly reset preparation lobby.", "oracle": "cross_tab_consistency", "required": true }
+    ]
+  },
+  "speed": { "profile": "fast" },
+  "players": [
+    { "id": "P1", "name": "獵殺甲", "style": "evidence_first", "traits": ["cooperative", "methodical"] },
+    { "id": "P2", "name": "獵殺乙", "style": "adaptive", "traits": ["curious", "fallible"] },
+    { "id": "P3", "name": "獵殺丙", "style": "goal_oriented", "traits": ["decisive", "observant"] }
+  ],
+  "interaction": { "maximumDecisionPasses": 3, "allowInaction": true, "userPacing": "human_like" },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "lobby_reload" },
+  "limits": { "maxInvalidDecisions": 3, "maxDecisionSeconds": 120, "maxMinutesPerGame": 180 },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "certificationCandidate": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

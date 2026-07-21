@@ -1,0 +1,16 @@
+{
+  "type": "server_capability",
+  "endpoint": "http://localhost:4176/__ai-e2e/capabilities",
+  "status": 200,
+  "response": {
+    "enabled": true,
+    "timeScale": 0.1,
+    "timingFidelity": "accelerated_waits",
+    "scalableWaits": [
+      "onenightwolf.night-placeholder",
+      "onenightwolf.doppel-insomniac",
+      "avalon.public-result"
+    ]
+  },
+  "serverManagement": "reused_existing_server"
+}

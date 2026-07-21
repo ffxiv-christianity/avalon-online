@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.1",
+  "game": "loveletter",
+  "playerCount": 2,
+  "gamesToPlay": 1,
+  "gameSettings": { "targetHearts": 1 },
+  "testPurpose": {
+    "selectionSource": "user_questionnaire",
+    "objective": "Re-run the complete visible two-player Love Letter discovery journey with the UI-selected legal one-heart target, preserving strict real-time evidence from entry, room creation and joining through identity persistence, settings, readiness, turn actions, round settlement, heart accumulation, and full-match terminal normalization without issuing a formal product verdict.",
+    "approach": "exploratory",
+    "userPerspective": "first_time_player",
+    "focusAreas": [
+      "onboarding",
+      "room_flow",
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "reconnect",
+      "usability",
+      "result_consistency"
+    ],
+    "journeyIds": ["discover_user_journeys"],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "draft_adapter_map",
+        "description": "Visible room, identity, settings, readiness, private cards, legal actions and targets, public states, round settlement, heart progression, terminal state, and normalized cross-tab result are mapped from the real UI.",
+        "oracle": "visible_ui",
+        "required": true
+      }
+    ]
+  },
+  "speed": { "profile": "watch" },
+  "players": [
+    {
+      "id": "P1",
+      "name": "戀人甲",
+      "style": "cautious first-time player",
+      "traits": ["reads visible card text", "prefers clear legal actions"]
+    },
+    {
+      "id": "P2",
+      "name": "戀人乙",
+      "style": "curious first-time player",
+      "traits": ["explores visible targets", "may revise choices"]
+    }
+  ],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "human_like"
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "in_game_reload" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 90
+  },
+  "allowExperimental": false,
+  "allowDiscovery": true,
+  "certificationCandidate": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

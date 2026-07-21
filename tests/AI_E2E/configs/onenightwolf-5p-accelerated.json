@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0",
+  "game": "onenightwolf",
+  "entryUrl": "http://localhost:4176/Onenightwolf/",
+  "playerCount": 5,
+  "gamesToPlay": 2,
+  "gameSettings": {
+    "deckPreset": "recommended",
+    "discussionSeconds": 900
+  },
+  "speed": { "profile": "accelerated" },
+  "players": [
+    { "id": "P1", "name": "P1-Ada", "style": "evidence_first", "communicationBehavior": "evidence_sharing" },
+    { "id": "P2", "name": "P2-Ben", "style": "social_persuasion", "communicationBehavior": "selective_disclosure" },
+    { "id": "P3", "name": "P3-Cleo", "style": "risk_tolerant_contrarian", "communicationBehavior": "deceptive_claim" },
+    { "id": "P4", "name": "P4-Dara", "style": "evidence_first", "communicationBehavior": "strategic_silence" },
+    { "id": "P5", "name": "P5-Eli", "style": "social_persuasion", "communicationBehavior": "adaptive" }
+  ],
+  "discussion": {
+    "maximumPublicPasses": 2,
+    "allowStrategicSilence": true,
+    "behaviorMix": "custom",
+    "enforceBehaviorCoverage": true
+  },
+  "testPurpose": {
+    "mode": "behavior_matrix",
+    "voteParticipation": "agent_decides",
+    "settlementTrigger": "natural",
+    "decisionPacing": "human_like",
+    "allowNonVoting": true
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "lobby_reload" },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 30
+  },
+  "allowExperimental": true,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

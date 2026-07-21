@@ -1,0 +1,51 @@
+{
+  "status": "complete",
+  "productVerdict": "pass",
+  "findings": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0,
+    "decisionIsolationFailures": 0
+  },
+  "games": [
+    { "gameIndex": 1, "status": "complete" }
+  ],
+  "isolation": {
+    "playerTabs": "pass",
+    "privateUi": "pass",
+    "agentDecisionContext": "pass",
+    "evidenceRefs": "pass"
+  },
+  "serverManagedBySkill": "reused_existing_server",
+  "capability": {
+    "enabled": false,
+    "status": 404,
+    "timeScale": 1,
+    "timingFidelity": "production"
+  },
+  "agentProvenance": {
+    "mode": "isolated_subagents",
+    "forkTurns": "none",
+    "browserAccess": false,
+    "projectAccess": false,
+    "players": [
+      { "id": "P1", "agent": "/root/avalon_p1" },
+      { "id": "P2", "agent": "/root/avalon_p2" },
+      { "id": "P3", "agent": "/root/avalon_p3" },
+      { "id": "P4", "agent": "/root/avalon_p4" },
+      { "id": "P5", "agent": "/root/avalon_p5" }
+    ]
+  },
+  "productBuild": {
+    "passed": true,
+    "command": "npm --prefix Avalon test",
+    "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+    "productSourceSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+    "sourceTreeDirty": true
+  },
+  "notes": [
+    "The complete natural-user Run passed without using the gameplay winner as a success condition.",
+    "The natural game ended after three failed quests, so assassination controls were not reached in this formal Run.",
+    "Avalon remains experimental until a separate complete natural Run supplies assassination-branch certification evidence."
+  ]
+}

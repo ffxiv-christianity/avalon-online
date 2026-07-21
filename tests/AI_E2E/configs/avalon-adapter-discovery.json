@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.1",
+  "game": "avalon",
+  "playerCount": 5,
+  "gamesToPlay": 1,
+  "gameSettings": {},
+  "testPurpose": {
+    "selectionSource": "ai_recommended",
+    "objective": "Discover Avalon's visible user journeys and draft a semantic Adapter without claiming formal game correctness.",
+    "approach": "exploratory",
+    "userPerspective": "first_time_player",
+    "focusAreas": ["onboarding", "room_flow", "settings", "core_gameplay", "information_isolation", "result_consistency"],
+    "journeyIds": ["discover_user_journeys"],
+    "scenarioIds": [],
+    "scenarioParameters": {},
+    "successCriteria": [{
+      "id": "draft_adapter_map",
+      "description": "The visible identity, settings, phase, legal-action, private-region, and terminal-result map is documented.",
+      "oracle": "visible_ui",
+      "required": true
+    }],
+    "recommendationRationale": "Avalon is planned, so discovery must precede formal user-journey execution."
+  },
+  "speed": { "profile": "watch" },
+  "players": [],
+  "interaction": { "maximumDecisionPasses": 2, "allowInaction": true, "userPacing": "deliberate" },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "none" },
+  "limits": { "maxInvalidDecisions": 3, "maxDecisionSeconds": 120, "maxMinutesPerGame": 30 },
+  "allowExperimental": false,
+  "allowDiscovery": true,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

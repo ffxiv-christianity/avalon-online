@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "game": "onenightwolf",
+  "entryUrl": "http://localhost:4175/Onenightwolf/",
+  "playerCount": 5,
+  "gamesToPlay": 1,
+  "gameSettings": { "deckPreset": "recommended", "discussionSeconds": 120 },
+  "speed": { "profile": "fast" },
+  "players": [],
+  "discussion": {
+    "maximumPublicPasses": 0,
+    "allowStrategicSilence": true,
+    "behaviorMix": "balanced",
+    "enforceBehaviorCoverage": false
+  },
+  "testPurpose": {
+    "mode": "rules_matrix",
+    "voteParticipation": "none",
+    "settlementTrigger": "deadline",
+    "voterIds": []
+  },
+  "evidence": { "mode": "logs_only" },
+  "reconnect": { "mode": "none" },
+  "limits": { "maxInvalidDecisions": 3, "maxDecisionSeconds": 120, "maxMinutesPerGame": 10 },
+  "allowExperimental": true,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

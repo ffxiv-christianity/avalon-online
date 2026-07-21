@@ -1,0 +1,31 @@
+{
+  "type": "settlement_detail",
+  "gameIndex": 2,
+  "headline": "狼人陣營獲勝",
+  "reason": "所有狼人都躲過了處決。",
+  "winner": "werewolf",
+  "eliminated": ["P1-Ada"],
+  "votes": [
+    { "voter": "P1-Ada", "target": "P3-Cleo" },
+    { "voter": "P2-Ben", "target": "P1-Ada" },
+    { "voter": "P3-Cleo", "target": "P1-Ada" },
+    { "voter": "P4-Dara", "target": "P2-Ben" },
+    { "voter": "P5-Eli", "target": "P1-Ada" }
+  ],
+  "finalRoles": {
+    "P1-Ada": "drunk",
+    "P2-Ben": "werewolf",
+    "P3-Cleo": "werewolf",
+    "P4-Dara": "troublemaker",
+    "P5-Eli": "insomniac"
+  },
+  "centerCards": ["villager", "robber", "seer"],
+  "nightHistory": [
+    "P3-Cleo 獨自睜眼，沒有其他狼人，查看中央第 2 張「狼人」。",
+    "沒有玩家以「預言家」初始身分行動；該角色牌開局時位於中央。",
+    "P5-Eli 與 P1-Ada 交換「強盜」和「失眠者」，P5-Eli 查看後得知自己換到「失眠者」。",
+    "P4-Dara 交換 P1-Ada 的「強盜」與 P2-Ben 的「酒鬼」，當時沒有查看牌面。",
+    "P2-Ben 將「強盜」與中央第 2 張「狼人」交換，當時沒有查看新牌。",
+    "P1-Ada 在夜晚結束前查看自己的牌，看到「酒鬼」。"
+  ]
+}
