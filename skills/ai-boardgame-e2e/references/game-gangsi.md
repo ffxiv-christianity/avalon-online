@@ -9,6 +9,27 @@ Gangsi is a 2–5 player asymmetric chase game. The experimental Adapter validat
 
 All game actions must come from the in-app Browser's visible semantic UI. Do not use WebSocket calls, server state, engine fixtures, or screenshots as action or result evidence.
 
+## Five-player Hunt feature coverage
+
+The experimental Adapter declares a formal `execute_hunt5_feature_coverage` journey with 20 checkpoint requirements and three approved route scenarios. Its canonical Run-level settings are a schedule, not three simultaneous lobby values:
+
+```json
+{
+  "mode": "hunt",
+  "mapSchedule": ["fixed:classic", "fixed:test-map", "random"]
+}
+```
+
+The route-to-journey binding is immutable:
+
+- Journey 1: `route.hunt5.01_trap_core_escape`, profile `hunt5.classic`, fixed `classic`, trap mummy, visible adventurer terminal.
+- Journey 2: `route.hunt5.02_invisible_last_survivor`, profile `hunt5.test_map`, fixed `test-map` / 蟹制地圖1, invisible mummy, visible mummy terminal.
+- Journey 3: `route.hunt5.03_knife_targeted`, profile `hunt5.random`, host visibly enables random map, knife mummy, stop at `knife_cp_complete` after sufficient checkpoint evidence.
+
+Each `gangsi_settings_verified` and `gangsi_game_setup` event names its route and proves the per-journey lobby selection. For the random journey, `gangsi_game_setup` records the map ID and name visibly resolved by the product after start. A public sanitized `adapter_checkpoint` records every declared sub-assertion as a boolean; the matching `checkpoint_result` must cite that logs-only evidence. Private mission, position, trap, ability, and profession facts remain in the owning player's observation log and are referenced only by scoped IDs.
+
+The baseline plan is 8,070 seconds: 3,600 + 150 initial setup, 2,700 + 210 reset/setup, and 1,200 + 210 reset/setup. It has two resets, four random dependencies, and the deterministic plan hash `fb4166aa59efa5db318f3be3421f30addad9590ee75bcafc8bcd818e79c32ef8` when no checkpoint evidence is reused.
+
 ## Identity and lobby
 
 - Entry: `textbox "你的名字"`, `textbox "房間代碼或邀請連結"`, `button "建立房間"`, `button "加入房間"`.

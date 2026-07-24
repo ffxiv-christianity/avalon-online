@@ -74,11 +74,11 @@ A certification candidate is an execution gate, not a promotion. Record the Cata
 
 ## Preflight the environment
 
-Read [speed-profiles.md](references/speed-profiles.md) and [resource-lifecycle.md](references/resource-lifecycle.md).
+Read [speed-profiles.md](references/speed-profiles.md), [product-identity.md](references/product-identity.md), and [resource-lifecycle.md](references/resource-lifecycle.md).
 
 1. Confirm the Adapter entry URL is reachable.
-2. Run its existing product tests and record the Git commit, dirty flag, and deterministic product-source digest.
-3. Reuse a healthy Server for production-time profiles. For scale below 1, require loopback, matching `/__ai-e2e/capabilities`, and Adapter-declared scalable waits.
+2. Select one honest product identity. For a local checkout-bound Server, run its existing product tests and record `local_source`. For a deployment without verifiable source provenance, capture `deployed_web_assets` from the entry HTML and its referenced JS/CSS and state the narrower preflight scope; never copy the local Git/source digest into deployment evidence.
+3. Reuse a healthy Server for production-time profiles. For local scale below 1, require loopback, matching `/__ai-e2e/capabilities`, and Adapter-declared scalable waits. For an unowned remote deployment at scale 1, do not probe any private capability endpoint; record `not_applicable_remote_production` instead.
 4. Ask before stopping or replacing a running Server.
 5. Use the Browser skill and in-app browser for all game actions. Do not play through direct WebSocket, Server state, fixtures, or standalone automation.
 6. Create a task-local ownership ledger before opening tabs or starting processes. Record exact identity for every resource this Run creates; resources that already exist are reused, never owned.
@@ -107,9 +107,9 @@ For each configured player:
 7. Execute the valid decision in that player's tab. The referee may perform only deterministic single-option acknowledgements.
 8. Record public communication only after it renders in shared UI.
 9. Record phase, action, timer, usability, and Adapter checkpoints with generic event types. Do not infer hidden Server state.
-10. Satisfy the Adapter-derived completion requirements. `terminal_visible` requires a visible terminal and Adapter-valid normalized result; `cross_tab_final_state` requires the same normalized result from every player tab; `checkpoint` requires scoped visible evidence plus `checkpoint_result`.
+10. Satisfy the Adapter-derived completion requirements. `terminal_visible` requires a visible terminal and Adapter-valid normalized result; `cross_tab_final_state` requires the same normalized result from every player tab; `checkpoint` requires scoped visible evidence plus `checkpoint_result`. Requirements default to `per_execution`; checkpoints explicitly marked `across_run`, or targeted by an approved CoveragePlan, are satisfied once across the Run and distributed to the execution that produced their evidence.
 11. Around every CoveragePlan route append `coverage_route_started` and `coverage_route_completed` with actual duration and evidence refs. If visible random/current state makes a route unavailable, replan only remaining CPs, log `coverage_replanned`, and preserve the approved objective and verdict rules.
-12. After all requirements are satisfied, append one `journey_completed` per selected journey with the exact derived `requirementIds`. Do not fabricate terminal, final-state, or checkpoint evidence that the journey does not reach.
+12. After each execution's requirements are satisfied, append one `journey_completed` per selected journey. List every per-execution requirement plus only the run-scoped checkpoints actually evidenced in that execution; their union with approved reused checkpoints must satisfy the full Run contract. Do not fabricate terminal, final-state, or checkpoint evidence that the journey does not reach.
 13. Evaluate each configured success criterion with its declared visible oracle. Gameplay outcomes do not determine the E2E verdict unless the stated objective specifically tests that outcome rule.
 
 Pause immediately if the user interacts with a test tab.
@@ -139,7 +139,7 @@ After all available game evidence is written, append exactly one `resource_clean
 ## Audit and report
 
 1. Complete resource cleanup after the last journey and append `resource_cleanup`.
-2. Recompute product identity. Fail if it changed during play.
+2. Recompute the same product identity kind. Fail if the local source identity or deployed asset manifest changed during play.
 3. Append `product_build_verified` immediately before finalization.
 4. Finalize once with actual status, verdict, findings, journey/game results, isolation, Server/capability data, agent provenance, and product identity.
 5. Let finalization run deterministic audit and reporting. Re-run manually only when inspecting:

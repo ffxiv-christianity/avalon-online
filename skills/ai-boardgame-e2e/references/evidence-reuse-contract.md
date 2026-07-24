@@ -6,7 +6,7 @@ Historical evidence can reduce unnecessary E2E execution, but it cannot broaden 
 
 1. Complete the mandatory questionnaire in [e2e-questionnaire.md](e2e-questionnaire.md).
 2. Resolve the candidate config and Adapter IDs.
-3. Compute the current product-source digest when `requireCurrentBuild` is true.
+3. Compute the current product fingerprint under the same identity kind when `requireCurrentBuild` is true. Use local source identity for a checkout-bound Server or deployed asset identity for an independently deployed URL; see [product-identity.md](product-identity.md).
 4. Build a sanitized index from immutable Run directories.
 5. Query direct criterion, checkpoint, and journey IDs. Free-text terms may discover candidates but never establish exact reuse by themselves.
 6. Inspect the cited public events and re-audit any exact candidate with the current auditor.
@@ -28,7 +28,7 @@ An exact reused result may prove either a pass or a fail. It must preserve the e
 All applicable gates must pass:
 
 - identical game and directly requested Adapter IDs;
-- matching current `productSourceSha256` when current-build evidence is required;
+- matching current product identity kind and fingerprint when current-build evidence is required;
 - matching player count and requested game-setting constraints;
 - current read-only audit passes;
 - Run status is `complete` and verdict is compatible with the requested expected result;
@@ -46,7 +46,7 @@ The index may contain:
 
 - Run/config/audit identity and paths;
 - game, player count, settings fingerprint, speed, timing fidelity, journey/scenario IDs;
-- product digest and Git identity;
+- product identity kind and fingerprint, plus Git identity only for local-source Runs;
 - criterion/checkpoint/journey IDs, boolean results, and evidence reference IDs;
 - verdict, finding counts, isolation statuses, and current audit status.
 
@@ -72,11 +72,14 @@ Use direct IDs whenever available:
   "playerCount": 3,
   "gameSettings": {},
   "requireCurrentBuild": true,
-  "currentProductSourceSha256": "<sha256>",
+  "currentProductIdentityKind": "deployed_web_assets",
+  "currentProductFingerprintSha256": "<sha256>",
   "requireProductionTiming": false,
   "requireIsolation": true
 }
 ```
+
+Legacy local queries may continue to supply `currentProductSourceSha256`; it resolves to `local_source`. A local-source digest never matches a deployed-asset fingerprint merely because both are SHA-256 values.
 
 If no stable direct IDs exist in older evidence, use terms to find candidates, inspect their public events, and then either map a verified direct ID or classify the result as partial/historical. Terms alone never produce `exact_reuse`.
 

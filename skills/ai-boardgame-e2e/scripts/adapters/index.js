@@ -10,6 +10,7 @@ const COMPLETION_REQUIREMENT_KINDS = new Set([
   "cross_tab_final_state",
   "checkpoint"
 ]);
+const COMPLETION_REQUIREMENT_SCOPES = new Set(["per_execution", "across_run"]);
 const DEFAULT_COMPLETION_REQUIREMENTS = Object.freeze([
   Object.freeze({ id: "visible_terminal", kind: "terminal_visible" }),
   Object.freeze({ id: "cross_tab_result", kind: "cross_tab_final_state" })
@@ -49,10 +50,20 @@ function normalizedRequirements(value, label, errors, fallback = []) {
     if (!COMPLETION_REQUIREMENT_KINDS.has(kind)) {
       errors.push(`${label}[${index}].kind must be terminal_visible, cross_tab_final_state, or checkpoint.`);
     }
-    const allowedKeys = new Set(["id", "kind", "checkpointId"]);
+    const allowedKeys = new Set(["id", "kind", "checkpointId", "scope"]);
     const unexpected = Object.keys(requirement).filter((key) => !allowedKeys.has(key));
     if (unexpected.length) errors.push(`${label}[${index}] has unknown fields: ${unexpected.join(", ")}.`);
     const normalized = { id, kind };
+    if (requirement.scope !== undefined) {
+      const scope = String(requirement.scope || "");
+      if (!COMPLETION_REQUIREMENT_SCOPES.has(scope)) {
+        errors.push(`${label}[${index}].scope must be per_execution or across_run.`);
+      } else if (kind !== "checkpoint") {
+        errors.push(`${label}[${index}].scope is only valid for checkpoint requirements.`);
+      } else {
+        normalized.scope = scope;
+      }
+    }
     if (kind === "checkpoint") {
       normalized.checkpointId = safeIdentifier(
         requirement.checkpointId || id,
@@ -196,7 +207,17 @@ function resolveGenericPurpose(value, context, errors) {
     if (!context.catalogEntry.capabilities?.oracles?.includes(oracle) && !["visible_ui", "public_log", "cross_tab_consistency"].includes(oracle)) {
       errors.push(`Unsupported success criterion oracle: ${oracle}.`);
     }
-    return { id, description, oracle, required: criterion?.required !== false };
+    const scope = criterion?.scope === undefined ? null : String(criterion.scope || "");
+    if (scope !== null && !COMPLETION_REQUIREMENT_SCOPES.has(scope)) {
+      errors.push(`testPurpose.successCriteria[${index}].scope must be per_execution or across_run.`);
+    }
+    return {
+      id,
+      description,
+      oracle,
+      required: criterion?.required !== false,
+      ...(scope ? { scope } : {})
+    };
   }) : [];
   if (!successCriteria.length) errors.push("testPurpose.successCriteria requires at least one observable criterion.");
   if (new Set(successCriteria.map((item) => item.id)).size !== successCriteria.length) {
@@ -228,6 +249,7 @@ module.exports = {
   PURPOSE_SOURCES,
   PURPOSE_APPROACHES,
   COMPLETION_REQUIREMENT_KINDS,
+  COMPLETION_REQUIREMENT_SCOPES,
   DEFAULT_COMPLETION_REQUIREMENTS,
   USER_PERSPECTIVES,
   FOCUS_AREAS,

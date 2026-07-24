@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1.1",
+  "game": "gangsi",
+  "entryUrl": "https://avalon-online-lhem.onrender.com/Gangsi/",
+  "playerCount": 5,
+  "gamesToPlay": 3,
+  "gameSettings": {
+    "mode": "hunt",
+    "mapSchedule": [
+      "fixed:classic",
+      "fixed:test-map",
+      "random"
+    ]
+  },
+  "testPurpose": {
+    "selectionSource": "provided_config",
+    "objective": "Verify all 20 declared five-player Gangsi Hunt checkpoints through three approved visible-UI journeys while preserving player information isolation and consistent terminal results.",
+    "approach": "mixed",
+    "userPerspective": "experienced_player",
+    "focusAreas": [
+      "settings",
+      "core_gameplay",
+      "information_isolation",
+      "result_consistency"
+    ],
+    "journeyIds": [
+      "execute_hunt5_feature_coverage"
+    ],
+    "scenarioIds": [
+      "hunt5_trap_core_escape",
+      "hunt5_invisible_last_survivor",
+      "hunt5_knife_targeted"
+    ],
+    "scenarioParameters": {},
+    "successCriteria": [
+      {
+        "id": "all_hunt_checkpoints_visible",
+        "description": "Every one of the 20 declared Hunt checkpoints has scoped visible evidence, every declared sub-assertion is true, and the matching checkpoint_result passes within its approved route.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "hunt_information_isolated",
+        "description": "No player tab or agent receives another player's mission, hidden position, trap position, or actor-only ability state.",
+        "oracle": "visible_ui",
+        "required": true
+      },
+      {
+        "id": "hunt_terminals_consistent",
+        "description": "The two terminal routes show identical normalized winner, escape/death totals, adventurer rows, and mummy row across all five tabs.",
+        "oracle": "cross_tab_consistency",
+        "required": true
+      }
+    ]
+  },
+  "speed": {
+    "profile": "fast"
+  },
+  "players": [],
+  "interaction": {
+    "maximumDecisionPasses": 3,
+    "allowInaction": true,
+    "userPacing": "fast_decisions"
+  },
+  "evidence": {
+    "mode": "logs_only"
+  },
+  "reconnect": {
+    "mode": "none"
+  },
+  "resourceLifecycle": {
+    "policyVersion": "1.0",
+    "cleanupAfterRun": true
+  },
+  "limits": {
+    "maxInvalidDecisions": 3,
+    "maxDecisionSeconds": 120,
+    "maxMinutesPerGame": 180
+  },
+  "allowExperimental": true,
+  "allowDiscovery": false,
+  "certificationCandidate": false,
+  "artifactRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E"
+}

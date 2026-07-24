@@ -321,7 +321,7 @@ function makeTreasureEnd(room, piece, treasureId) {
   result = HuntEngine.resolveMechanismFace(room, "A", 1);
   assert.strictEqual(result.appliedProgress, 2);
   assert.strictEqual(room.game.hunt.mechanisms.A, 3);
-  assert.strictEqual(engineer.mechanismActions, 2);
+  assert.strictEqual(engineer.mechanismContribution, 3, "contribution must equal the 1 + 2 progress actually applied");
   assert.strictEqual(room.game.hunt.exits.A, "open");
   assert.strictEqual(room.game.hunt.tracking.enabled, false, "opening an exit must not start tracking by itself");
 
@@ -336,6 +336,7 @@ function makeTreasureEnd(room, piece, treasureId) {
     appliedProgress: capped.appliedProgress,
     finalProgress: capped.finalProgress
   }, { baseProgress: 2, classBonus: 1, calculatedProgress: 3, appliedProgress: 1, finalProgress: 3 });
+  assert.strictEqual(engineer.mechanismContribution, 4, "progress beyond the mechanism cap must not add contribution");
   assert.strictEqual(room.game.hunt.mechanismSeals.B, null);
 
   engineer.position = "5,1";
@@ -426,12 +427,14 @@ function makeTreasureEnd(room, piece, treasureId) {
       room.game.hunt.mechanisms.A = 0;
       room.game.hunt.exits.A = "closed";
       room.game.hunt.mechanismSeals.A = null;
+      piece.mechanismContribution = 0;
       const result = HuntEngine.resolveMechanismFace(room, "A", face);
       assert.strictEqual(result.baseProgress, base);
       assert.strictEqual(result.classBonus, bonus);
       assert.strictEqual(result.calculatedProgress, base + bonus);
       assert.strictEqual(result.finalProgress, Math.min(3, base + bonus));
       assert.strictEqual(result.appliedProgress, Math.min(3, base + bonus));
+      assert.strictEqual(piece.mechanismContribution, result.appliedProgress);
       assert.strictEqual(result.sealed, face === "X" && result.finalProgress < 3);
     }
   }
@@ -741,8 +744,8 @@ function makeTreasureEnd(room, piece, treasureId) {
     { id: "A1", playerId: second.id, pieceId: survivor.id, position: survivor.position },
     { id: "B1", playerId: second.id, pieceId: survivor.id, position: survivor.position }
   ];
-  survivor.mechanismActions = 2;
-  victim.mechanismActions = 1;
+  survivor.mechanismContribution = 4;
+  victim.mechanismContribution = 2;
   room.game.mummy.abilityTriggers = 3;
   survivor.position = neighbor;
   makeCurrent(room, survivor, HuntEngine.PHASES.adventurerAction);
@@ -756,9 +759,9 @@ function makeTreasureEnd(room, piece, treasureId) {
   assert.deepStrictEqual({
     profession: survivorResult.profession,
     completedTasks: survivorResult.completedTasks,
-    mechanismActions: survivorResult.mechanismActions,
+    mechanismContribution: survivorResult.mechanismContribution,
     outcome: survivorResult.outcome
-  }, { profession: survivor.profession, completedTasks: 2, mechanismActions: 2, outcome: "escaped" });
+  }, { profession: survivor.profession, completedTasks: 2, mechanismContribution: 4, outcome: "escaped" });
   assert.deepStrictEqual(room.game.winner.mummyResult, {
     playerId: mummy.id,
     type: "trap",

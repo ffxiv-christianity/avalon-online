@@ -80,7 +80,7 @@ function setupGame(room) {
       cooldownCreatedTurnId: null,
       wizardCharges: player.profession === "wizard" ? 3 : 0,
       wizardUsedThisTurn: false,
-      mechanismActions: 0
+      mechanismContribution: 0
     };
     adventurerOrder.push(id);
   }
@@ -263,7 +263,7 @@ function resolveMechanismFace(room, gateId, rawFace) {
   const appliedProgress = finalProgress - previousProgress;
   const sealed = face === "X" && finalProgress < 3;
   room.game.hunt.mechanisms[id] = finalProgress;
-  piece.mechanismActions = (piece.mechanismActions || 0) + 1;
+  piece.mechanismContribution = (piece.mechanismContribution || 0) + appliedProgress;
   room.game.hunt.mechanismSeals[id] = sealed ? { remaining: 1, startedThisTurn: true } : null;
   const result = {
     kind: "mechanism",
@@ -1118,7 +1118,7 @@ function finishGame(room) {
     pieceId: piece.id,
     profession: piece.profession,
     completedTasks: room.game.revealedTasks.filter((task) => task.pieceId === piece.id).length,
-    mechanismActions: piece.mechanismActions || 0,
+    mechanismContribution: piece.mechanismContribution || 0,
     outcome: piece.outcome
   }));
   const escaped = results.filter((result) => result.outcome === "escaped").length;

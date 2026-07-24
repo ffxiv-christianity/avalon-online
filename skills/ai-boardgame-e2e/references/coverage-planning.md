@@ -158,4 +158,4 @@ Each covered target also needs the normal passing `checkpoint_result`. Route com
 
 Replanning may change only the route for still-uncovered CPs. It must preserve the approved game, target IDs, reused evidence set, completion rules, pass/fail rules, and visible-UI boundary. Create the replacement plan with completed CPs, current setup/state, excluded unavailable routes, and a reason. A material scope change requires new user approval.
 
-The final audit fails when a route is unapproved, start/completion pairing is missing, a replan chain is broken, any target lacks both completed-route and passing checkpoint evidence, or the final active plan is unfinished.
+The final audit fails when a route is unapproved, start/completion pairing is missing, a replan chain is broken, any non-reused target lacks both completed-route and one passing checkpoint result somewhere in the Run, or the final active plan is unfinished. Never multiply the complete target set by `gamesToPlay`; routes distribute that finite set across their actual execution indices.

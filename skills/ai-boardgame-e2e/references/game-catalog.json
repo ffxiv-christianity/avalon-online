@@ -411,9 +411,74 @@
               { "id": "visible_terminal", "kind": "terminal_visible" },
               { "id": "cross_tab_result", "kind": "cross_tab_final_state" }
             ]
+          },
+          {
+            "id": "execute_hunt5_feature_coverage",
+            "title": "Execute the approved five-player Hunt feature coverage schedule",
+            "completionRequirements": [
+              { "id": "cp.hunt.5p_lobby_goal", "kind": "checkpoint", "checkpointId": "cp.hunt.5p_lobby_goal" },
+              { "id": "cp.hunt.team_treasure_tracking_start", "kind": "checkpoint", "checkpointId": "cp.hunt.team_treasure_tracking_start" },
+              { "id": "cp.hunt.mechanism_progress", "kind": "checkpoint", "checkpointId": "cp.hunt.mechanism_progress" },
+              { "id": "cp.hunt.mechanism_seal_lifecycle", "kind": "checkpoint", "checkpointId": "cp.hunt.mechanism_seal_lifecycle" },
+              { "id": "cp.hunt.tracking_normal_turn_cadence", "kind": "checkpoint", "checkpointId": "cp.hunt.tracking_normal_turn_cadence" },
+              { "id": "cp.hunt.interrupt_accounting", "kind": "checkpoint", "checkpointId": "cp.hunt.interrupt_accounting" },
+              { "id": "cp.hunt.exit_escape", "kind": "checkpoint", "checkpointId": "cp.hunt.exit_escape" },
+              { "id": "cp.hunt.last_survivor_hatch_open", "kind": "checkpoint", "checkpointId": "cp.hunt.last_survivor_hatch_open" },
+              { "id": "cp.hunt.hatch_close_opens_exits", "kind": "checkpoint", "checkpointId": "cp.hunt.hatch_close_opens_exits" },
+              { "id": "cp.hunt.core_information_isolation", "kind": "checkpoint", "checkpointId": "cp.hunt.core_information_isolation" },
+              { "id": "cp.hunt.adventurer_terminal_consistency", "kind": "checkpoint", "checkpointId": "cp.hunt.adventurer_terminal_consistency" },
+              { "id": "cp.hunt.mummy_terminal_consistency", "kind": "checkpoint", "checkpointId": "cp.hunt.mummy_terminal_consistency" },
+              { "id": "cp.hunt.settlement_rows", "kind": "checkpoint", "checkpointId": "cp.hunt.settlement_rows" },
+              { "id": "cp.hunt.profession.knight_guard", "kind": "checkpoint", "checkpointId": "cp.hunt.profession.knight_guard" },
+              { "id": "cp.hunt.profession.engineer_mechanism", "kind": "checkpoint", "checkpointId": "cp.hunt.profession.engineer_mechanism" },
+              { "id": "cp.hunt.profession.doctor_vitality", "kind": "checkpoint", "checkpointId": "cp.hunt.profession.doctor_vitality" },
+              { "id": "cp.hunt.profession.wizard_unlock", "kind": "checkpoint", "checkpointId": "cp.hunt.profession.wizard_unlock" },
+              { "id": "cp.hunt.mummy.trap", "kind": "checkpoint", "checkpointId": "cp.hunt.mummy.trap" },
+              { "id": "cp.hunt.mummy.invisible", "kind": "checkpoint", "checkpointId": "cp.hunt.mummy.invisible" },
+              { "id": "cp.hunt.mummy.knife", "kind": "checkpoint", "checkpointId": "cp.hunt.mummy.knife" }
+            ]
           }
         ],
-        "scenarios": [],
+        "scenarios": [
+          {
+            "id": "hunt5_trap_core_escape",
+            "title": "Five-player Classic-map trap, core, and adventurer-escape route",
+            "completionRequirements": [
+              { "id": "cp.hunt.5p_lobby_goal", "kind": "checkpoint", "checkpointId": "cp.hunt.5p_lobby_goal" },
+              { "id": "cp.hunt.team_treasure_tracking_start", "kind": "checkpoint", "checkpointId": "cp.hunt.team_treasure_tracking_start" },
+              { "id": "cp.hunt.mechanism_progress", "kind": "checkpoint", "checkpointId": "cp.hunt.mechanism_progress" },
+              { "id": "cp.hunt.mechanism_seal_lifecycle", "kind": "checkpoint", "checkpointId": "cp.hunt.mechanism_seal_lifecycle" },
+              { "id": "cp.hunt.tracking_normal_turn_cadence", "kind": "checkpoint", "checkpointId": "cp.hunt.tracking_normal_turn_cadence" },
+              { "id": "cp.hunt.interrupt_accounting", "kind": "checkpoint", "checkpointId": "cp.hunt.interrupt_accounting" },
+              { "id": "cp.hunt.exit_escape", "kind": "checkpoint", "checkpointId": "cp.hunt.exit_escape" },
+              { "id": "cp.hunt.core_information_isolation", "kind": "checkpoint", "checkpointId": "cp.hunt.core_information_isolation" },
+              { "id": "cp.hunt.adventurer_terminal_consistency", "kind": "checkpoint", "checkpointId": "cp.hunt.adventurer_terminal_consistency" },
+              { "id": "cp.hunt.profession.knight_guard", "kind": "checkpoint", "checkpointId": "cp.hunt.profession.knight_guard" },
+              { "id": "cp.hunt.profession.engineer_mechanism", "kind": "checkpoint", "checkpointId": "cp.hunt.profession.engineer_mechanism" },
+              { "id": "cp.hunt.profession.doctor_vitality", "kind": "checkpoint", "checkpointId": "cp.hunt.profession.doctor_vitality" },
+              { "id": "cp.hunt.profession.wizard_unlock", "kind": "checkpoint", "checkpointId": "cp.hunt.profession.wizard_unlock" },
+              { "id": "cp.hunt.mummy.trap", "kind": "checkpoint", "checkpointId": "cp.hunt.mummy.trap" }
+            ]
+          },
+          {
+            "id": "hunt5_invisible_last_survivor",
+            "title": "Five-player test-map invisible-mummy and last-survivor route",
+            "completionRequirements": [
+              { "id": "cp.hunt.last_survivor_hatch_open", "kind": "checkpoint", "checkpointId": "cp.hunt.last_survivor_hatch_open" },
+              { "id": "cp.hunt.hatch_close_opens_exits", "kind": "checkpoint", "checkpointId": "cp.hunt.hatch_close_opens_exits" },
+              { "id": "cp.hunt.mummy_terminal_consistency", "kind": "checkpoint", "checkpointId": "cp.hunt.mummy_terminal_consistency" },
+              { "id": "cp.hunt.settlement_rows", "kind": "checkpoint", "checkpointId": "cp.hunt.settlement_rows" },
+              { "id": "cp.hunt.mummy.invisible", "kind": "checkpoint", "checkpointId": "cp.hunt.mummy.invisible" }
+            ]
+          },
+          {
+            "id": "hunt5_knife_targeted",
+            "title": "Five-player random-map knife-mummy targeted route",
+            "completionRequirements": [
+              { "id": "cp.hunt.mummy.knife", "kind": "checkpoint", "checkpointId": "cp.hunt.mummy.knife" }
+            ]
+          }
+        ],
         "oracles": ["visible_ui", "public_log", "cross_tab_consistency"],
         "certifiedPlayerCounts": [3],
         "executableSettings": {
@@ -434,6 +499,13 @@
             "playerCount": 3,
             "settings": { "mode": "hunt", "mapSelection": "random" },
             "scenarioIds": [],
+            "status": "experimental"
+          },
+          {
+            "id": "hunt_feature_5p_schedule",
+            "playerCount": 5,
+            "settings": { "mode": "hunt", "mapSchedule": ["fixed:classic", "fixed:test-map", "random"] },
+            "scenarioIds": ["hunt5_trap_core_escape", "hunt5_invisible_last_survivor", "hunt5_knife_targeted"],
             "status": "experimental"
           }
         ],

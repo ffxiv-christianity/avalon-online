@@ -229,7 +229,9 @@ async function run() {
     assert(gameScript.includes("syncGameOverLightbox"));
     assert(gameScript.includes("gangsi-game-over-result-row"));
     assert(gameScript.includes("完成任務"));
-    assert(gameScript.includes("操作貢獻"));
+    assert(gameScript.includes("機關貢獻"));
+    assert(gameScript.includes("result.mechanismContribution"));
+    assert(page.includes("全場最多共 6 點"));
     assert(gameScript.includes("能力觸發"));
     assert(gameScript.includes("dismissGameOverLightbox"));
     assert(gameScript.includes('sendAction("returnLobby")'));

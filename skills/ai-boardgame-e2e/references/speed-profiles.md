@@ -18,4 +18,12 @@ Never scale player discussion, AI decision limits, WebSocket maintenance, reconn
 
 Allow Server scale below 1 only for loopback URLs. Require `AI_E2E_MODE=1` and `AI_E2E_TIME_SCALE=<0.1..1>`. Confirm `/__ai-e2e/capabilities` before play. If a running Server does not match, ask before restart and never silently fall back.
 
+Use three capability dispositions:
+
+- Local accelerated: probe the exact loopback `/__ai-e2e/capabilities` endpoint and require HTTP 200, the requested scale, `enabled: true`, `accelerated_waits`, and all Adapter scalable waits.
+- Local production time: probe the exact loopback endpoint and require HTTP 404 plus disabled scale 1.0.
+- Reused remote production: require `serverTimeScale: 1`, `serverManagedBySkill: "reused_remote_not_owned"`, and one `server_capability` event with `status: "not_applicable_remote_production"`. Omit both `endpoint` and `response`; never probe, expose, or record a private E2E endpoint on a deployment.
+
+Remote acceleration is invalid. A remote Run cannot claim `not_applicable_remote_production` when its scale is below 1 or its ownership mode differs.
+
 Record requested profile, resolved delays, actual capability result, whether the Skill managed the Server, and `timingFidelity`. Accelerated Runs may pass non-timing assertions but must mark production countdown fidelity untested.

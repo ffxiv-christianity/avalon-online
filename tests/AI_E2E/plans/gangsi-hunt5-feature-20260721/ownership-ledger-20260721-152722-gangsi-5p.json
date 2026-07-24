@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "runId": "20260721-152722-gangsi-5p",
+  "createdByRun": {
+    "browserContexts": [
+      {
+        "browserId": "-fbcd-4760-9b65-855acbd798f3",
+        "type": "iab",
+        "sessionName": "Gangsi feature_cp 20260721-152722-gangsi-5p"
+      }
+    ],
+    "tabs": [],
+    "isolatedPlayers": [
+      { "playerId": "P1", "agentTask": "/root/gangsi_p1", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P2", "agentTask": "/root/gangsi_p2", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P3", "agentTask": "/root/gangsi_p3", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P4", "agentTask": "/root/gangsi_p4", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P5", "agentTask": "/root/gangsi_p5", "forkTurns": "none", "toolsAuthorized": false }
+    ],
+    "processes": [],
+    "servers": [],
+    "temporaryArtifacts": []
+  },
+  "reusedResources": [
+    {
+      "kind": "deployed_server",
+      "identity": "https://avalon-online-lhem.onrender.com/Gangsi/",
+      "owned": false
+    }
+  ],
+  "retainedPlanningEvidence": [
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/deployed-identity.preflight.json"
+  ],
+  "cleanup": {
+    "reason": "formal remote-server capability contract requires an impossible localhost endpoint",
+    "ownedTabsClosed": 0,
+    "ownedContextsClosed": 1,
+    "isolatedPlayersReleased": 5,
+    "ownedProcessesStopped": 0,
+    "ownedServersStopped": 0,
+    "temporaryArtifactsRemoved": 0,
+    "reusedResourcesPreserved": true,
+    "unresolvedResources": []
+  }
+}

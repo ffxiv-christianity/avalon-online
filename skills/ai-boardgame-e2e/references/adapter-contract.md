@@ -98,7 +98,7 @@ Each journey declares `completionRequirements`. A selected scenario may add requ
 
 - `terminal_visible`: exactly one visible terminal plus an Adapter-valid normalized `result_detail` for each execution;
 - `cross_tab_final_state`: one identical normalized final state from every configured player tab;
-- `checkpoint`: exactly one passing `checkpoint_result` for its declared `checkpointId`, backed by scoped visible evidence.
+- `checkpoint`: exactly one passing `checkpoint_result` for its declared `checkpointId`, backed by scoped visible evidence. It defaults to `scope: "per_execution"`; use `scope: "across_run"` when different executions/routes collectively satisfy one finite suite.
 
 Example Adapter declarations:
 
@@ -121,7 +121,7 @@ Example Adapter declarations:
 }
 ```
 
-Every execution appends one `journey_completed` per selected journey after all derived requirements are satisfied. Its `requirementIds` must exactly match the resolved contract. Checkpoint evidence may reference public visible DOM as `public:<evidenceId>` or one player's private visible DOM as `<playerId>:<evidenceId>`. Public `checkpoint_result` and `journey_completed` events contain only verdict metadata and references, never private evidence content.
+Every execution appends one `journey_completed` per selected journey after its requirements are satisfied. Its `requirementIds` contains every per-execution requirement plus the run-scoped requirements evidenced in that execution. Across all executions, those IDs plus approved reused checkpoints must cover the resolved contract. Checkpoint evidence may reference public visible DOM as `public:<evidenceId>` or one player's private visible DOM as `<playerId>:<evidenceId>`. Public `checkpoint_result` and `journey_completed` events contain only verdict metadata and references, never private evidence content.
 
 A feature/checkpoint journey keeps the same product tests, real Server/UI interaction, player identity and decision isolation, source provenance, success criteria, product digest verification, and cleanup. Its pass proves only the declared requirements and criteria; it does not certify complete-game settlement, unrelated rules, normal-user behavior, or the entire Adapter.
 
@@ -169,7 +169,7 @@ A planned Adapter may run one explicitly authorized certification candidate with
 
 For every promoted Adapter, retain logs-only real Runs proving:
 
-- exact product test command, Git identity, source digest, and dirty flag;
+- exact product-preflight command and one honest stable identity: local Git/source digest/dirty flag, or a recomputable deployed HTML/JS/CSS manifest fingerprint under [product-identity.md](product-identity.md);
 - actual Server/capability mode;
 - isolated-agent provenance for every player;
 - Adapter-declared identity proof before the first journey action;

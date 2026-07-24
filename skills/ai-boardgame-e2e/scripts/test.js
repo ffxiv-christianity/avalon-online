@@ -11,6 +11,7 @@ const { containsForbiddenPublicKey, appendEvent } = require("./append-event");
 const {
   validateVoteParticipation,
   validateDeadlineEvidence,
+  validateServerCapabilityEvidence,
   validateJourneyCompletion,
   auditRun
 } = require("./audit-run");
@@ -23,6 +24,15 @@ const criminalDanceAdapter = require("./adapters/criminaldance");
 const loveLetterAdapter = require("./adapters/loveletter");
 const { run: runPreflightTests } = require("./preflight-test");
 const { runCoveragePlannerTests } = require("./coverage-planner-test");
+const { planCoverage, validateCoverageModel } = require("./coverage-planner");
+const {
+  PRODUCT_IDENTITY_KINDS,
+  computeDeployedFingerprint,
+  normalizeProductIdentity,
+  sameProductIdentity
+} = require("./product-identity");
+const { discoverAssetUrls } = require("./deployed-asset-fingerprint");
+const { validateQuery: validateEvidenceQuery } = require("./evidence-history");
 
 function baseConfig(artifactRoot) {
   return {
@@ -171,6 +181,50 @@ function gangsiConfig(artifactRoot, mode = "classic") {
   };
 }
 
+function gangsiFeatureConfig(artifactRoot) {
+  return {
+    schemaVersion: "1.1",
+    game: "gangsi",
+    entryUrl: "https://avalon-online-lhem.onrender.com/Gangsi/",
+    playerCount: 5,
+    gamesToPlay: 3,
+    gameSettings: {
+      mode: "hunt",
+      mapSchedule: [
+        { journey: 1, mapSelection: "fixed", mapId: "classic" },
+        { journey: 2, mapSelection: "fixed", mapId: "test-map" },
+        { journey: 3, mapSelection: "random", mapId: null }
+      ]
+    },
+    testPurpose: {
+      selectionSource: "provided_config",
+      objective: "Verify the declared five-player Hunt feature checkpoints through the approved visible-UI map schedule.",
+      approach: "mixed",
+      userPerspective: "experienced_player",
+      focusAreas: ["settings", "core_gameplay", "information_isolation", "result_consistency"],
+      journeyIds: ["execute_hunt5_feature_coverage"],
+      scenarioIds: ["hunt5_trap_core_escape", "hunt5_invisible_last_survivor", "hunt5_knife_targeted"],
+      scenarioParameters: {},
+      successCriteria: [{
+        id: "all_hunt_checkpoints_visible",
+        description: "Every declared Hunt checkpoint has scoped visible evidence and a passing checkpoint result.",
+        oracle: "visible_ui",
+        required: true
+      }]
+    },
+    speed: { profile: "fast" },
+    players: [],
+    interaction: { maximumDecisionPasses: 3, allowInaction: true, userPacing: "fast_decisions" },
+    evidence: { mode: "logs_only" },
+    reconnect: { mode: "none" },
+    limits: { maxInvalidDecisions: 3, maxDecisionSeconds: 120, maxMinutesPerGame: 180 },
+    allowExperimental: true,
+    allowDiscovery: false,
+    certificationCandidate: false,
+    artifactRoot
+  };
+}
+
 function expectError(callback, pattern) {
   assert.throws(callback, pattern);
 }
@@ -276,6 +330,141 @@ async function run() {
       productVerdict: "pass"
     }, new Map([["P1:feature-visible", { gameIndex: 1, writerOrder: 1 }]]), checkpointCompletionErrors);
     assert.deepStrictEqual(checkpointCompletionErrors, []);
+    const runScopedCheckpointIds = Array.from({ length: 20 }, (_value, index) => `cp.coverage.${String(index + 1).padStart(2, "0")}`);
+    const runScopedTimeline = [];
+    const runScopedEvidence = new Map();
+    let runScopedOrder = 1;
+    const perGameCheckpointIds = [
+      runScopedCheckpointIds.slice(0, 8),
+      runScopedCheckpointIds.slice(8, 15),
+      runScopedCheckpointIds.slice(15)
+    ];
+    perGameCheckpointIds.forEach((checkpointIds, gameOffset) => {
+      const gameIndex = gameOffset + 1;
+      const refs = [];
+      for (const checkpointId of checkpointIds) {
+        const ref = `P1:${checkpointId}`;
+        runScopedEvidence.set(ref, { gameIndex, writerOrder: runScopedOrder++ });
+        runScopedTimeline.push({
+          type: "checkpoint_result",
+          gameIndex,
+          checkpointId,
+          passed: true,
+          source: "evidence_refs",
+          evidenceRefs: [ref],
+          writerOrder: runScopedOrder++
+        });
+        refs.push(ref);
+      }
+      runScopedTimeline.push({
+        type: "journey_completed",
+        gameIndex,
+        journeyId: "coverage_journey",
+        requirementIds: checkpointIds,
+        source: "requirements_satisfied",
+        evidenceRefs: refs,
+        writerOrder: runScopedOrder++
+      });
+    });
+    const runScopedCompletionErrors = [];
+    validateJourneyCompletion(runScopedTimeline, [], {
+      players: [{ id: "P1" }],
+      testPurpose: {
+        journeyIds: ["coverage_journey"],
+        completionRequirements: runScopedCheckpointIds.map((checkpointId) => ({
+          id: checkpointId,
+          kind: "checkpoint",
+          checkpointId
+        }))
+      }
+    }, {
+      gamesToPlay: 3,
+      playerCount: 1,
+      productVerdict: "pass"
+    }, runScopedEvidence, runScopedCompletionErrors, {
+      approvedPlan: {
+        coveragePlan: {
+          targetCheckpointIds: runScopedCheckpointIds,
+          pendingCheckpointIds: runScopedCheckpointIds,
+          reusedCheckpointIds: []
+        }
+      }
+    });
+    assert.deepStrictEqual(runScopedCompletionErrors, [], runScopedCompletionErrors.join("\n"));
+
+    const deployedAssets = [
+      { url: "https://example.test/Game/", contentType: "text/html", bytes: 20, sha256: "1".repeat(64) },
+      { url: "https://example.test/assets/app.js", contentType: "application/javascript", bytes: 30, sha256: "2".repeat(64) },
+      { url: "https://example.test/assets/app.css", contentType: "text/css", bytes: 40, sha256: "3".repeat(64) }
+    ];
+    const deployedComputed = computeDeployedFingerprint(deployedAssets);
+    const deployedIdentity = normalizeProductIdentity({
+      identity: {
+        kind: PRODUCT_IDENTITY_KINDS.DEPLOYED_WEB_ASSETS,
+        entryUrl: "https://example.test/Game/#ignored",
+        fingerprintSha256: deployedComputed.fingerprintSha256,
+        assets: [...deployedAssets].reverse()
+      }
+    });
+    assert.strictEqual(deployedIdentity.entryUrl, "https://example.test/Game/");
+    assert.strictEqual(deployedIdentity.assets.length, 3);
+    assert(sameProductIdentity({ identity: deployedIdentity }, { identity: { ...deployedIdentity, assets: [...deployedIdentity.assets].reverse() } }));
+    expectError(() => normalizeProductIdentity({
+      identity: { ...deployedIdentity, fingerprintSha256: "f".repeat(64) }
+    }), /does not match its asset manifest/);
+    assert.deepStrictEqual(discoverAssetUrls(
+      '<script src="/assets/app.js"></script><link href="/assets/app.css" rel="stylesheet">',
+      "https://example.test/Game/"
+    ), [
+      "https://example.test/Game/",
+      "https://example.test/assets/app.js",
+      "https://example.test/assets/app.css"
+    ]);
+    const remoteEvidenceQuery = validateEvidenceQuery({
+      schemaVersion: "1.0",
+      game: "gangsi",
+      requiredCheckpointIds: ["cp.coverage.01"],
+      currentProductIdentityKind: "deployed_web_assets",
+      currentProductFingerprintSha256: deployedComputed.fingerprintSha256
+    });
+    assert.strictEqual(remoteEvidenceQuery.currentProductIdentityKind, "deployed_web_assets");
+    assert.strictEqual(remoteEvidenceQuery.currentProductFingerprintSha256, deployedComputed.fingerprintSha256);
+    const remoteCapabilityRun = {
+      serverManagedBySkill: "reused_remote_not_owned",
+      speed: {
+        serverTimeScale: 1,
+        serverManagedBySkill: "reused_remote_not_owned",
+        scalableWaits: []
+      },
+      capability: {
+        status: "not_applicable_remote_production",
+        enabled: false,
+        timeScale: 1,
+        timingFidelity: "production"
+      }
+    };
+    const remoteCapabilityEvent = {
+      type: "server_capability",
+      status: "not_applicable_remote_production",
+      serverManagement: "reused_remote_not_owned"
+    };
+    const validRemoteCapabilityErrors = [];
+    validateServerCapabilityEvidence(
+      remoteCapabilityEvent,
+      { entryUrl: "https://example.test/Game/" },
+      remoteCapabilityRun,
+      validRemoteCapabilityErrors
+    );
+    assert.deepStrictEqual(validRemoteCapabilityErrors, []);
+    const privateRemoteCapabilityErrors = [];
+    validateServerCapabilityEvidence(
+      { ...remoteCapabilityEvent, endpoint: "https://example.test/__ai-e2e/capabilities", response: { enabled: false } },
+      { entryUrl: "https://example.test/Game/" },
+      remoteCapabilityRun,
+      privateRemoteCapabilityErrors
+    );
+    assert(privateRemoteCapabilityErrors.some((message) => message.includes("must not probe or record")));
+    assert(privateRemoteCapabilityErrors.some((message) => message.includes("must not claim a capability response")));
     for (const discussionSeconds of [180, 300, 420, 600]) {
       const selectableTime = genericConfig(tempRoot);
       selectableTime.gameSettings.discussionSeconds = discussionSeconds;
@@ -504,6 +693,47 @@ async function run() {
     const validGangsiHuntFixedMap = gangsiConfig(tempRoot, "hunt");
     validGangsiHuntFixedMap.gameSettings = { mode: "hunt", mapSelection: "fixed", mapId: "classic" };
     assert.strictEqual(resolveConfig(validGangsiHuntFixedMap).gameSettings.mapId, "classic");
+    const gangsiFeature = resolveConfig(gangsiFeatureConfig(tempRoot));
+    assert.deepStrictEqual(gangsiFeature.gameSettings, {
+      mode: "hunt",
+      mapSchedule: ["fixed:classic", "fixed:test-map", "random"]
+    });
+    assert.strictEqual(gangsiFeature.gamesToPlay, 3);
+    assert.strictEqual(gangsiFeature.playerCount, 5);
+    assert.strictEqual(gangsiFeature.testPurpose.completionRequirements.length, 20);
+    const gangsiCoverageModel = validateCoverageModel(gangsiAdapter.coverageModel);
+    assert.strictEqual(gangsiCoverageModel.checkpoints.length, 20);
+    assert.deepStrictEqual(gangsiCoverageModel.setupProfiles.map((profile) => profile.id), [
+      "hunt5.classic", "hunt5.random", "hunt5.test_map"
+    ]);
+    const gangsiCoveragePlan = planCoverage(gangsiCoverageModel, {
+      schemaVersion: "1.0",
+      game: "gangsi",
+      targetCheckpointIds: gangsiCoverageModel.checkpoints.map((checkpoint) => checkpoint.id),
+      completedCheckpointIds: [],
+      reusedCheckpointIds: [],
+      excludedRouteIds: [],
+      playerCount: 5,
+      gameSettings: gangsiFeature.gameSettings,
+      currentSetupProfileId: null,
+      currentStateId: null
+    });
+    assert.strictEqual(gangsiCoveragePlan.status, "complete");
+    assert.strictEqual(gangsiCoveragePlan.totalEstimatedSeconds, 8070);
+    assert.strictEqual(gangsiCoveragePlan.resetCount, 2);
+    assert.strictEqual(gangsiCoveragePlan.randomDependencyCount, 4);
+    assert.deepStrictEqual(gangsiCoveragePlan.routes.map((route) => route.routeId), [
+      "route.hunt5.01_trap_core_escape",
+      "route.hunt5.02_invisible_last_survivor",
+      "route.hunt5.03_knife_targeted"
+    ]);
+    assert.strictEqual(
+      gangsiCoveragePlan.planSha256,
+      "fb4166aa59efa5db318f3be3421f30addad9590ee75bcafc8bcd818e79c32ef8"
+    );
+    const invalidFeatureSchedule = gangsiFeatureConfig(tempRoot);
+    invalidFeatureSchedule.gameSettings.mapSchedule[1].mapId = "classic";
+    expectError(() => resolveConfig(invalidFeatureSchedule), /feature mapSchedule must be/);
 
     const validGangsiClassicResult = {
       outcomeId: "classic_mummy_life_tokens",
@@ -582,6 +812,52 @@ async function run() {
       ...gangsiPublicEvidence
     }, { config: gangsiHunt }, invalidGangsiSetupErrors);
     assert(invalidGangsiSetupErrors.some((message) => message.includes("one visible profession")));
+
+    const featurePublicEvidence = {
+      source: "visible_dom",
+      evidenceId: "gangsi-feature-visible",
+      evidenceText: "The approved Gangsi feature boundary is visible in the owning UI.",
+      contentClass: "public_ui",
+      visibleToPlayerIds: ["P1", "P2", "P3", "P4", "P5"]
+    };
+    const validKnifeCheckpointErrors = [];
+    gangsiAdapter.validatePublicEvent("timeline", {
+      type: "adapter_checkpoint",
+      gameIndex: 3,
+      checkpointId: "cp.hunt.mummy.knife",
+      status: "observed",
+      data: { assertionResults: {
+        choose_cardinal_direction_before_roll: true,
+        throw_ends_turn_without_roll_or_move: true,
+        ray_blockers_respected: true,
+        first_adventurer_only: true,
+        hit_injures_or_guard_blocks: true,
+        coordinate_public_identity_private: true,
+        cooldown_two_normal_turns: true,
+        miss_not_counted_as_trigger: true
+      } },
+      ...featurePublicEvidence
+    }, { config: gangsiFeature }, validKnifeCheckpointErrors);
+    assert.deepStrictEqual(validKnifeCheckpointErrors, []);
+    const invalidKnifeCheckpointErrors = [];
+    gangsiAdapter.validatePublicEvent("timeline", {
+      type: "adapter_checkpoint",
+      gameIndex: 2,
+      checkpointId: "cp.hunt.mummy.knife",
+      status: "observed",
+      data: { assertionResults: {} },
+      ...featurePublicEvidence
+    }, { config: gangsiFeature }, invalidKnifeCheckpointErrors);
+    assert(invalidKnifeCheckpointErrors.some((message) => message.includes("another approved Gangsi route")));
+    const invalidFeatureRouteErrors = [];
+    gangsiAdapter.validatePublicEvent("timeline", {
+      type: "coverage_route_started",
+      gameIndex: 2,
+      routeId: "route.hunt5.01_trap_core_escape",
+      checkpointIds: [],
+      setupProfileId: "hunt5.classic"
+    }, { config: gangsiFeature }, invalidFeatureRouteErrors);
+    assert(invalidFeatureRouteErrors.some((message) => message.includes("does not match the approved Gangsi route")));
 
     const gangsiSettingsEvent = {
       type: "gangsi_settings_verified",
@@ -1997,6 +2273,66 @@ async function run() {
     assert(final.report.summary.includes("## Resource cleanup"));
     assert(final.report.summary.includes("Status: `passed`"));
     assert.strictEqual(final.run.speed.serverManagedBySkill, serverManagedBySkill);
+    const deployedIdentityRun = path.join(tempRoot, "deployed-identity-run");
+    fs.cpSync(first.runDir, deployedIdentityRun, { recursive: true });
+    const deployedRunJsonPath = path.join(deployedIdentityRun, "run.json");
+    const deployedRunJson = readJson(deployedRunJsonPath);
+    deployedRunJson.serverManagedBySkill = "reused_remote_not_owned";
+    deployedRunJson.speed.serverManagedBySkill = "reused_remote_not_owned";
+    deployedRunJson.capability = {
+      status: "not_applicable_remote_production",
+      enabled: false,
+      timeScale: 1,
+      timingFidelity: "production"
+    };
+    deployedRunJson.productBuild = {
+      passed: true,
+      command: "capture deployed entry assets",
+      testScope: "deployed_asset_fingerprint",
+      identity: deployedIdentity
+    };
+    writeJson(deployedRunJsonPath, deployedRunJson);
+    const deployedConfigPath = path.join(deployedIdentityRun, "config.resolved.json");
+    const deployedConfig = readJson(deployedConfigPath);
+    deployedConfig.entryUrl = deployedIdentity.entryUrl;
+    writeJson(deployedConfigPath, deployedConfig);
+    const deployedTimelinePath = path.join(deployedIdentityRun, "public", "timeline.jsonl");
+    const deployedTimeline = fs.readFileSync(deployedTimelinePath, "utf8").split(/\r?\n/).filter(Boolean).map((line) => {
+      const event = JSON.parse(line);
+      if (event.type === "product_test") {
+        return {
+          ...event,
+          command: "capture deployed entry assets",
+          testScope: "deployed_asset_fingerprint",
+          identity: deployedIdentity,
+          gitHead: undefined,
+          productSourceSha256: undefined,
+          sourceTreeDirty: undefined
+        };
+      }
+      if (event.type === "product_build_verified") {
+        return {
+          ...event,
+          identity: deployedIdentity,
+          gitHead: undefined,
+          productSourceSha256: undefined,
+          sourceTreeDirty: undefined
+        };
+      }
+      if (event.type === "server_capability") {
+        return {
+          ...event,
+          endpoint: undefined,
+          status: "not_applicable_remote_production",
+          response: undefined,
+          serverManagement: "reused_remote_not_owned"
+        };
+      }
+      return event;
+    });
+    fs.writeFileSync(deployedTimelinePath, `${deployedTimeline.map((event) => JSON.stringify(event)).join("\n")}\n`, "utf8");
+    const deployedIdentityAudit = auditRun(deployedIdentityRun, { write: false });
+    assert.strictEqual(deployedIdentityAudit.passed, true, deployedIdentityAudit.errors.join("\n"));
     const missingCleanupRun = path.join(tempRoot, "missing-cleanup-run");
     fs.cpSync(first.runDir, missingCleanupRun, { recursive: true });
     const missingCleanupTimeline = path.join(missingCleanupRun, "public", "timeline.jsonl");

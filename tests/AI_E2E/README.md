@@ -17,7 +17,7 @@ Game settings, rules, phases, legal actions, timers, private regions, terminal o
 
 Runs use one requirement-driven completion contract. Full-game journeys typically require a visible terminal plus matching final state from every tab; feature/CP journeys may require only Adapter-declared visible checkpoints. Both use the same player isolation, evidence writer, audit, report, and cleanup path. A narrow pass proves only its declared requirements and criteria; it does not certify complete-game flow or unrelated settings.
 
-Feature/CP work additionally uses one hash-bound CoveragePlan inside that same framework. An Adapter declares checkpoints, visible states, setup profiles, compatible shared routes, transitions, expected cost, reset boundaries, and randomness. The planner removes exactly reusable CP evidence, then chooses the minimum expected wall-clock route; ties prefer fewer resets, less randomness, and lexical route ID. Missing routes produce an incomplete plan, not a passing result.
+Feature/CP work additionally uses one hash-bound CoveragePlan inside that same framework. An Adapter declares checkpoints, visible states, setup profiles, compatible shared routes, transitions, expected cost, reset boundaries, and randomness. The planner removes exactly reusable CP evidence, then chooses the minimum expected wall-clock route; ties prefer fewer resets, less randomness, and lexical route ID. CoveragePlan targets form one finite Run-level set: three routes across three executions still require one result per target, not the full target set three times. Missing routes produce an incomplete plan, not a passing result.
 
 ## Planning choices
 
@@ -61,6 +61,10 @@ All operations use visible semantic UI and a real Server. No screenshots or imag
 Every newly initialized Run uses `resourceLifecycle.policyVersion: "1.0"` with `cleanupAfterRun: true`; this policy cannot be disabled by a config or Adapter. On success, failure, abort, timeout, or user stop, the runner closes only tabs/contexts it created, releases its isolated players, stops only exact processes/Servers it started, and removes only its temporary runtime files. Reused Servers, user tabs, other tasks' resources, and Run evidence are preserved.
 
 A complete Run must append one passing `resource_cleanup` event after final-state evidence and before `product_build_verified`. Uncertain ownership is preserved and reported, never guessed.
+
+Formal product identity is honest to the tested surface. A checkout-bound local Server records Git/source-tree identity. An independently deployed URL records a recomputable manifest fingerprint of the final entry HTML and its referenced JS/CSS; it does not claim the local checkout's commit or digest. The same identity kind and value must match before and after the Run.
+
+Capability evidence follows the Server boundary: accelerated and local production Servers probe only the loopback `__ai-e2e` endpoint, while an unowned remote production deployment at scale 1 records `not_applicable_remote_production` without an endpoint or fabricated response. Remote E2E never probes or exposes a private capability route.
 
 ## Adapter status
 

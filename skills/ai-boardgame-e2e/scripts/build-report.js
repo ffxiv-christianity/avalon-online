@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { parseArgs, readJson } = require("./core");
 const { auditRun } = require("./audit-run");
+const { normalizeProductIdentity } = require("./product-identity");
 
 function readJsonLines(filePath) {
   if (!fs.existsSync(filePath)) return [];
@@ -32,7 +33,7 @@ function purposeLines(run, timeline) {
       `- Focus areas: ${valueList(purpose.focusAreas)}`,
       `- User journeys: ${valueList(purpose.journeyIds)}`,
       `- Targeted scenarios: ${valueList(purpose.scenarioIds)}`,
-      `- Completion requirements: ${valueList((purpose.completionRequirements || []).map((item) => `${item.id}:${item.kind}`))}`,
+      `- Completion requirements: ${valueList((purpose.completionRequirements || []).map((item) => `${item.id}:${item.kind}:${item.scope || "per_execution"}`))}`,
       ...(purpose.recommendationRationale ? [`- AI recommendation rationale: ${purpose.recommendationRationale}`] : []),
       "",
       "### Success criteria",
@@ -55,6 +56,8 @@ function purposeLines(run, timeline) {
 function reportFor(run, audit, timeline = []) {
   const speed = run.speed || {};
   const productBuild = run.productBuild || {};
+  let productIdentity = null;
+  try { productIdentity = normalizeProductIdentity(productBuild); } catch (_error) { /* reported by audit */ }
   const capability = run.capability || {};
   const games = Array.isArray(run.games) ? run.games : [];
   const behavior = timeline.filter((event) => event.type === "behavior_evaluation");
@@ -123,8 +126,16 @@ function reportFor(run, audit, timeline = []) {
     "## Product and agent provenance",
     "",
     `- Product test: \`${productBuild.command || "n/a"}\``,
-    `- Git: \`${productBuild.gitHead || "n/a"}\`; dirty=${productBuild.sourceTreeDirty ?? "n/a"}`,
-    `- Product source SHA-256: \`${productBuild.productSourceSha256 || "n/a"}\``,
+    `- Product test scope: \`${productBuild.testScope || (productIdentity?.kind === "local_source" ? "local_product_tests" : "n/a")}\``,
+    `- Product identity: \`${productIdentity?.kind || "invalid_or_missing"}\``,
+    ...(productIdentity?.kind === "deployed_web_assets" ? [
+      `- Deployed entry URL: ${productIdentity.entryUrl}`,
+      `- Deployed HTML/JS/CSS fingerprint SHA-256: \`${productIdentity.fingerprintSha256}\` (${productIdentity.assets.length} assets)`,
+      "- Local Git commit/source-tree identity: not claimed by this deployed Run."
+    ] : [
+      `- Git: \`${productIdentity?.gitHead || productBuild.gitHead || "n/a"}\`; dirty=${productIdentity?.sourceTreeDirty ?? productBuild.sourceTreeDirty ?? "n/a"}`,
+      `- Product source SHA-256: \`${productIdentity?.productSourceSha256 || productBuild.productSourceSha256 || "n/a"}\``
+    ]),
     `- Player agents: \`${run.agentProvenance?.mode || "n/a"}\`; ${run.agentProvenance?.players?.length ?? 0} players`,
     `- Auditor SHA-256: \`${audit.auditorSha256}\``,
     "",

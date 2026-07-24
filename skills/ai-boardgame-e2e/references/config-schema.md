@@ -79,9 +79,9 @@ The config is only the executable portion of the approved test contract. Before 
 - `focusAreas`: one or more generic user-visible quality areas.
 - `journeyIds`: one or more IDs declared by the selected Adapter.
 - `scenarioIds`: Adapter-declared IDs. Required for `targeted_scenario`; forbidden for `natural_user`.
-- `completionRequirements`: derived from selected Adapter journey/scenario declarations. Resolved configs record it; callers may omit it, but cannot weaken or replace it. Requirement kinds are `terminal_visible`, `cross_tab_final_state`, and `checkpoint`.
+- `completionRequirements`: derived from selected Adapter journey/scenario declarations. Resolved configs record it; callers may omit it, but cannot weaken or replace it. Requirement kinds are `terminal_visible`, `cross_tab_final_state`, and `checkpoint`. Requirements default to `scope: "per_execution"`; checkpoint requirements may declare `scope: "across_run"`. Approved CoveragePlan targets are treated as `across_run` for compatibility even when an older Adapter omitted the field.
 - `scenarioParameters`: Adapter-owned parameters. The core does not interpret them.
-- `successCriteria`: unique IDs with description, observable oracle, and `required` flag.
+- `successCriteria`: unique IDs with description, observable oracle, and `required` flag. `scope` is optionally `per_execution` or `across_run`; criteria default to per-execution except an approved CoveragePlan defaults its suite-level criteria to across-run.
 - `recommendationRationale`: required when AI selected the plan.
 
 Generic focus areas are `onboarding`, `room_flow`, `settings`, `core_gameplay`, `information_isolation`, `timing`, `reconnect`, `usability`, `accessibility`, `result_consistency`, and `custom`.
@@ -164,7 +164,7 @@ A narrow feature test uses the same config and Run framework. Select an Adapter-
 }
 ```
 
-The resolved config adds the Adapter-derived `completionRequirements`. Each execution records the same identity, isolation, Observation/Decision, visible action, criterion, `journey_completed`, product-integrity, and cleanup evidence as any other Run. A checkpoint requirement additionally records scoped private/public visible evidence plus `checkpoint_result`. Do not interpret a narrow journey pass as complete-game certification.
+The resolved config adds the Adapter-derived `completionRequirements`. Each execution records the same identity, isolation, Observation/Decision, visible action, `journey_completed`, product-integrity, and cleanup evidence as any other Run. A per-execution criterion or requirement repeats for every execution. An across-run checkpoint/criterion is recorded exactly once in the execution where its visible evidence becomes complete. A checkpoint requirement additionally records scoped private/public visible evidence plus `checkpoint_result`. Do not interpret a narrow journey pass as complete-game certification.
 
 The questionnaire, not the config, selects `checkpointCoverage.mode` as `all_declared` or `selected`. The separate immutable CoveragePlan orders the required Adapter routes after historical reuse and is hash-bound into `plan.approved.json`. Its target IDs must exactly equal the resolved checkpoint completion requirements. Runtime replanning may change only the path for remaining CPs, never this config's objective, requirements, or verdict rules.
 
@@ -172,6 +172,7 @@ The questionnaire, not the config, selects `checkpointCoverage.mode` as `all_dec
 
 - `gamesToPlay`: 1–20 journey executions. For a full-game journey these are games; for a shorter journey these are repetitions.
 - `speed.profile`: `watch`, `fast`, `accelerated`, or `custom`.
+- Capability evidence follows the resolved entry URL: local Servers probe only the loopback private endpoint; `reused_remote_not_owned` production deployments at scale 1 record `not_applicable_remote_production` with no endpoint or response.
 - `reconnect.mode`: `none`, `lobby_reload`, or `in_game_reload`.
 - `evidence.mode`: only `logs_only`; reject screenshot settings.
 - `resourceLifecycle`: a Skill-owned fixed policy. `cleanupAfterRun` is always `true` and cannot be disabled by a game Adapter or config.

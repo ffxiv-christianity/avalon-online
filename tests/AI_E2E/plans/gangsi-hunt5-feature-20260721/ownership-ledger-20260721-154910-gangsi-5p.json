@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0",
+  "runId": "20260721-154910-gangsi-5p",
+  "createdByRun": {
+    "browserContexts": [
+      {
+        "browserId": "-fbcd-4760-9b65-855acbd798f3",
+        "type": "iab",
+        "sessionName": "Gangsi feature_cp 20260721-154910-gangsi-5p"
+      }
+    ],
+    "tabs": [
+      { "playerId": "P1", "tabId": "1", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P2", "tabId": "2", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P3", "tabId": "3", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P4", "tabId": "4", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P5", "tabId": "5", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" }
+    ],
+    "isolatedPlayers": [
+      { "playerId": "P1", "agentTask": "/root/gangsi2_p1", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P2", "agentTask": "/root/gangsi2_p2", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P3", "agentTask": "/root/gangsi2_p3", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P4", "agentTask": "/root/gangsi2_p4", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P5", "agentTask": "/root/gangsi2_p5", "forkTurns": "none", "toolsAuthorized": false }
+    ],
+    "processes": [],
+    "servers": [],
+    "temporaryArtifacts": []
+  },
+  "reusedResources": [
+    {
+      "kind": "deployed_server",
+      "identity": "https://avalon-online-lhem.onrender.com/Gangsi/",
+      "owned": false
+    }
+  ],
+  "retainedPlanningEvidence": [
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/deployed-identity.rerun-preflight.json",
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/evidence-assessment.rerun.json",
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/coverage-plan.rerun.json",
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/plan.rerun.approved.json"
+  ],
+  "cleanup": {
+    "reason": "superseded_by_user_requested_rerun_after_product_fix",
+    "status": "passed",
+    "ownedTabsClosed": 5,
+    "ownedContextsClosed": 0,
+    "ownedProcessesStopped": 0,
+    "ownedServersStopped": 0,
+    "isolatedPlayersReleased": 5,
+    "temporaryArtifactsRemoved": 0,
+    "reusedResourcesPreserved": true,
+    "unresolvedResources": []
+  }
+}

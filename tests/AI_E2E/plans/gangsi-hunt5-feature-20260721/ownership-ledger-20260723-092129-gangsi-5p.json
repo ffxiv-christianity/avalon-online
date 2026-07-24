@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0",
+  "runId": "20260723-092129-gangsi-5p",
+  "createdByRun": {
+    "browserContexts": [],
+    "tabs": [
+      { "playerId": "P1", "tabId": "1", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P2", "tabId": "2", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P3", "tabId": "3", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P4", "tabId": "4", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P5", "tabId": "5", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" }
+    ],
+    "isolatedPlayers": [
+      { "playerId": "P1", "agentTask": "/root/gangsi4_p1", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P2", "agentTask": "/root/gangsi4_p2", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P3", "agentTask": "/root/gangsi4_p3", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P4", "agentTask": "/root/gangsi4_p4", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P5", "agentTask": "/root/gangsi4_p5", "forkTurns": "none", "toolsAuthorized": false }
+    ],
+    "processes": [],
+    "servers": [],
+    "temporaryArtifacts": []
+  },
+  "reusedResources": [
+    {
+      "kind": "in_app_browser_binding",
+      "identity": "-80db-44c3-a4f5-46fe184e3167",
+      "owned": false
+    },
+    {
+      "kind": "deployed_server",
+      "identity": "https://avalon-online-lhem.onrender.com/Gangsi/",
+      "owned": false
+    }
+  ],
+  "retainedPlanningEvidence": [
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/deployed-identity-rerun3-preflight.json",
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/evidence-assessment.rerun3.json",
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/coverage-plan.rerun3.json",
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/plan.rerun3.approved.json"
+  ],
+  "cleanup": {
+    "status": "passed",
+    "completedAt": "2026-07-23T13:35:00.000Z",
+    "ownedTabsClosed": 5,
+    "ownedContextsClosed": 0,
+    "ownedProcessesStopped": 0,
+    "ownedServersStopped": 0,
+    "isolatedPlayersReleased": 5,
+    "temporaryArtifactsRemoved": 0,
+    "reusedResourcesPreserved": true,
+    "unresolvedResources": []
+  }
+}

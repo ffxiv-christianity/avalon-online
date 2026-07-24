@@ -1258,7 +1258,7 @@
           <strong>${escapeHtml(resultPlayer?.name || "冒險者")}</strong>
           <span>${escapeHtml(professionLabel(result.profession))}</span>
           <span>完成任務 ${Number(result.completedTasks) || 0}</span>
-          <span>操作貢獻 ${Number(result.mechanismActions) || 0} 次</span>
+          <span>機關貢獻 ${Number(result.mechanismContribution) || 0} 點</span>
           <span class="${result.outcome === "escaped" ? "is-escaped" : "is-dead"}">${result.outcome === "escaped" ? "逃生" : "死亡"}</span>
         </article>`;
       }).join("") || "";

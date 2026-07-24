@@ -1,0 +1,2905 @@
+{
+  "schemaVersion": "1.0",
+  "runsRoot": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs",
+  "runs": [
+    {
+      "runId": "20260717-180757-onenightwolf-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260717-180757-onenightwolf-5p",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "aborted",
+      "productVerdict": "fail",
+      "playerCount": 5,
+      "gamesToPlay": 2,
+      "gameSettings": {
+        "deckPreset": "recommended",
+        "discussionSeconds": 120
+      },
+      "gameSettingsSha256": "14240babe9af0bea675f5f7f0f0a6fd53e1e3404a67241f4a77fbf7e231ded6a",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "accelerated_waits",
+      "findings": {
+        "P0": 0,
+        "P1": 1,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 1,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260717-182241-onenightwolf-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260717-182241-onenightwolf-5p",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 5,
+      "gamesToPlay": 2,
+      "gameSettings": {
+        "deckPreset": "recommended",
+        "discussionSeconds": 900
+      },
+      "gameSettingsSha256": "e7eca0b7c6d279e8237727af231ddc061fa290770279e717ba3ebc612409eb9a",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "accelerated_waits",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 64,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "0d20256292504d25adbe506ec3c6d370accdc80ec6a68b4f96d85941f852c23d",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "0d20256292504d25adbe506ec3c6d370accdc80ec6a68b4f96d85941f852c23d",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260717-184906-onenightwolf-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260717-184906-onenightwolf-5p",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 5,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "deckPreset": "custom",
+        "discussionSeconds": 600,
+        "customDeck": [
+          "werewolf",
+          "werewolf",
+          "minion",
+          "seer",
+          "robber",
+          "troublemaker",
+          "drunk",
+          "tanner"
+        ]
+      },
+      "gameSettingsSha256": "a2898bb3af710fb8c498338c7368bcae977cb5f1cc03acb8cc77ee8eeb6fb694",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 37,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "0d20256292504d25adbe506ec3c6d370accdc80ec6a68b4f96d85941f852c23d",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "0d20256292504d25adbe506ec3c6d370accdc80ec6a68b4f96d85941f852c23d",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260717-223402-onenightwolf-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260717-223402-onenightwolf-5p",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 5,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "deckPreset": "custom",
+        "discussionSeconds": 600,
+        "customDeck": [
+          "werewolf",
+          "werewolf",
+          "minion",
+          "seer",
+          "robber",
+          "troublemaker",
+          "drunk",
+          "tanner"
+        ]
+      },
+      "gameSettingsSha256": "a2898bb3af710fb8c498338c7368bcae977cb5f1cc03acb8cc77ee8eeb6fb694",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260717-223402-onenightwolf-5p-2",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260717-223402-onenightwolf-5p-2",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 5,
+      "gamesToPlay": 2,
+      "gameSettings": {
+        "deckPreset": "recommended",
+        "discussionSeconds": 900
+      },
+      "gameSettingsSha256": "e7eca0b7c6d279e8237727af231ddc061fa290770279e717ba3ebc612409eb9a",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "accelerated_waits",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260717-223739-onenightwolf-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260717-223739-onenightwolf-5p",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 5,
+      "gamesToPlay": 2,
+      "gameSettings": {
+        "deckPreset": "recommended",
+        "discussionSeconds": 900
+      },
+      "gameSettingsSha256": "e7eca0b7c6d279e8237727af231ddc061fa290770279e717ba3ebc612409eb9a",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "accelerated_waits",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260717-223739-onenightwolf-5p-2",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260717-223739-onenightwolf-5p-2",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 5,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "deckPreset": "custom",
+        "discussionSeconds": 600,
+        "customDeck": [
+          "werewolf",
+          "werewolf",
+          "minion",
+          "seer",
+          "robber",
+          "troublemaker",
+          "drunk",
+          "tanner"
+        ]
+      },
+      "gameSettingsSha256": "a2898bb3af710fb8c498338c7368bcae977cb5f1cc03acb8cc77ee8eeb6fb694",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "not_evaluated",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260717-224652-onenightwolf-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260717-224652-onenightwolf-5p",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 5,
+      "gamesToPlay": 2,
+      "gameSettings": {
+        "deckPreset": "recommended",
+        "discussionSeconds": 900
+      },
+      "gameSettingsSha256": "e7eca0b7c6d279e8237727af231ddc061fa290770279e717ba3ebc612409eb9a",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "accelerated_waits",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "pass_before_interruption",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260717-234541-onenightwolf-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260717-234541-onenightwolf-5p",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 5,
+      "gamesToPlay": 2,
+      "gameSettings": {
+        "deckPreset": "recommended",
+        "discussionSeconds": 900
+      },
+      "gameSettingsSha256": "e7eca0b7c6d279e8237727af231ddc061fa290770279e717ba3ebc612409eb9a",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "accelerated_waits",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-002002-onenightwolf-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-002002-onenightwolf-5p",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 5,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "deckPreset": "custom",
+        "discussionSeconds": 600,
+        "customDeck": [
+          "werewolf",
+          "werewolf",
+          "minion",
+          "seer",
+          "robber",
+          "troublemaker",
+          "drunk",
+          "tanner"
+        ]
+      },
+      "gameSettingsSha256": "a2898bb3af710fb8c498338c7368bcae977cb5f1cc03acb8cc77ee8eeb6fb694",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-004316-onenightwolf-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-004316-onenightwolf-5p",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 5,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "deckPreset": "custom",
+        "discussionSeconds": 900,
+        "customDeck": [
+          "werewolf",
+          "werewolf",
+          "minion",
+          "seer",
+          "robber",
+          "troublemaker",
+          "drunk",
+          "tanner"
+        ]
+      },
+      "gameSettingsSha256": "4da320b948ebfd84649c9cc740887520dc98765489cc718b43e080978434b92c",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "true",
+        "privateUi": "true",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "not_fully_audited"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 27,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-011715-onenightwolf-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-011715-onenightwolf-5p",
+      "schemaVersion": "1.0",
+      "game": "onenightwolf",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 5,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "deckPreset": "custom",
+        "discussionSeconds": 900,
+        "customDeck": [
+          "werewolf",
+          "werewolf",
+          "minion",
+          "seer",
+          "robber",
+          "troublemaker",
+          "drunk",
+          "tanner"
+        ]
+      },
+      "gameSettingsSha256": "4da320b948ebfd84649c9cc740887520dc98765489cc718b43e080978434b92c",
+      "journeyIds": [],
+      "scenarioIds": [],
+      "objective": "",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-123327-onenightwolf-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-123327-onenightwolf-3p",
+      "schemaVersion": "1.1",
+      "game": "onenightwolf",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "deckPreset": "recommended",
+        "discussionSeconds": 120
+      },
+      "gameSettingsSha256": "14240babe9af0bea675f5f7f0f0a6fd53e1e3404a67241f4a77fbf7e231ded6a",
+      "journeyIds": [
+        "create_join_complete_game"
+      ],
+      "scenarioIds": [],
+      "objective": "At the minimum supported three-player boundary, verify mixed-experience users can create, join, reload one identity, configure the recommended deck, make only visible legal decisions, complete one natural game, and receive an isolated and cross-tab-consistent terminal result.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 2,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "minimum_player_journey_complete",
+          "description": "All three players complete the create, join, start, play, and terminal journey through enabled visible UI controls.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-game-started",
+            "g1-public-terminal"
+          ]
+        },
+        {
+          "id": "identity_reload_stable",
+          "description": "Each tab proves its own identity and exact chat authorship; reloading one lobby tab preserves that identity without changing peer tabs.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-identity-chat-P1",
+            "g1-identity-chat-P2",
+            "g1-identity-chat-P3"
+          ]
+        },
+        {
+          "id": "recommended_settings_visible",
+          "description": "The lobby visibly reflects three players, a 120-second discussion timer, and the Adapter-recommended deck before start.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-settings"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Before terminal disclosure, no player tab or isolated player agent receives another player's private role or night information.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-night-complete",
+            "g1-public-role-reveal",
+            "g1-public-terminal"
+          ]
+        },
+        {
+          "id": "terminal_result_consistent",
+          "description": "Every player tab visibly exposes the same complete Adapter-normalized terminal result.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-result-detail",
+            "g1-public-terminal",
+            "public/final-state.log"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-130038-onenightwolf-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-130038-onenightwolf-3p",
+      "schemaVersion": "1.1",
+      "game": "onenightwolf",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "deckPreset": "recommended",
+        "discussionSeconds": 120
+      },
+      "gameSettingsSha256": "14240babe9af0bea675f5f7f0f0a6fd53e1e3404a67241f4a77fbf7e231ded6a",
+      "journeyIds": [
+        "create_join_complete_game"
+      ],
+      "scenarioIds": [],
+      "objective": "At the minimum supported three-player boundary, verify mixed-experience users can create, join, reload one identity, configure the recommended deck, make only visible legal decisions, complete one natural game, and receive an isolated and cross-tab-consistent terminal result.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 4,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "minimum_player_journey_complete",
+          "description": "All three players complete the create, join, start, play, and terminal journey through enabled visible UI controls.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-game-started",
+            "g1-public-terminal"
+          ]
+        },
+        {
+          "id": "identity_reload_stable",
+          "description": "Each tab proves its own identity and exact chat authorship; reloading one lobby tab preserves that identity without changing peer tabs.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-identity-chat-P1",
+            "g1-identity-chat-P2",
+            "g1-identity-chat-P3"
+          ]
+        },
+        {
+          "id": "recommended_settings_visible",
+          "description": "The lobby visibly reflects three players, a 120-second discussion timer, and the Adapter-recommended deck before start.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-settings"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Before terminal disclosure, no player tab or isolated player agent receives another player's nonpublic role or night details.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-night-complete",
+            "g1-public-role-reveal",
+            "g1-public-terminal"
+          ]
+        },
+        {
+          "id": "terminal_result_consistent",
+          "description": "Every player tab visibly exposes the same complete Adapter-normalized terminal result.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-result-detail",
+            "g1-public-terminal",
+            "public/final-state.log"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-132800-onenightwolf-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-132800-onenightwolf-3p",
+      "schemaVersion": "1.1",
+      "game": "onenightwolf",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "deckPreset": "recommended",
+        "discussionSeconds": 120
+      },
+      "gameSettingsSha256": "14240babe9af0bea675f5f7f0f0a6fd53e1e3404a67241f4a77fbf7e231ded6a",
+      "journeyIds": [
+        "create_join_complete_game"
+      ],
+      "scenarioIds": [],
+      "objective": "At the minimum supported three-player boundary, verify mixed-experience users can create, join, reload one identity, configure the recommended deck, make only visible legal decisions, complete one natural game, and receive an isolated and cross-tab-consistent terminal result.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 1,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "6208af83dc546e686448d2b88685b44ac1df88e9b0584785d8f22adb3f9ec17c",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "minimum_player_journey_complete",
+          "description": "All three players complete the create, join, start, play, and terminal journey through enabled visible UI controls.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-game-started",
+            "g1-public-terminal"
+          ]
+        },
+        {
+          "id": "identity_reload_stable",
+          "description": "Each tab proves its own identity and exact chat authorship; reloading one lobby tab preserves that identity without changing peer tabs.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-identity-chat-P1",
+            "g1-identity-chat-P2",
+            "g1-identity-chat-P3"
+          ]
+        },
+        {
+          "id": "recommended_settings_visible",
+          "description": "The lobby visibly reflects three players, a 120-second discussion timer, and the Adapter-recommended deck before start.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-settings"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Before terminal disclosure, no player tab or isolated player agent receives another player's nonpublic role or night details.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-night-complete",
+            "g1-public-role-reveal",
+            "g1-public-terminal"
+          ]
+        },
+        {
+          "id": "terminal_result_consistent",
+          "description": "Every player tab visibly exposes the same complete Adapter-normalized terminal result.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-result-detail",
+            "g1-public-terminal",
+            "public/final-state.log"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-140404-avalon-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-140404-avalon-5p",
+      "schemaVersion": "1.1",
+      "game": "avalon",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 5,
+      "gamesToPlay": 1,
+      "gameSettings": {},
+      "gameSettingsSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "journeyIds": [
+        "discover_user_journeys"
+      ],
+      "scenarioIds": [],
+      "objective": "Discover Avalon's visible user journeys and draft a semantic Adapter without claiming formal game correctness.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 92,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-143303-avalon-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-143303-avalon-5p",
+      "schemaVersion": "1.1",
+      "game": "avalon",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 5,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "deckPreset": "recommended",
+        "leaderMode": "standard",
+        "publicResultDelaySeconds": 0,
+        "excalibur": false,
+        "ladyOfTheLake": false,
+        "questTeamSizes": [
+          2,
+          3,
+          2,
+          3,
+          3
+        ]
+      },
+      "gameSettingsSha256": "e57e90e9a983f4119604a3efc7e396f260a0c2319c6b0072664d98ade7e35303",
+      "journeyIds": [
+        "create_join_complete_game"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify five independent users can create, join, retain identity, complete one baseline Avalon game through legal visible actions, keep private assignment information isolated, and reach one consistent explained terminal result.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "identity_fixed",
+          "description": "Every tab proves its own identity before play, and a one-tab reload preserves that identity without changing peer tabs.",
+          "passed": true,
+          "evidenceRefs": [
+            "formal-p1-identity-private",
+            "formal-p2-identity-private",
+            "formal-p2-joined",
+            "formal-p3-identity-private",
+            "formal-p3-joined",
+            "formal-p4-identity-private",
+            "formal-p4-joined",
+            "formal-p5-identity-private",
+            "formal-p5-joined",
+            "formal-room-created"
+          ]
+        },
+        {
+          "id": "baseline_settings_visible",
+          "description": "The host applies the recommended five-player deck, standard clockwise leaders, no result delay, and disabled expansions through visible controls, and all tabs render the same settings.",
+          "passed": true,
+          "evidenceRefs": [
+            "formal-baseline-settings"
+          ]
+        },
+        {
+          "id": "private_views_isolated",
+          "description": "No tab or isolated player agent receives another player's private assignment information or player-associated quest card before the terminal state.",
+          "passed": true,
+          "evidenceRefs": [
+            "formal-g1-p3-quest-1-controls",
+            "formal-g1-p3-quest-3-controls",
+            "formal-g1-p5-quest-2-controls",
+            "formal-p1-identity-private",
+            "formal-p2-identity-private",
+            "formal-p3-identity-private",
+            "formal-p4-identity-private",
+            "formal-p5-identity-private"
+          ]
+        },
+        {
+          "id": "legal_core_flow",
+          "description": "Visible proposal, team-vote, quest, leader-rotation, and any naturally reached assassination controls accept only Adapter-legal owning-player actions.",
+          "passed": true,
+          "evidenceRefs": [
+            "formal-g1-proposal-1-settled",
+            "formal-g1-proposal-2-settled",
+            "formal-g1-proposal-3-settled",
+            "formal-g1-proposal-4-settled",
+            "formal-g1-quest-1-settled",
+            "formal-g1-quest-2-settled",
+            "formal-g1-quest-3-settled",
+            "formal-g1-rotation-1",
+            "formal-g1-rotation-2",
+            "formal-g1-rotation-3",
+            "formal-g1-teamvote-1-settled",
+            "formal-g1-teamvote-2-settled",
+            "formal-g1-teamvote-3-settled",
+            "formal-g1-teamvote-4-settled"
+          ]
+        },
+        {
+          "id": "terminal_result_consistent",
+          "description": "All five tabs reach the same normalized terminal result and public quest history, regardless of which side naturally wins.",
+          "passed": true,
+          "evidenceRefs": [
+            "formal-g1-result-detail",
+            "formal-g1-terminal-visible"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-154041-criminaldance-4p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-154041-criminaldance-4p",
+      "schemaVersion": "1.1",
+      "game": "criminaldance",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 4,
+      "gamesToPlay": 1,
+      "gameSettings": {},
+      "gameSettingsSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "journeyIds": [
+        "discover_user_journeys"
+      ],
+      "scenarioIds": [],
+      "objective": "Map the visible four-player baseline create, join, configure, start, private-hand, legal-action, reconnect, and terminal journeys needed for a Criminal Dance Adapter without issuing a product verdict.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 117,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "draft_adapter_map",
+          "description": "Visible settings, identity, roster, turn, private regions, legal actions, public state, reconnect behavior, and terminal normalization are mapped from real UI evidence.",
+          "passed": true,
+          "evidenceRefs": [
+            "criminaldance-r3-rumor-flow",
+            "criminaldance-r4-trade",
+            "criminaldance-r6-dog",
+            "criminaldance-reload-restore",
+            "criminaldance-settings-base",
+            "criminaldance-terminal-four-tabs"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-173518-criminaldance-8p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-173518-criminaldance-8p",
+      "schemaVersion": "1.1",
+      "game": "criminaldance",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 8,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "inspector": false,
+        "juvenile": false
+      },
+      "gameSettingsSha256": "98843b26ad1481a00d1d06d34cabd556ec98cc653a85f15f6ebdb610f2c24c04",
+      "journeyIds": [
+        "create_join_complete_match"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify eight isolated natural users can create, join, retain fixed identities, complete one full-deck Criminal Dance match through legal visible UI actions, preserve every private hand and draw boundary, and reach one cross-tab-consistent normalized terminal result.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 14,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-175341-criminaldance-8p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-175341-criminaldance-8p",
+      "schemaVersion": "1.1",
+      "game": "criminaldance",
+      "status": "aborted",
+      "productVerdict": "not_evaluated",
+      "playerCount": 8,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "inspector": false,
+        "juvenile": false
+      },
+      "gameSettingsSha256": "98843b26ad1481a00d1d06d34cabd556ec98cc653a85f15f6ebdb610f2c24c04",
+      "journeyIds": [
+        "create_join_complete_match"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify eight isolated natural users can create, join, retain fixed identities, complete one full-deck Criminal Dance match through legal visible UI actions, preserve every private hand and draw boundary, and reach one cross-tab-consistent normalized terminal result.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 617,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260718-191500-criminaldance-8p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260718-191500-criminaldance-8p",
+      "schemaVersion": "1.1",
+      "game": "criminaldance",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 8,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "inspector": false,
+        "juvenile": false
+      },
+      "gameSettingsSha256": "98843b26ad1481a00d1d06d34cabd556ec98cc653a85f15f6ebdb610f2c24c04",
+      "journeyIds": [
+        "create_join_complete_match"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify eight isolated natural users can create, join, retain fixed identities, complete one full-deck Criminal Dance match through legal visible UI actions, preserve every private hand and draw boundary, and reach one cross-tab-consistent normalized terminal result.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 1,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "not_certified"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 4854,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "eight_identities_fixed",
+          "description": "All eight tabs retain distinct fixed player identities from room entry through the visible match terminal.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-lobby-create-P1",
+            "g1-lobby-join-P8",
+            "g1-public-terminal"
+          ]
+        },
+        {
+          "id": "maximum_base_settings_visible",
+          "description": "The host selects eight players with Inspector and Juvenile disabled, and every tab visibly renders the same full base-deck settings.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-lobby-settings-8p-base"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Exact hands, draws, transfers, forced choices, and actor-private results appear only on the owning tab and in the owning player's Observation.",
+          "passed": true,
+          "evidenceRefs": [
+            "P1-g1-r8-rumor1-result",
+            "P3-g1-r8-witness-P7-result",
+            "P4-g1-r8-trade-P5-result",
+            "P5-g1-r8-trade-P4-result"
+          ]
+        },
+        {
+          "id": "natural_legal_actions",
+          "description": "Every strategic card, target, cancel, confirm, and forced response is selected autonomously by the owning player and is legal in that same player's visible UI.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-r8-P1-dog-P4",
+            "g1-r8-P4-detective-P7",
+            "g1-r8-P4-trade-P5"
+          ]
+        },
+        {
+          "id": "public_state_consistent",
+          "description": "Seat order, current player, hand counts, played piles, public cards, scores, and public log remain consistent across all eight tabs.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-r8-rumor1-settled",
+            "g1-r8-settlement"
+          ]
+        },
+        {
+          "id": "terminal_result_consistent",
+          "description": "All eight tabs complete the score-to-10 match and display the same normalized terminal result regardless of winner, strategy quality, or match length.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-public-result-detail",
+            "g1-public-terminal"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260719-113144-criminaldance-8p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260719-113144-criminaldance-8p",
+      "schemaVersion": "1.1",
+      "game": "criminaldance",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 8,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "inspector": false,
+        "juvenile": false
+      },
+      "gameSettingsSha256": "98843b26ad1481a00d1d06d34cabd556ec98cc653a85f15f6ebdb610f2c24c04",
+      "journeyIds": [
+        "create_join_complete_match"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify eight isolated natural users can create, join, retain fixed identities, complete one full-deck Criminal Dance match through legal visible UI actions, preserve every private hand and draw boundary, and reach one cross-tab-consistent normalized terminal result.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "eight_identities_fixed",
+          "description": "All eight tabs retain distinct fixed player identities from room entry through the visible match terminal.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-lobby-settings-visible",
+            "g1-terminal-all-tabs"
+          ]
+        },
+        {
+          "id": "maximum_base_settings_visible",
+          "description": "The host selects eight players with Inspector and Juvenile disabled, and every tab visibly renders the same full base-deck settings.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-lobby-ready-settings-verified",
+            "g1-r8-started"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Exact hands, draws, transfers, forced choices, and actor-private results appear only on the owning tab and in the owning player's Observation.",
+          "passed": true,
+          "evidenceRefs": [
+            "P1-g1-r8-rumor-result",
+            "P3-g1-r8-turn-047-hand",
+            "P5-g1-r8-trade-P6-offer",
+            "P6-g1-r8-trade-052-prompt"
+          ]
+        },
+        {
+          "id": "natural_legal_actions",
+          "description": "Every strategic card, target, cancel, confirm, and forced response is selected autonomously by the owning player and is legal in that same player's visible UI.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-r8-P2-dog-P7-action",
+            "g1-r8-P3-dog-P1-action",
+            "g1-r8-P6-trade-no-effect-action"
+          ]
+        },
+        {
+          "id": "public_state_consistent",
+          "description": "Seat order, current player, hand counts, played piles, public cards, scores, and public log remain consistent across all eight tabs.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-r7-settlement",
+            "g1-r8-P8-information-exchange-settled",
+            "g1-r8-settlement"
+          ]
+        },
+        {
+          "id": "terminal_result_consistent",
+          "description": "All eight tabs complete the score-to-10 match and display the same normalized terminal result regardless of winner, strategy quality, or match length.",
+          "passed": true,
+          "evidenceRefs": [
+            "g1-normalized-result",
+            "g1-terminal-all-tabs"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260719-203153-loveletter-2p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260719-203153-loveletter-2p",
+      "schemaVersion": "1.1",
+      "game": "loveletter",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 2,
+      "gamesToPlay": 1,
+      "gameSettings": {},
+      "gameSettingsSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "journeyIds": [
+        "discover_user_journeys"
+      ],
+      "scenarioIds": [],
+      "objective": "Explore the complete visible two-player Love Letter journey from entry, room creation and joining through identity persistence, host heart-target settings, readiness, turn actions, round settlement, heart accumulation, next-round flow, and full-match terminal normalization without issuing a formal product verdict.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "fail"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 295,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "identity_fixed",
+          "description": "",
+          "passed": true,
+          "evidenceRefs": [
+            "loveletter-identity-message",
+            "loveletter-p2-reconnect"
+          ]
+        },
+        {
+          "id": "settings_and_lobby_mapped",
+          "description": "",
+          "passed": true,
+          "evidenceRefs": [
+            "loveletter-lobby-flow",
+            "loveletter-player-count-options",
+            "loveletter-target-range"
+          ]
+        },
+        {
+          "id": "private_public_information_mapped",
+          "description": "",
+          "passed": true,
+          "evidenceRefs": [
+            "loveletter-priest-guard-chain",
+            "loveletter-r5-p1-priest",
+            "loveletter-r6-protection"
+          ]
+        },
+        {
+          "id": "full_user_journey_observed",
+          "description": "",
+          "passed": true,
+          "evidenceRefs": [
+            "loveletter-r9-match-terminal",
+            "loveletter-room-created"
+          ]
+        },
+        {
+          "id": "terminal_result_consistent",
+          "description": "",
+          "passed": true,
+          "evidenceRefs": [
+            "loveletter-g1-result-detail",
+            "loveletter-g1-terminal-visible",
+            "public/final-state.log"
+          ]
+        },
+        {
+          "id": "draft_adapter_map",
+          "description": "Visible room, identity, settings, readiness, private cards, legal actions and targets, public states, round settlement, heart progression, terminal state, and normalized cross-tab result are mapped from the real UI.",
+          "passed": true,
+          "evidenceRefs": [
+            "loveletter-g1-result-detail",
+            "loveletter-player-count-options",
+            "loveletter-r6-no-target",
+            "loveletter-r7-forced-princess",
+            "loveletter-target-range"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260719-221813-loveletter-2p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260719-221813-loveletter-2p",
+      "schemaVersion": "1.1",
+      "game": "loveletter",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 2,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "targetHearts": 1
+      },
+      "gameSettingsSha256": "c9df1b67a29cb1523f3363cc7803c0616d746072e527431786bbb7c7967eddd2",
+      "journeyIds": [
+        "discover_user_journeys"
+      ],
+      "scenarioIds": [],
+      "objective": "Re-run the complete visible two-player Love Letter discovery journey with the UI-selected legal one-heart target, preserving strict real-time evidence from entry, room creation and joining through identity persistence, settings, readiness, turn actions, round settlement, heart accumulation, and full-match terminal normalization without issuing a formal product verdict.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "fail"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 11,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "draft_adapter_map",
+          "description": "Visible room, identity, settings, readiness, private cards, legal actions and targets, public states, round settlement, heart progression, terminal state, and normalized cross-tab result are mapped from the real UI.",
+          "passed": true,
+          "evidenceRefs": [
+            "clean-g1-result-detail",
+            "clean-r1-t6-terminal-action",
+            "strict-entry-visible",
+            "strict-player-joined",
+            "strict-room-created",
+            "strict-settings-observed"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260719-225603-loveletter-2p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260719-225603-loveletter-2p",
+      "schemaVersion": "1.1",
+      "game": "loveletter",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 2,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "targetHearts": 6
+      },
+      "gameSettingsSha256": "1f77292011ee2d874da969bcf22f692dc6714fd372711a7faf5d43816118563e",
+      "journeyIds": [
+        "create_join_complete_match"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify two isolated natural users can create and join a Love Letter room, retain fixed identities, use the visible two-player default target, complete every round through legal visible UI actions, preserve private hands and actor-only results, and reach one cross-tab-consistent full-match terminal result.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "identities_fixed",
+          "description": "Both tabs retain distinct fixed player identities through visible reconnect and match terminal.",
+          "passed": true,
+          "evidenceRefs": [
+            "f2-g1-terminal-visible",
+            "f2-identity-reconnect"
+          ]
+        },
+        {
+          "id": "default_target_visible",
+          "description": "Both tabs visibly agree on the two-player UI default target of six hearts.",
+          "passed": true,
+          "evidenceRefs": [
+            "f2-g1-match-settled",
+            "f2-settings-verified"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Exact hands, draws, pending choices, and actor-only card results stay on the owning tab and in the owning agent Observation.",
+          "passed": true,
+          "evidenceRefs": [
+            "f2-g1-isolation"
+          ]
+        },
+        {
+          "id": "natural_legal_actions",
+          "description": "Every card, target, guess, pending choice, and confirmation comes from the acting player's current visible legal controls and isolated Decision.",
+          "passed": true,
+          "evidenceRefs": [
+            "f2-r1-start",
+            "f2-r7-card4"
+          ]
+        },
+        {
+          "id": "public_state_consistent",
+          "description": "Settings, current player, hand counts, discards, protection, elimination, hearts, and public action log agree on both tabs.",
+          "passed": true,
+          "evidenceRefs": [
+            "f2-r1-start",
+            "f2-r7-settled"
+          ]
+        },
+        {
+          "id": "terminal_result_consistent",
+          "description": "Both tabs complete the full target-heart match and normalize to the same winner, round history, and heart totals.",
+          "passed": true,
+          "evidenceRefs": [
+            "f2-g1-result-detail",
+            "f2-g1-terminal-visible"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260719-233201-loveletter-4p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260719-233201-loveletter-4p",
+      "schemaVersion": "1.1",
+      "game": "loveletter",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 4,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "targetHearts": 1
+      },
+      "gameSettingsSha256": "c9df1b67a29cb1523f3363cc7803c0616d746072e527431786bbb7c7967eddd2",
+      "journeyIds": [
+        "create_join_complete_match"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify four isolated natural users can create and join a Love Letter room, retain fixed identities, select a visible non-default one-heart target, complete the full match through legal UI actions without forced card strategy, preserve all private hands and actor-only results, and reach one cross-tab-consistent terminal result.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "468730a8c692b53669be8e14d8f730732f157b8f67e9e01b8cb48f2a008812a9",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "four_identities_fixed",
+          "description": "All four tabs retain distinct fixed identities from room entry through terminal.",
+          "passed": true,
+          "evidenceRefs": [
+            "f4-chat-identity",
+            "f4-g1-terminal-visible"
+          ]
+        },
+        {
+          "id": "custom_target_visible",
+          "description": "The host selects one heart instead of the visible four-player default of four, and every tab visibly agrees.",
+          "passed": true,
+          "evidenceRefs": [
+            "f4-g1-match-settled",
+            "f4-settings"
+          ]
+        },
+        {
+          "id": "protection_elimination_enforced",
+          "description": "Protected, eliminated, waiting, or otherwise restricted players cannot perform actions absent from their own visible UI.",
+          "passed": true,
+          "evidenceRefs": [
+            "f4-r1-card11",
+            "f4-r1-card2",
+            "f4-r1-card7"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Exact hands, draws, pending choices, and actor-only results never appear on non-owner tabs or in non-owner Observations.",
+          "passed": true,
+          "evidenceRefs": [
+            "f4-g1-isolation"
+          ]
+        },
+        {
+          "id": "public_state_consistent",
+          "description": "Public cards, player states, heart totals, and current player agree across all four tabs.",
+          "passed": true,
+          "evidenceRefs": [
+            "f4-r1-settled",
+            "f4-r1-start"
+          ]
+        },
+        {
+          "id": "terminal_result_consistent",
+          "description": "All four tabs normalize the full one-heart match to the same result.",
+          "passed": true,
+          "evidenceRefs": [
+            "f4-g1-result-detail",
+            "f4-g1-terminal-visible"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-010254-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-010254-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "classic",
+        "mapSelection": "fixed",
+        "mapId": "classic"
+      },
+      "gameSettingsSha256": "9987d30a92a83fb74de0a25cad48d0e082f7c2fea4bf1e30b94f2f31b1432888",
+      "journeyIds": [
+        "discover_user_journeys"
+      ],
+      "scenarioIds": [],
+      "objective": "Map the visible three-player classic Gangsi create, join, configure, identity, reload, role, dice, movement, private-mission, capture, terminal, and return-to-lobby journeys without issuing a product verdict.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 1,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 2,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "draft_classic_adapter_map",
+          "description": "Visible classic settings, identities, semantic controls, private regions, legal actions, reload behavior, terminal oracle, and normalized result fields are mapped from real UI evidence.",
+          "passed": false,
+          "evidenceRefs": [
+            "gangsi-token-change-not-committed"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-090257-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-090257-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "classic",
+        "mapSelection": "fixed",
+        "mapId": "classic"
+      },
+      "gameSettingsSha256": "9987d30a92a83fb74de0a25cad48d0e082f7c2fea4bf1e30b94f2f31b1432888",
+      "journeyIds": [
+        "discover_user_journeys"
+      ],
+      "scenarioIds": [],
+      "objective": "Map the visible three-player classic Gangsi create, join, configure, identity, reload, role, dice, movement, private-mission, capture, terminal, and return-to-lobby journeys without issuing a product verdict.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 7,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "draft_classic_adapter_map",
+          "description": "Visible classic settings, identities, semantic controls, private regions, legal actions, reload behavior, terminal oracle, and normalized result fields are mapped from real UI evidence.",
+          "passed": false,
+          "evidenceRefs": [
+            "classic-lobby-joined",
+            "classic-p1-core-loop",
+            "classic-p2-arrow",
+            "classic-p3-turn",
+            "classic-ready",
+            "classic-started"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-091716-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-091716-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "hunt",
+        "mapSelection": "random"
+      },
+      "gameSettingsSha256": "b183049bee5d69fc11253950a35c6c58efc04b9bb8620476df75bc8882c14392",
+      "journeyIds": [
+        "discover_user_journeys"
+      ],
+      "scenarioIds": [],
+      "objective": "Map the visible three-player Hunt Gangsi create, join, random-map, identity, role-specialization, profession, monster-ability, tracking, private-view, terminal, and return-to-lobby journeys without issuing a product verdict.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 1,
+        "decisionIsolationFailures": 1
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 11,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "draft_hunt_adapter_map",
+          "description": "Visible Hunt settings, random-map boundary, identities, professions, monster types, semantic controls, private regions, legal actions, terminal oracle, and normalized result fields are mapped from real UI evidence.",
+          "passed": false,
+          "evidenceRefs": [
+            "hunt-lobby",
+            "hunt-p1-core",
+            "hunt-p2-arrow",
+            "hunt-p3-trap",
+            "hunt-started"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-092223-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-092223-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "hunt",
+        "mapSelection": "random"
+      },
+      "gameSettingsSha256": "b183049bee5d69fc11253950a35c6c58efc04b9bb8620476df75bc8882c14392",
+      "journeyIds": [
+        "discover_user_journeys"
+      ],
+      "scenarioIds": [],
+      "objective": "Map the visible three-player Hunt Gangsi create, join, random-map, identity, role-specialization, profession, monster-ability, tracking, private-view, terminal, and return-to-lobby journeys without issuing a product verdict.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 10,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "draft_hunt_adapter_map",
+          "description": "Visible Hunt settings, random-map boundary, identities, professions, monster types, semantic controls, private regions, legal actions, terminal oracle, and normalized result fields are mapped from real UI evidence.",
+          "passed": false,
+          "evidenceRefs": [
+            "clean-hunt-lobby",
+            "clean-hunt-p1-skip",
+            "clean-hunt-p2-arrow",
+            "clean-hunt-p3-invisible-action",
+            "clean-hunt-started"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-093654-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-093654-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "classic",
+        "mapSelection": "fixed",
+        "mapId": "classic"
+      },
+      "gameSettingsSha256": "9987d30a92a83fb74de0a25cad48d0e082f7c2fea4bf1e30b94f2f31b1432888",
+      "journeyIds": [
+        "create_join_complete_classic_game"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify three isolated natural users can create and join a fixed-map classic Gangsi room, retain visible identities through lobby reload, complete the game through legal visible UI actions, preserve mission and position isolation, see one consistent terminal result, and return to the reset lobby.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 184,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "classic_settings_visible",
+          "description": "All tabs visibly agree on three players, classic mode, and fixed classic map.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic-settings",
+            "classic-setup"
+          ]
+        },
+        {
+          "id": "identities_and_reload",
+          "description": "Three distinct identities are proved in chat and one lobby reload reconnects to the same identity.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic-lobby-chat"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Mission cards, hidden positions, and actor-only controls remain in the owning tab and Observation.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic-P1-private-opening",
+            "classic-P2-private-opening",
+            "classic-P3-private-opening",
+            "classic-game-started"
+          ]
+        },
+        {
+          "id": "natural_legal_actions",
+          "description": "Every turn uses only the acting player's current visible enabled controls and isolated Decision.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic-turn-1",
+            "classic-turn-31"
+          ]
+        },
+        {
+          "id": "classic_terminal_consistent",
+          "description": "All tabs reach and normalize the same classic winner and visible score or task totals.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic-result-detail",
+            "classic-terminal-all-tabs",
+            "classic-terminal-settled"
+          ]
+        },
+        {
+          "id": "return_to_lobby",
+          "description": "After terminal review, the host returns every tab to a visibly reset preparation lobby.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic-returned-lobby"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-112718-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-112718-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "classic",
+        "mapSelection": "fixed",
+        "mapId": "classic"
+      },
+      "gameSettingsSha256": "9987d30a92a83fb74de0a25cad48d0e082f7c2fea4bf1e30b94f2f31b1432888",
+      "journeyIds": [
+        "create_join_complete_classic_game"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify three isolated natural users can create and join a fixed-map classic Gangsi room, retain visible identities through lobby reload, complete the game through legal visible UI actions, preserve mission and position isolation, see one consistent terminal result, and return to the reset lobby.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 1,
+        "decisionIsolationFailures": 1
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 16,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-121904-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-121904-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "classic",
+        "mapSelection": "fixed",
+        "mapId": "classic"
+      },
+      "gameSettingsSha256": "9987d30a92a83fb74de0a25cad48d0e082f7c2fea4bf1e30b94f2f31b1432888",
+      "journeyIds": [
+        "create_join_complete_classic_game"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify three isolated natural users can create and join a fixed-map classic Gangsi room, retain visible identities through lobby reload, complete the game through legal visible UI actions, preserve mission and position isolation, see one consistent terminal result, and return to the reset lobby.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 7,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-121957-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-121957-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "classic",
+        "mapSelection": "fixed",
+        "mapId": "classic"
+      },
+      "gameSettingsSha256": "9987d30a92a83fb74de0a25cad48d0e082f7c2fea4bf1e30b94f2f31b1432888",
+      "journeyIds": [
+        "create_join_complete_classic_game"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify three isolated natural users can create and join a fixed-map classic Gangsi room, retain visible identities through lobby reload, complete the game through legal visible UI actions, preserve mission and position isolation, see one consistent terminal result, and return to the reset lobby.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 11,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "unknown",
+        "fingerprintSha256": "",
+        "gitHead": "",
+        "productSourceSha256": "",
+        "sourceTreeDirty": null,
+        "entryUrl": ""
+      },
+      "criteria": [],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-122213-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-122213-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "classic",
+        "mapSelection": "fixed",
+        "mapId": "classic"
+      },
+      "gameSettingsSha256": "9987d30a92a83fb74de0a25cad48d0e082f7c2fea4bf1e30b94f2f31b1432888",
+      "journeyIds": [
+        "create_join_complete_classic_game"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify three isolated natural users can create and join a fixed-map classic Gangsi room, retain visible identities through lobby reload, complete the game through legal visible UI actions, preserve mission and position isolation, see one consistent terminal result, and return to the reset lobby.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "unknown",
+        "privateUi": "unknown",
+        "agentDecisionContext": "unknown",
+        "evidenceRefs": "unknown"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 149,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "classic_settings_visible",
+          "description": "All tabs visibly agree on three players, classic mode, and fixed classic map.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic5-settings",
+            "classic5-setup"
+          ]
+        },
+        {
+          "id": "identities_and_reload",
+          "description": "Three distinct identities are proved in chat and one lobby reload reconnects to the same identity.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic5-chat-p1",
+            "classic5-chat-p2",
+            "classic5-chat-p3",
+            "classic5-ingame-reconnect-entry",
+            "classic5-p2-reconnect"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Mission cards, hidden positions, and actor-only controls remain in the owning tab and Observation.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic5-game-started",
+            "classic5-p1-opening",
+            "classic5-p2-opening",
+            "classic5-p3-opening"
+          ]
+        },
+        {
+          "id": "natural_legal_actions",
+          "description": "Every turn uses only the acting player's current visible enabled controls and isolated Decision.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic5-turn-1",
+            "classic5-turn-27"
+          ]
+        },
+        {
+          "id": "classic_terminal_consistent",
+          "description": "All tabs reach and normalize the same classic winner and visible score or task totals.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic5-result-detail",
+            "classic5-terminal-all-tabs",
+            "classic5-terminal-settled"
+          ]
+        },
+        {
+          "id": "return_to_lobby",
+          "description": "After terminal review, the host returns every tab to a visibly reset preparation lobby.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic5-returned-lobby"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-155400-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-155400-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "classic",
+        "mapSelection": "fixed",
+        "mapId": "classic"
+      },
+      "gameSettingsSha256": "9987d30a92a83fb74de0a25cad48d0e082f7c2fea4bf1e30b94f2f31b1432888",
+      "journeyIds": [
+        "create_join_complete_classic_game"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify three isolated natural users can create and join a fixed-map classic Gangsi room, retain visible identities through lobby reload, complete the game through legal visible UI actions, preserve mission and position isolation, see one consistent terminal result, and return to the reset lobby.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "fail"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 4,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "classic_settings_visible",
+          "description": "All tabs visibly agree on three players, classic mode, and fixed classic map.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic6-settings",
+            "classic6-setup"
+          ]
+        },
+        {
+          "id": "identities_and_reload",
+          "description": "Three distinct identities are proved in chat and one lobby reload reconnects to the same identity.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic6-chat-p1",
+            "classic6-chat-p2",
+            "classic6-chat-p3",
+            "classic6-reload-entry"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Mission cards, hidden positions, and actor-only controls remain in the owning tab and Observation.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic6-game-started",
+            "classic6-p1-opening",
+            "classic6-p2-opening",
+            "classic6-p3-opening"
+          ]
+        },
+        {
+          "id": "natural_legal_actions",
+          "description": "Every turn uses only the acting player's current visible enabled controls and isolated Decision.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic6-turn-1",
+            "classic6-turn-29"
+          ]
+        },
+        {
+          "id": "classic_terminal_consistent",
+          "description": "All tabs reach and normalize the same classic winner and visible score or task totals.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic6-result-detail",
+            "classic6-terminal-all-tabs",
+            "classic6-terminal-settled"
+          ]
+        },
+        {
+          "id": "return_to_lobby",
+          "description": "After terminal review, the host returns every tab to a visibly reset preparation lobby.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic6-returned-lobby"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-180753-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-180753-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "incomplete",
+      "productVerdict": "not_evaluated",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "classic",
+        "mapSelection": "fixed",
+        "mapId": "classic"
+      },
+      "gameSettingsSha256": "9987d30a92a83fb74de0a25cad48d0e082f7c2fea4bf1e30b94f2f31b1432888",
+      "journeyIds": [
+        "create_join_complete_classic_game"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify three isolated natural users can create and join a fixed-map classic Gangsi room, retain visible identities through lobby reload, complete the game through legal visible UI actions, preserve mission and position isolation, see one consistent terminal result, and return to the reset lobby.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "fail"
+      },
+      "audit": {
+        "passed": false,
+        "errorCount": 7,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "classic_settings_visible",
+          "description": "All tabs visibly agree on three players, classic mode, and fixed classic map.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic7-settings",
+            "classic7-setup"
+          ]
+        },
+        {
+          "id": "identities_and_reload",
+          "description": "Three distinct identities are proved in chat and one lobby reload reconnects to the same identity.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic7-chat-p1",
+            "classic7-chat-p2",
+            "classic7-chat-p3",
+            "classic7-reload-entry"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Mission cards, hidden positions, and actor-only controls remain in the owning tab and Observation.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic7-game-started",
+            "classic7-p1-opening",
+            "classic7-p2-opening",
+            "classic7-p3-opening"
+          ]
+        },
+        {
+          "id": "natural_legal_actions",
+          "description": "Every turn uses only the acting player's current visible enabled controls and isolated Decision.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic7-turn-1",
+            "classic7-turn-19"
+          ]
+        },
+        {
+          "id": "classic_terminal_consistent",
+          "description": "All tabs reach and normalize the same classic winner and visible score or task totals.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic7-result-detail",
+            "classic7-terminal-all-tabs",
+            "classic7-terminal-settled"
+          ]
+        },
+        {
+          "id": "return_to_lobby",
+          "description": "After terminal review, the host returns every tab to a visibly reset preparation lobby.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic7-returned-lobby"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-184703-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-184703-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "classic",
+        "mapSelection": "fixed",
+        "mapId": "classic"
+      },
+      "gameSettingsSha256": "9987d30a92a83fb74de0a25cad48d0e082f7c2fea4bf1e30b94f2f31b1432888",
+      "journeyIds": [
+        "create_join_complete_classic_game"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify three isolated natural users can create and join a fixed-map classic Gangsi room, retain visible identities through lobby reload, complete the game through legal visible UI actions, preserve mission and position isolation, see one consistent terminal result, and return to the reset lobby.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "classic_settings_visible",
+          "description": "All tabs visibly agree on three players, classic mode, and fixed classic map.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic8-settings",
+            "classic8-setup"
+          ]
+        },
+        {
+          "id": "identities_and_reload",
+          "description": "Three distinct identities are proved in chat and one lobby reload reconnects to the same identity.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic8-chat-p1",
+            "classic8-chat-p2",
+            "classic8-chat-p3",
+            "classic8-reload-entry"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Mission cards, hidden positions, and actor-only controls remain in the owning tab and Observation.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic8-game-started",
+            "classic8-p1-opening",
+            "classic8-p2-opening",
+            "classic8-p3-opening"
+          ]
+        },
+        {
+          "id": "natural_legal_actions",
+          "description": "Every turn uses only the acting player's current visible enabled controls and isolated Decision.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic8-turn-1",
+            "classic8-turn-19"
+          ]
+        },
+        {
+          "id": "classic_terminal_consistent",
+          "description": "All tabs reach and normalize the same classic winner and visible score or task totals.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic8-result-detail",
+            "classic8-terminal-all-tabs",
+            "classic8-terminal-settled"
+          ]
+        },
+        {
+          "id": "return_to_lobby",
+          "description": "After terminal review, the host returns every tab to a visibly reset preparation lobby.",
+          "passed": true,
+          "evidenceRefs": [
+            "classic8-returned-lobby"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    },
+    {
+      "runId": "20260720-192210-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-192210-gangsi-3p",
+      "schemaVersion": "1.1",
+      "game": "gangsi",
+      "status": "complete",
+      "productVerdict": "pass",
+      "playerCount": 3,
+      "gamesToPlay": 1,
+      "gameSettings": {
+        "mode": "hunt",
+        "mapSelection": "random",
+        "mapId": null
+      },
+      "gameSettingsSha256": "d4a19d57876078ae6dcbadbdab953a7c9ad93fbdb5c3508d744d2b1550c9af4f",
+      "journeyIds": [
+        "create_join_complete_hunt_game"
+      ],
+      "scenarioIds": [],
+      "objective": "Verify three isolated natural users can create and join a random-map Hunt Gangsi room, choose distinct visible abilities, retain identities through lobby reload, complete the game through legal visible UI actions, preserve missions, positions, and ability details, see one consistent terminal result, and return to the reset lobby.",
+      "timingFidelity": "production",
+      "findings": {
+        "P0": 0,
+        "P1": 0,
+        "decisionIsolationFailures": 0
+      },
+      "isolation": {
+        "playerTabs": "pass",
+        "privateUi": "pass",
+        "agentDecisionContext": "pass",
+        "evidenceRefs": "pass"
+      },
+      "audit": {
+        "passed": true,
+        "errorCount": 0,
+        "warningCount": 0
+      },
+      "productIdentity": {
+        "kind": "local_source",
+        "fingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "gitHead": "6a453eccb900a56ac8a79f8e6834c0925ac85ca0",
+        "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+        "sourceTreeDirty": true,
+        "entryUrl": ""
+      },
+      "criteria": [
+        {
+          "id": "hunt_settings_visible",
+          "description": "All tabs visibly agree on three players, Hunt mode, random selection, and the resolved map after start.",
+          "passed": true,
+          "evidenceRefs": [
+            "hunt1-settings",
+            "hunt1-setup"
+          ]
+        },
+        {
+          "id": "identities_and_reload",
+          "description": "Three distinct identities are proved in chat and one lobby reload reconnects to the same identity.",
+          "passed": true,
+          "evidenceRefs": [
+            "hunt1-chat-p1",
+            "hunt1-chat-p2",
+            "hunt1-chat-p3",
+            "hunt1-reload-entry"
+          ]
+        },
+        {
+          "id": "hunt_abilities_visible",
+          "description": "The lobby enforces distinct adventurer professions and one mummy type, with own ability state visible in game.",
+          "passed": true,
+          "evidenceRefs": [
+            "hunt1-lobby-ready",
+            "hunt1-setup",
+            "hunt1-turn-15",
+            "hunt1-turn-4"
+          ]
+        },
+        {
+          "id": "private_information_isolated",
+          "description": "Mission cards, hidden positions, traps, and actor-only ability results remain in the owning tab and Observation.",
+          "passed": true,
+          "evidenceRefs": [
+            "hunt1-game-started",
+            "hunt1-p1-opening",
+            "hunt1-p2-opening",
+            "hunt1-p3-opening"
+          ]
+        },
+        {
+          "id": "natural_legal_actions",
+          "description": "Every turn, ability, mechanism, movement, reveal, capture, and escape action comes from current visible enabled controls and an isolated Decision.",
+          "passed": true,
+          "evidenceRefs": [
+            "hunt1-turn-1",
+            "hunt1-turn-31"
+          ]
+        },
+        {
+          "id": "hunt_terminal_consistent",
+          "description": "All tabs reach and normalize the same Hunt winner, player result rows, and escaped/dead totals.",
+          "passed": true,
+          "evidenceRefs": [
+            "hunt1-result-detail",
+            "hunt1-terminal-all-tabs",
+            "hunt1-terminal-settled"
+          ]
+        },
+        {
+          "id": "return_to_lobby",
+          "description": "After terminal review, the host returns every tab to a visibly reset preparation lobby.",
+          "passed": true,
+          "evidenceRefs": [
+            "hunt1-returned-lobby"
+          ]
+        }
+      ],
+      "checkpoints": [],
+      "journeys": [],
+      "coverageRoutes": []
+    }
+  ],
+  "indexSha256": "39008de8234e37fe6d5493e3f6a4624f0310750c62bc61eab2842a6bf0d23e8b"
+}

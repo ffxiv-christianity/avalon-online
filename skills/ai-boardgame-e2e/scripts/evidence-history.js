@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { auditRun } = require("./audit-run");
 const { readJson, stableStringify } = require("./core");
+const { normalizeProductIdentity, productFingerprint } = require("./product-identity");
 
 function sha256Json(value) {
   return crypto.createHash("sha256").update(stableStringify(value), "utf8").digest("hex");
@@ -64,6 +65,13 @@ function indexRun(runDir) {
   const results = sanitizedResultEvents(timeline, config);
   const buildEvent = [...timeline].reverse().find((event) => event.type === "product_build_verified") || {};
   const productBuild = run.productBuild || {};
+  let normalizedProductIdentity = null;
+  try {
+    normalizedProductIdentity = normalizeProductIdentity(productBuild);
+  } catch (_error) {
+    try { normalizedProductIdentity = normalizeProductIdentity(buildEvent); } catch (_ignored) { /* invalid legacy evidence */ }
+  }
+  const identityFingerprint = normalizedProductIdentity ? productFingerprint(normalizedProductIdentity) : "";
   return {
     runId: String(run.runId || path.basename(runDir)),
     runDir: path.resolve(runDir),
@@ -91,10 +99,20 @@ function indexRun(runDir) {
       evidenceRefs: String(run.isolation?.evidenceRefs || "unknown")
     },
     audit,
-    productIdentity: {
-      gitHead: String(productBuild.gitHead || buildEvent.gitHead || ""),
-      productSourceSha256: String(productBuild.productSourceSha256 || buildEvent.productSourceSha256 || ""),
-      sourceTreeDirty: productBuild.sourceTreeDirty === true
+    productIdentity: normalizedProductIdentity ? {
+      kind: normalizedProductIdentity.kind,
+      fingerprintSha256: identityFingerprint,
+      gitHead: String(normalizedProductIdentity.gitHead || ""),
+      productSourceSha256: String(normalizedProductIdentity.productSourceSha256 || ""),
+      sourceTreeDirty: normalizedProductIdentity.kind === "local_source" ? normalizedProductIdentity.sourceTreeDirty : null,
+      entryUrl: String(normalizedProductIdentity.entryUrl || "")
+    } : {
+      kind: "unknown",
+      fingerprintSha256: "",
+      gitHead: "",
+      productSourceSha256: "",
+      sourceTreeDirty: null,
+      entryUrl: ""
     },
     criteria: results.criteria,
     checkpoints: results.checkpoints,
@@ -150,6 +168,10 @@ function validateQuery(input) {
     playerCount: input.playerCount === undefined ? null : Number(input.playerCount),
     gameSettings: input.gameSettings || {},
     requireCurrentBuild: input.requireCurrentBuild !== false,
+    currentProductIdentityKind: String(input.currentProductIdentityKind
+      || (input.currentProductSourceSha256 ? "local_source" : "")),
+    currentProductFingerprintSha256: String(input.currentProductFingerprintSha256
+      || input.currentProductSourceSha256 || ""),
     currentProductSourceSha256: String(input.currentProductSourceSha256 || ""),
     requireProductionTiming: input.requireProductionTiming === true,
     requireIsolation: input.requireIsolation !== false
@@ -161,8 +183,11 @@ function validateQuery(input) {
   }
   if (query.playerCount !== null && (!Number.isInteger(query.playerCount) || query.playerCount < 1)) throw new Error("Evidence query playerCount is invalid.");
   if (!query.gameSettings || typeof query.gameSettings !== "object" || Array.isArray(query.gameSettings)) throw new Error("Evidence query gameSettings must be an object.");
-  if (query.requireCurrentBuild && !/^[a-f0-9]{64}$/i.test(query.currentProductSourceSha256)) {
-    throw new Error("A current product source SHA-256 is required for current-build reuse.");
+  if (query.requireCurrentBuild && !new Set(["local_source", "deployed_web_assets"]).has(query.currentProductIdentityKind)) {
+    throw new Error("A current product identity kind is required for current-build reuse.");
+  }
+  if (query.requireCurrentBuild && !/^[a-f0-9]{64}$/i.test(query.currentProductFingerprintSha256)) {
+    throw new Error("A current product fingerprint SHA-256 is required for current-build reuse.");
   }
   return query;
 }
@@ -187,6 +212,10 @@ function resultCompatible(entries, requiredIds, expectedResult) {
 
 function evaluateCandidate(run, query) {
   if (run.game !== query.game) return null;
+  const runIdentityKind = String(run.productIdentity?.kind
+    || (run.productIdentity?.productSourceSha256 ? "local_source" : "unknown"));
+  const runIdentityFingerprint = String(run.productIdentity?.fingerprintSha256
+    || run.productIdentity?.productSourceSha256 || "");
   const criterionCoverage = resultCompatible(run.criteria, query.requiredCriterionIds, query.expectedResult);
   const checkpointCoverage = resultCompatible(run.checkpoints, query.requiredCheckpointIds, query.expectedResult);
   const journeyIds = new Set(run.journeys.map((entry) => entry.id));
@@ -204,7 +233,12 @@ function evaluateCandidate(run, query) {
   if (query.playerCount !== null && run.playerCount !== query.playerCount) blockers.push("player_count_mismatch");
   if (!isSubset(query.gameSettings, run.gameSettings)) blockers.push("game_settings_mismatch");
   if (query.requireProductionTiming && run.timingFidelity !== "production") blockers.push("timing_fidelity_mismatch");
-  if (query.requireCurrentBuild && run.productIdentity.productSourceSha256 !== query.currentProductSourceSha256) blockers.push("product_source_mismatch");
+  if (query.requireCurrentBuild && (runIdentityKind !== query.currentProductIdentityKind
+    || runIdentityFingerprint !== query.currentProductFingerprintSha256)) {
+    blockers.push(query.currentProductIdentityKind === "local_source" && runIdentityKind === "local_source"
+      ? "product_source_mismatch"
+      : "product_identity_mismatch");
+  }
   if (query.requireIsolation && !Object.values(run.isolation).every((value) => value === "pass")) blockers.push("isolation_not_proven");
   if (query.expectedResult === "pass" && run.productVerdict !== "pass") blockers.push("product_verdict_not_pass");
   if (query.expectedResult === "fail" && run.productVerdict !== "fail") blockers.push("product_verdict_not_fail");
@@ -235,6 +269,8 @@ function evaluateCandidate(run, query) {
     runDir: run.runDir,
     classification,
     productVerdict: run.productVerdict,
+    productIdentityKind: runIdentityKind,
+    productFingerprintSha256: runIdentityFingerprint,
     productSourceSha256: run.productIdentity.productSourceSha256,
     timingFidelity: run.timingFidelity,
     matched: {

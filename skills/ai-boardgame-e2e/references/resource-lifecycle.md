@@ -34,7 +34,7 @@ Run this sequence on success, failure, abort, timeout, or user-requested stop. P
 5. Remove only Run-created temporary runtime files. Never delete `tests/AI_E2E/runs/<run-id>` or its logs during cleanup.
 6. Preserve reused and user-owned resources.
 7. Append exactly one public `resource_cleanup` event.
-8. Recompute the product source identity, append `product_build_verified`, then finalize.
+8. Recompute the same local-source or deployed-web-asset identity used at preflight, append `product_build_verified`, then finalize.
 
 Required event shape:
 

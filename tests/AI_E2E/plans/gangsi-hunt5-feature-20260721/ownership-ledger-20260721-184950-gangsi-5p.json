@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0",
+  "runId": "20260721-184950-gangsi-5p",
+  "createdByRun": {
+    "browserContexts": [],
+    "tabs": [
+      { "playerId": "P1", "tabId": "6", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P2", "tabId": "7", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P3", "tabId": "8", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P4", "tabId": "9", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" },
+      { "playerId": "P5", "tabId": "10", "url": "https://avalon-online-lhem.onrender.com/Gangsi/" }
+    ],
+    "isolatedPlayers": [
+      { "playerId": "P1", "agentTask": "/root/gangsi3_p1", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P2", "agentTask": "/root/gangsi3_p2", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P3", "agentTask": "/root/gangsi3_p3", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P4", "agentTask": "/root/gangsi3_p4", "forkTurns": "none", "toolsAuthorized": false },
+      { "playerId": "P5", "agentTask": "/root/gangsi3_p5", "forkTurns": "none", "toolsAuthorized": false }
+    ],
+    "processes": [],
+    "servers": [],
+    "temporaryArtifacts": []
+  },
+  "reusedResources": [
+    {
+      "kind": "in_app_browser_binding",
+      "identity": "-fbcd-4760-9b65-855acbd798f3",
+      "owned": false
+    },
+    {
+      "kind": "deployed_server",
+      "identity": "https://avalon-online-lhem.onrender.com/Gangsi/",
+      "owned": false
+    }
+  ],
+  "retainedPlanningEvidence": [
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/deployed-identity-rerun2-preflight.json",
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/evidence-assessment.rerun.json",
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/coverage-plan.rerun.json",
+    "tests/AI_E2E/plans/gangsi-hunt5-feature-20260721/plan.rerun.approved.json"
+  ],
+  "cleanup": {
+    "status": "passed",
+    "completedAt": "2026-07-21T19:53:28.0982676+08:00",
+    "reason": "browser_security_policy_blocked_deployed_url",
+    "ownedTabsClosed": ["6", "7", "8", "9", "10"],
+    "ownedBrowserContextsClosed": [],
+    "isolatedPlayersReleased": ["P1", "P2", "P3", "P4", "P5"],
+    "ownedProcessesStopped": [],
+    "ownedServersStopped": [],
+    "temporaryArtifactsRemoved": [],
+    "reusedResourcesPreserved": true,
+    "unresolvedResources": []
+  }
+}

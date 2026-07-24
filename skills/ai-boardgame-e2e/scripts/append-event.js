@@ -29,7 +29,7 @@ const COMMON_TIMING_INTENTS = new Set(["act_now", "wait"]);
 const COMMON_PUBLIC_FIELDS = ["at", "writerMonotonicMs", "writerOrder", "sequence", "type"];
 const PUBLIC_TIMELINE_FIELDS = Object.freeze({
   run_initialized: ["runId", "game", "playerCount", "gamesToPlay", "testPurpose", "speed"],
-  product_test: ["command", "passed", "gitHead", "productSourceSha256", "sourceTreeDirty"],
+  product_test: ["command", "testScope", "passed", "identity", "gitHead", "productSourceSha256", "sourceTreeDirty"],
   server_capability: ["endpoint", "status", "response", "serverManagement"],
   agent_provenance: ["mode", "forkTurns", "browserAccess", "projectAccess", "players"],
   identity_check: ["passed", "roomCode", "playerNames", "reload"],
@@ -62,7 +62,7 @@ const PUBLIC_TIMELINE_FIELDS = Object.freeze({
     "reusedResourcesPreserved",
     "unresolvedResources"
   ],
-  product_build_verified: ["gitHead", "productSourceSha256", "sourceTreeDirty"],
+  product_build_verified: ["identity", "gitHead", "productSourceSha256", "sourceTreeDirty"],
   run_finished: ["status", "productVerdict", "findings", "finishedAt"]
 });
 const PUBLIC_CHAT_FIELDS = Object.freeze({

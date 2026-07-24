@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0",
+  "game": "gangsi",
+  "targetCheckpointIds": [
+    "cp.hunt.5p_lobby_goal",
+    "cp.hunt.adventurer_terminal_consistency",
+    "cp.hunt.core_information_isolation",
+    "cp.hunt.exit_escape",
+    "cp.hunt.hatch_close_opens_exits",
+    "cp.hunt.interrupt_accounting",
+    "cp.hunt.last_survivor_hatch_open",
+    "cp.hunt.mechanism_progress",
+    "cp.hunt.mechanism_seal_lifecycle",
+    "cp.hunt.mummy.invisible",
+    "cp.hunt.mummy.knife",
+    "cp.hunt.mummy.trap",
+    "cp.hunt.mummy_terminal_consistency",
+    "cp.hunt.profession.doctor_vitality",
+    "cp.hunt.profession.engineer_mechanism",
+    "cp.hunt.profession.knight_guard",
+    "cp.hunt.profession.wizard_unlock",
+    "cp.hunt.settlement_rows",
+    "cp.hunt.team_treasure_tracking_start",
+    "cp.hunt.tracking_normal_turn_cadence"
+  ],
+  "completedCheckpointIds": [],
+  "reusedCheckpointIds": [],
+  "excludedRouteIds": [],
+  "playerCount": 5,
+  "gameSettings": {
+    "mode": "hunt",
+    "mapSchedule": [
+      "fixed:classic",
+      "fixed:test-map",
+      "random"
+    ]
+  },
+  "currentSetupProfileId": null,
+  "currentStateId": null
+}

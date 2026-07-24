@@ -131,7 +131,8 @@ Before requesting approval, state all of the following in plain language:
 - selected Adapter journey/scenario, player count, repetitions, and settings;
 - visible completion requirements;
 - pass, fail, and not-evaluated rules;
-- requested and actual speed/timing fidelity;
+- requested and actual speed/timing fidelity, including local capability probe or remote-production not-applicable disposition;
+- planned product identity kind: local source or deployed HTML/JS/CSS fingerprint, including any source/Server claims that remain not evaluated;
 - historical evidence disposition and cited Run IDs;
 - proposed execution: no new Run, minimal missing-checkpoint Run, or full Run;
 - for `feature_cp`, target/reused/pending CP IDs, ordered route IDs, expected duration, reset/randomness counts, and any uncovered CP;

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0",
+  "game": "gangsi",
+  "expectedResult": "pass",
+  "requiredCriterionIds": [
+    "all_hunt_checkpoints_visible",
+    "hunt_information_isolated",
+    "hunt_terminals_consistent"
+  ],
+  "requiredCheckpointIds": [
+    "cp.hunt.5p_lobby_goal",
+    "cp.hunt.adventurer_terminal_consistency",
+    "cp.hunt.core_information_isolation",
+    "cp.hunt.exit_escape",
+    "cp.hunt.hatch_close_opens_exits",
+    "cp.hunt.interrupt_accounting",
+    "cp.hunt.last_survivor_hatch_open",
+    "cp.hunt.mechanism_progress",
+    "cp.hunt.mechanism_seal_lifecycle",
+    "cp.hunt.mummy.invisible",
+    "cp.hunt.mummy.knife",
+    "cp.hunt.mummy.trap",
+    "cp.hunt.mummy_terminal_consistency",
+    "cp.hunt.profession.doctor_vitality",
+    "cp.hunt.profession.engineer_mechanism",
+    "cp.hunt.profession.knight_guard",
+    "cp.hunt.profession.wizard_unlock",
+    "cp.hunt.settlement_rows",
+    "cp.hunt.team_treasure_tracking_start",
+    "cp.hunt.tracking_normal_turn_cadence"
+  ],
+  "requiredJourneyIds": [
+    "execute_hunt5_feature_coverage"
+  ],
+  "searchTerms": [
+    "Gangsi",
+    "Hunt",
+    "trap",
+    "invisible",
+    "knife"
+  ],
+  "playerCount": 5,
+  "gameSettings": {
+    "mode": "hunt",
+    "mapSchedule": [
+      "fixed:classic",
+      "fixed:test-map",
+      "random"
+    ]
+  },
+  "requireCurrentBuild": true,
+  "currentProductIdentityKind": "deployed_web_assets",
+  "currentProductFingerprintSha256": "18abbae208bca92fcf92f5f0f0a858e6b5a9c9ea5d317bc7470383993b5f33eb",
+  "requireProductionTiming": false,
+  "requireIsolation": true
+}

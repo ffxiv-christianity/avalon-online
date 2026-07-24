@@ -1,0 +1,67 @@
+{
+  "kind": "deployed_web_assets",
+  "entryUrl": "https://avalon-online-lhem.onrender.com/Gangsi/",
+  "fingerprintSha256": "18abbae208bca92fcf92f5f0f0a858e6b5a9c9ea5d317bc7470383993b5f33eb",
+  "assets": [
+    {
+      "url": "https://avalon-online-lhem.onrender.com/Gangsi/",
+      "contentType": "text/html",
+      "bytes": 34021,
+      "sha256": "8b74aadf1ad342dd94648f194a84aed6c7ecde6d6b7fe38d064ec03e33fab242"
+    },
+    {
+      "url": "https://avalon-online-lhem.onrender.com/Gangsi/gangsi.css",
+      "contentType": "text/css",
+      "bytes": 35687,
+      "sha256": "be6867b238265d9b9886c9c535b4863d47891ce47f9f169432268eb06359816b"
+    },
+    {
+      "url": "https://avalon-online-lhem.onrender.com/Gangsi/gangsi.js",
+      "contentType": "text/javascript",
+      "bytes": 78455,
+      "sha256": "deac3760805d53bac86b2f6ce8573a5996cda496e01c12df603c87a64eb6a09d"
+    },
+    {
+      "url": "https://avalon-online-lhem.onrender.com/Gangsi/map-classes.js",
+      "contentType": "text/javascript",
+      "bytes": 4116,
+      "sha256": "cb5fc6c763d29ca8f3297d864d56e22de36f9233c3a03718e2184e26bddaf892"
+    },
+    {
+      "url": "https://avalon-online-lhem.onrender.com/Gangsi/map-format.js",
+      "contentType": "text/javascript",
+      "bytes": 18128,
+      "sha256": "fdcfa77f1d2477ff7b1fb08891190d5257be16923a5a8708a5a2457069755f37"
+    },
+    {
+      "url": "https://avalon-online-lhem.onrender.com/Gangsi/rules.js",
+      "contentType": "text/javascript",
+      "bytes": 4139,
+      "sha256": "dcc9fb098d03e11a18b97b83c1d331e4f0eb80f660a8f12421caf10c2cf6c03a"
+    },
+    {
+      "url": "https://avalon-online-lhem.onrender.com/shared/client-state.js",
+      "contentType": "text/javascript",
+      "bytes": 6222,
+      "sha256": "44158793f6abd9185f982a708df1ff705a4b3c34869e873015384df85e40ea45"
+    },
+    {
+      "url": "https://avalon-online-lhem.onrender.com/shared/player-name.js",
+      "contentType": "text/javascript",
+      "bytes": 3734,
+      "sha256": "b756374a7c595a686ce0f337d12c455587b9b7058164c0dfa50e657024376cab"
+    },
+    {
+      "url": "https://avalon-online-lhem.onrender.com/shared/room-ui.js",
+      "contentType": "text/javascript",
+      "bytes": 12900,
+      "sha256": "8541ba3a2ca574dd1c7c22d2a5505d472f1b6a8138f677f420e4e50f159526b0"
+    },
+    {
+      "url": "https://avalon-online-lhem.onrender.com/shared/styles.css",
+      "contentType": "text/css",
+      "bytes": 50287,
+      "sha256": "d60594f107c7a539d0bfeb5f76012b4437139d4242ba062b698f23ddb3064808"
+    }
+  ]
+}

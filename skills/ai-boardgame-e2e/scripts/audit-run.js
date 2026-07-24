@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const { parseArgs, readJson, writeJson, resolveConfig, isLocalUrl } = require("./core");
 const { loadAdapter } = require("./adapters");
 const { validateCoveragePlan, verifyApprovedPlan } = require("./plan-contract");
+const { normalizeProductIdentity, sameProductIdentity } = require("./product-identity");
 const legacyV1Adapter = require("./adapters/legacy-v1");
 const {
   containsForbiddenPublicKey,
@@ -404,18 +405,164 @@ function requiresCompletionKind(requirements, kind) {
   return Array.isArray(requirements) && requirements.some((item) => item.kind === kind);
 }
 
-function validateJourneyCompletion(timeline, finalStates, config, run, evidenceByRef, errors) {
+function validateServerCapabilityEvidence(event, config, run, errors) {
+  const serverTimeScale = Number(run.speed?.serverTimeScale);
+  const serverManagement = String(run.serverManagedBySkill || "");
+  const localEntry = isLocalUrl(config?.entryUrl);
+  const remoteProduction = !localEntry
+    && serverTimeScale === 1
+    && serverManagement === "reused_remote_not_owned";
+
+  if (event?.serverManagement !== run.serverManagedBySkill
+    || run.speed?.serverManagedBySkill !== run.serverManagedBySkill) {
+    errors.push("Server management metadata differs between capability evidence, run.json, and actual speed.");
+  }
+
+  if (remoteProduction) {
+    if (event?.status !== "not_applicable_remote_production") {
+      errors.push("Remote production run must record server capability as not_applicable_remote_production.");
+    }
+    if (event?.endpoint !== undefined && event?.endpoint !== null && String(event.endpoint).trim()) {
+      errors.push("Remote production capability evidence must not probe or record a private capability endpoint.");
+    }
+    if (event?.response !== undefined && event?.response !== null) {
+      errors.push("Remote production capability evidence must not claim a capability response that was not probed.");
+    }
+    if (run.capability?.status !== "not_applicable_remote_production"
+      || run.capability?.enabled !== false
+      || Number(run.capability?.timeScale) !== 1
+      || run.capability?.timingFidelity !== "production") {
+      errors.push("Remote production run.json capability disposition is invalid.");
+    }
+    return;
+  }
+
+  if (!localEntry) {
+    errors.push("Remote Servers cannot expose or use the private E2E capability endpoint; production reuse must be reused_remote_not_owned at scale 1.0.");
+    return;
+  }
+
+  let capabilityUrl = null;
+  try { capabilityUrl = new URL(String(event?.endpoint || "")); } catch (_error) { /* reported below */ }
+  if (!capabilityUrl || !isLocalUrl(capabilityUrl.href)
+    || capabilityUrl.pathname !== "/__ai-e2e/capabilities"
+    || capabilityUrl.search || capabilityUrl.hash) {
+    errors.push("Local server_capability must record the exact localhost /__ai-e2e/capabilities endpoint.");
+  }
+
+  if (serverTimeScale < 1) {
+    if (Number(event?.status) !== 200 || event?.response?.enabled !== true
+      || Number(event?.response?.timeScale) !== serverTimeScale
+      || event?.response?.timingFidelity !== "accelerated_waits") {
+      errors.push("Accelerated run is missing a matching server_capability response.");
+    }
+    const advertisedWaits = new Set(event?.response?.scalableWaits || []);
+    if ((run.speed?.scalableWaits || []).some((wait) => !advertisedWaits.has(wait))) {
+      errors.push("Accelerated server capability does not advertise every adapter scalableWait.");
+    }
+    if (Number(run.capability?.timeScale) !== serverTimeScale) {
+      errors.push("Accelerated run run.json capability does not match the actual speed.");
+    }
+    return;
+  }
+
+  if (Number(event?.status) !== 404) {
+    errors.push("Local production-time run must record the disabled E2E capability 404 before play.");
+  }
+  if (run.capability?.enabled !== false || Number(run.capability?.timeScale) !== 1) {
+    errors.push("Local production-time run run.json capability must record disabled scale 1.0.");
+  }
+}
+
+function validateCheckpointResultEvent(event, requirement, gameIndex, run, evidenceByRef, errors, label) {
+  const checkpointId = String(requirement.checkpointId || requirement.id);
+  if (event.source !== "evidence_refs") {
+    errors.push(`${label} checkpoint ${checkpointId} must use evidence_refs provenance.`);
+  }
+  validateScopedEvidenceRefs(event.evidenceRefs, evidenceByRef,
+    `${label} checkpoint ${checkpointId}`, errors);
+  const evidenceRefs = new Set();
+  for (const ref of event.evidenceRefs || []) {
+    const scopedRef = String(ref);
+    evidenceRefs.add(scopedRef);
+    const evidence = evidenceByRef.get(scopedRef);
+    if (evidence && Number(evidence.gameIndex) !== gameIndex) {
+      errors.push(`${label} checkpoint ${checkpointId} references evidence from another execution: ${scopedRef}.`);
+    }
+    if (evidence && (writerOrder(evidence) === null || writerOrder(event) === null
+      || writerOrder(evidence) >= writerOrder(event))) {
+      errors.push(`${label} checkpoint ${checkpointId} references evidence recorded after the checkpoint result: ${scopedRef}.`);
+    }
+  }
+  if (run.productVerdict === "pass" && event.passed !== true) {
+    errors.push(`Passing Run has an unmet completion requirement: ${requirement.id}.`);
+  }
+  return evidenceRefs;
+}
+
+function validateJourneyCompletion(timeline, finalStates, config, run, evidenceByRef, errors, options = {}) {
   const purpose = config?.testPurpose || {};
   const requirements = resolvedCompletionRequirements(config);
   if (!requirements) return;
   const executions = Number.isInteger(run.gamesToPlay) && run.gamesToPlay > 0 ? run.gamesToPlay : 1;
   const checkpointResults = timeline.filter((event) => event.type === "checkpoint_result");
   const completions = timeline.filter((event) => event.type === "journey_completed");
-  const requiredIds = requirements.map((item) => String(item.id)).sort();
+  const coveragePlan = options.approvedPlan?.coveragePlan || null;
+  const coverageTargets = new Set((coveragePlan?.targetCheckpointIds || []).map(String));
+  const coveragePending = new Set((coveragePlan?.pendingCheckpointIds || []).map(String));
+  const coverageReused = new Set((coveragePlan?.reusedCheckpointIds || []).map(String));
+  const acrossRunRequirements = requirements.filter((requirement) => {
+    if (requirement.kind !== "checkpoint") return false;
+    if (requirement.scope === "per_execution") return false;
+    if (requirement.scope === "across_run") return true;
+    return coverageTargets.has(String(requirement.checkpointId || requirement.id));
+  });
+  const perExecutionRequirements = requirements.filter((requirement) => !acrossRunRequirements.includes(requirement));
+  const requiredEventsByGame = new Map();
+  const checkpointEvidenceRefsByGame = new Map();
+  const acrossRunRequirementIdsByGame = new Map();
   for (let gameIndex = 1; gameIndex <= executions; gameIndex += 1) {
-    const requiredEvents = [];
-    const checkpointEvidenceRefs = new Set();
-    for (const requirement of requirements) {
+    requiredEventsByGame.set(gameIndex, []);
+    checkpointEvidenceRefsByGame.set(gameIndex, new Set());
+    acrossRunRequirementIdsByGame.set(gameIndex, new Set());
+  }
+
+  for (const requirement of acrossRunRequirements) {
+    const checkpointId = String(requirement.checkpointId || requirement.id);
+    const reused = coverageReused.has(checkpointId) && !coveragePending.has(checkpointId);
+    const matches = checkpointResults.filter((event) => event.checkpointId === checkpointId);
+    if (reused) {
+      if (matches.length) errors.push(`Reused run-scoped checkpoint ${checkpointId} must not be re-recorded as current Run evidence.`);
+      continue;
+    }
+    if (matches.length !== 1) {
+      errors.push(`Run-scoped requirement ${requirement.id} requires exactly one checkpoint_result for ${checkpointId} across all executions; found ${matches.length}.`);
+      continue;
+    }
+    const event = matches[0];
+    const gameIndex = Number(event.gameIndex);
+    if (!Number.isInteger(gameIndex) || gameIndex < 1 || gameIndex > executions) {
+      errors.push(`Run-scoped checkpoint ${checkpointId} has an invalid execution index: ${event.gameIndex}.`);
+      continue;
+    }
+    requiredEventsByGame.get(gameIndex).push(event);
+    acrossRunRequirementIdsByGame.get(gameIndex).add(String(requirement.id));
+    const refs = validateCheckpointResultEvent(
+      event,
+      requirement,
+      gameIndex,
+      run,
+      evidenceByRef,
+      errors,
+      `Execution ${gameIndex} run-scoped`
+    );
+    refs.forEach((ref) => checkpointEvidenceRefsByGame.get(gameIndex).add(ref));
+  }
+
+  for (let gameIndex = 1; gameIndex <= executions; gameIndex += 1) {
+    const requiredEvents = requiredEventsByGame.get(gameIndex);
+    const checkpointEvidenceRefs = checkpointEvidenceRefsByGame.get(gameIndex);
+    for (const requirement of perExecutionRequirements) {
       if (requirement.kind === "terminal_visible") {
         const matches = timeline.filter((event) => event.type === "terminal_visible"
           && event.gameIndex === gameIndex);
@@ -453,28 +600,22 @@ function validateJourneyCompletion(timeline, finalStates, config, run, evidenceB
         }
         const event = matches[0];
         requiredEvents.push(event);
-        if (event.source !== "evidence_refs") {
-          errors.push(`Execution ${gameIndex} checkpoint ${checkpointId} must use evidence_refs provenance.`);
-        }
-        validateScopedEvidenceRefs(event.evidenceRefs, evidenceByRef,
-          `Execution ${gameIndex} checkpoint ${checkpointId}`, errors);
-        for (const ref of event.evidenceRefs || []) {
-          const scopedRef = String(ref);
-          checkpointEvidenceRefs.add(scopedRef);
-          const evidence = evidenceByRef.get(scopedRef);
-          if (evidence && Number(evidence.gameIndex) !== gameIndex) {
-            errors.push(`Execution ${gameIndex} checkpoint ${checkpointId} references evidence from another execution: ${scopedRef}.`);
-          }
-          if (evidence && (writerOrder(evidence) === null || writerOrder(event) === null
-            || writerOrder(evidence) >= writerOrder(event))) {
-            errors.push(`Execution ${gameIndex} checkpoint ${checkpointId} references evidence recorded after the checkpoint result: ${scopedRef}.`);
-          }
-        }
-        if (run.productVerdict === "pass" && event.passed !== true) {
-          errors.push(`Passing Run has an unmet completion requirement: ${requirement.id}.`);
-        }
+        const refs = validateCheckpointResultEvent(
+          event,
+          requirement,
+          gameIndex,
+          run,
+          evidenceByRef,
+          errors,
+          `Execution ${gameIndex}`
+        );
+        refs.forEach((ref) => checkpointEvidenceRefs.add(ref));
       }
     }
+    const expectedRequirementIds = [
+      ...perExecutionRequirements.map((item) => String(item.id)),
+      ...acrossRunRequirementIdsByGame.get(gameIndex)
+    ].sort();
     for (const journeyId of purpose.journeyIds || []) {
       const matches = completions.filter((event) => event.gameIndex === gameIndex
         && event.journeyId === journeyId);
@@ -487,8 +628,8 @@ function validateJourneyCompletion(timeline, finalStates, config, run, evidenceB
         errors.push(`Execution ${gameIndex} journey ${journeyId} must use requirements_satisfied provenance.`);
       }
       if (stableStringify([...(event.requirementIds || [])].map(String).sort())
-        !== stableStringify(requiredIds)) {
-        errors.push(`Execution ${gameIndex} journey ${journeyId} does not list the Adapter-derived completion requirements.`);
+        !== stableStringify(expectedRequirementIds)) {
+        errors.push(`Execution ${gameIndex} journey ${journeyId} does not list its per-execution and locally satisfied run-scoped completion requirements.`);
       }
       if (!Array.isArray(event.evidenceRefs)) {
         errors.push(`Execution ${gameIndex} journey ${journeyId} evidenceRefs must be an array.`);
@@ -1126,45 +1267,67 @@ function auditRun(runDir, options = {}) {
           }
         }
         const criterionEvents = timeline.filter((event) => event.type === "criterion_result");
-        const criterionExecutions = completionRequirements === null ? 1 : gamesToPlay;
-        for (let gameIndex = 1; gameIndex <= criterionExecutions; gameIndex += 1) {
-          for (const criterion of purpose.successCriteria || []) {
+        const validateCriterion = (criterion, event, label) => {
+          if (event && !["visible_dom", "cross_tab_consistency", "evidence_refs"].includes(event.source)) {
+            errors.push(`${label} must use a user-visible oracle.`);
+          }
+          if (event?.source === "evidence_refs") {
+            validateScopedEvidenceRefs(event.evidenceRefs, scopedEvidenceByRef, label, errors);
+          }
+          if (criterion.required && run.productVerdict === "pass" && event?.passed !== true) {
+            errors.push(`Passing Run has an unmet required criterion: ${criterion.id}.`);
+          }
+        };
+        for (const criterion of purpose.successCriteria || []) {
+          const acrossRun = criterion.scope === "across_run"
+            || (criterion.scope !== "per_execution" && Boolean(approvedPlan?.coveragePlan));
+          if (acrossRun) {
+            const matches = criterionEvents.filter((event) => event.criterionId === criterion.id);
+            if (matches.length !== 1) {
+              errors.push(`Run-scoped success criterion ${criterion.id} requires exactly one criterion_result across all executions; found ${matches.length}.`);
+            }
+            validateCriterion(criterion, matches[0], `Run-scoped success criterion ${criterion.id}`);
+            continue;
+          }
+          const criterionExecutions = completionRequirements === null ? 1 : gamesToPlay;
+          for (let gameIndex = 1; gameIndex <= criterionExecutions; gameIndex += 1) {
             const matches = criterionEvents.filter((event) => event.criterionId === criterion.id
               && (completionRequirements === null || event.gameIndex === gameIndex));
             if (matches.length !== 1) errors.push(`Success criterion ${criterion.id} requires exactly one criterion_result event${completionRequirements === null ? "" : ` in execution ${gameIndex}`}.`);
-            if (matches[0] && !["visible_dom", "cross_tab_consistency", "evidence_refs"].includes(matches[0].source)) {
-              errors.push(`Success criterion ${criterion.id} must use a user-visible oracle.`);
-            }
-            if (matches[0]?.source === "evidence_refs") {
-              validateScopedEvidenceRefs(matches[0].evidenceRefs, scopedEvidenceByRef,
-                `Success criterion ${criterion.id}`, errors);
-            }
-            if (criterion.required && run.productVerdict === "pass" && matches[0]?.passed !== true) {
-              errors.push(`Passing Run has an unmet required criterion: ${criterion.id}.`);
-            }
+            validateCriterion(criterion, matches[0], `Success criterion ${criterion.id}`);
           }
         }
-        validateJourneyCompletion(timeline, finalStates, config, run, scopedEvidenceByRef, errors);
+        validateJourneyCompletion(timeline, finalStates, config, run, scopedEvidenceByRef, errors, { approvedPlan });
       }
     }
 
     const productTests = timeline.filter((event) => event.type === "product_test" && event.passed === true);
     if (productTests.length !== 1) errors.push(`Complete run must contain exactly one passing product_test event; found ${productTests.length}.`);
-    if (!run.productBuild?.gitHead || !run.productBuild?.productSourceSha256 || run.productBuild?.passed !== true) {
-      errors.push("Complete run is missing productBuild identity in run.json.");
+    let runProductIdentity = null;
+    if (run.productBuild?.passed !== true || !String(run.productBuild?.command || "").trim()) {
+      errors.push("Complete run is missing a passing productBuild preflight and command in run.json.");
     }
-    if (!/^[0-9a-f]{40}$/i.test(String(run.productBuild?.gitHead || ""))
-      || !/^[0-9a-f]{64}$/i.test(String(run.productBuild?.productSourceSha256 || ""))
-      || typeof run.productBuild?.sourceTreeDirty !== "boolean") {
-      errors.push("productBuild must contain a 40-hex Git commit, 64-hex source digest, and sourceTreeDirty boolean.");
+    try {
+      runProductIdentity = normalizeProductIdentity(run.productBuild || {});
+    } catch (error) {
+      errors.push(`Complete run has an invalid productBuild identity: ${error.message}`);
+    }
+    if (runProductIdentity?.kind === "deployed_web_assets" && !String(run.productBuild?.testScope || "").trim()) {
+      errors.push("A deployed_web_assets productBuild must name its honest testScope.");
     }
     const productTest = productTests[0];
     if (productTest) {
       if (Number(productTest.sequence) >= firstGameSequence) errors.push("product_test must be recorded before the first game starts.");
-      if (productTest.gitHead !== run.productBuild?.gitHead
-        || productTest.productSourceSha256 !== run.productBuild?.productSourceSha256
+      let productTestIdentity = null;
+      try {
+        productTestIdentity = normalizeProductIdentity(productTest);
+      } catch (error) {
+        errors.push(`product_test has an invalid product identity: ${error.message}`);
+      }
+      if (!runProductIdentity || !productTestIdentity
+        || !sameProductIdentity({ identity: productTestIdentity }, { identity: runProductIdentity })
         || productTest.command !== run.productBuild?.command
-        || productTest.sourceTreeDirty !== run.productBuild?.sourceTreeDirty) {
+        || String(productTest.testScope || "") !== String(run.productBuild?.testScope || "")) {
         errors.push("product_test build identity differs from run.json productBuild.");
       }
     }
@@ -1174,10 +1337,17 @@ function auditRun(runDir, options = {}) {
     if (buildVerification && Number(buildVerification.sequence) !== timeline.length - 1) {
       errors.push("product_build_verified must be the penultimate timeline event immediately before run_finished.");
     }
-    if (buildVerification && (buildVerification.gitHead !== run.productBuild?.gitHead
-      || buildVerification.productSourceSha256 !== run.productBuild?.productSourceSha256
-      || buildVerification.sourceTreeDirty !== run.productBuild?.sourceTreeDirty)) {
-      errors.push("Product source changed between pre-game test and final verification.");
+    if (buildVerification) {
+      let verifiedIdentity = null;
+      try {
+        verifiedIdentity = normalizeProductIdentity(buildVerification);
+      } catch (error) {
+        errors.push(`product_build_verified has an invalid product identity: ${error.message}`);
+      }
+      if (!runProductIdentity || !verifiedIdentity
+        || !sameProductIdentity({ identity: verifiedIdentity }, { identity: runProductIdentity })) {
+        errors.push("Product identity changed between pre-game test and final verification.");
+      }
     }
 
     if (!String(run.serverManagedBySkill || "")) errors.push("Complete run is missing actual server-management metadata.");
@@ -1239,14 +1409,7 @@ function auditRun(runDir, options = {}) {
     }
     const capabilityEvidence = capabilityEvents[0];
     if (capabilityEvidence) {
-      if (!isLocalUrl(capabilityEvidence.endpoint)
-        || new URL(capabilityEvidence.endpoint).pathname !== "/__ai-e2e/capabilities") {
-        errors.push("server_capability must record the exact localhost capability endpoint.");
-      }
-      if (capabilityEvidence.serverManagement !== run.serverManagedBySkill
-        || run.speed?.serverManagedBySkill !== run.serverManagedBySkill) {
-        errors.push("Server management metadata differs between capability evidence, run.json, and actual speed.");
-      }
+      validateServerCapabilityEvidence(capabilityEvidence, config, run, errors);
     }
     const identityChecks = timeline.filter((event) => event.type === "identity_check" && event.passed === true);
     if (identityChecks.length !== 1) errors.push(`Complete run must contain exactly one passing identity_check event; found ${identityChecks.length}.`);
@@ -1496,28 +1659,6 @@ function auditRun(runDir, options = {}) {
       }
     }
 
-    const capability = capabilityEvents[0];
-    if (Number(run.speed?.serverTimeScale) < 1) {
-      if (!capability || Number(capability.status) !== 200 || capability.response?.enabled !== true
-        || Number(capability.response?.timeScale) !== Number(run.speed.serverTimeScale)
-        || capability.response?.timingFidelity !== "accelerated_waits") {
-        errors.push("Accelerated run is missing a matching server_capability response.");
-      }
-      const advertisedWaits = new Set(capability?.response?.scalableWaits || []);
-      if ((run.speed?.scalableWaits || []).some((wait) => !advertisedWaits.has(wait))) {
-        errors.push("Accelerated server capability does not advertise every adapter scalableWait.");
-      }
-      if (Number(run.capability?.timeScale) !== Number(run.speed.serverTimeScale)) {
-        errors.push("Accelerated run run.json capability does not match the actual speed.");
-      }
-    } else {
-      if (!capability || Number(capability.status) !== 404) {
-        errors.push("Production-time run must record the disabled E2E capability 404 before play.");
-      }
-      if (run.capability?.enabled !== false || Number(run.capability?.timeScale) !== 1) {
-        errors.push("Production-time run run.json capability must record disabled scale 1.0.");
-      }
-    }
   }
   if (legacy) warnings.push("這是 schemaVersion 0.3 舊版 Run；使用相容模式稽核，不改寫原始資料。");
 
@@ -1598,6 +1739,7 @@ module.exports = {
   validateCoverageExecution,
   resolvedCompletionRequirements,
   requiresCompletionKind,
+  validateServerCapabilityEvidence,
   validateJourneyCompletion,
   auditRun,
   main

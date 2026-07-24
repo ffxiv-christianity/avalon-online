@@ -1,0 +1,920 @@
+{
+  "schemaVersion": "1.0",
+  "disposition": "historical_only",
+  "query": {
+    "schemaVersion": "1.0",
+    "game": "gangsi",
+    "expectedResult": "pass",
+    "requiredCriterionIds": [
+      "all_hunt_checkpoints_visible",
+      "hunt_information_isolated",
+      "hunt_terminals_consistent"
+    ],
+    "requiredCheckpointIds": [
+      "cp.hunt.5p_lobby_goal",
+      "cp.hunt.adventurer_terminal_consistency",
+      "cp.hunt.core_information_isolation",
+      "cp.hunt.exit_escape",
+      "cp.hunt.hatch_close_opens_exits",
+      "cp.hunt.interrupt_accounting",
+      "cp.hunt.last_survivor_hatch_open",
+      "cp.hunt.mechanism_progress",
+      "cp.hunt.mechanism_seal_lifecycle",
+      "cp.hunt.mummy.invisible",
+      "cp.hunt.mummy.knife",
+      "cp.hunt.mummy.trap",
+      "cp.hunt.mummy_terminal_consistency",
+      "cp.hunt.profession.doctor_vitality",
+      "cp.hunt.profession.engineer_mechanism",
+      "cp.hunt.profession.knight_guard",
+      "cp.hunt.profession.wizard_unlock",
+      "cp.hunt.settlement_rows",
+      "cp.hunt.team_treasure_tracking_start",
+      "cp.hunt.tracking_normal_turn_cadence"
+    ],
+    "requiredJourneyIds": [
+      "execute_hunt5_feature_coverage"
+    ],
+    "searchTerms": [
+      "gangsi",
+      "hunt",
+      "invisible",
+      "knife",
+      "trap"
+    ],
+    "playerCount": 5,
+    "gameSettings": {
+      "mode": "hunt",
+      "mapSchedule": [
+        "fixed:classic",
+        "fixed:test-map",
+        "random"
+      ]
+    },
+    "requireCurrentBuild": true,
+    "currentProductIdentityKind": "deployed_web_assets",
+    "currentProductFingerprintSha256": "18abbae208bca92fcf92f5f0f0a858e6b5a9c9ea5d317bc7470383993b5f33eb",
+    "currentProductSourceSha256": "",
+    "requireProductionTiming": false,
+    "requireIsolation": true
+  },
+  "querySha256": "0ea43cb29eaba0f5eaeface1fb0a1c0c37074797feb417c2c99b382b7aa8ad1e",
+  "indexSha256": "e9dfca1fcf9eac1bb0d0a42e2ad8b02a6b96a98ad5a7823b206948d0ad87c458",
+  "candidates": [
+    {
+      "runId": "20260720-010254-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-010254-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "unknown",
+      "productFingerprintSha256": "",
+      "productSourceSha256": "",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "blocking_findings",
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-090257-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-090257-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "local_source",
+      "productFingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-091716-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-091716-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "local_source",
+      "productFingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi",
+          "hunt"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "blocking_findings",
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-092223-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-092223-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "local_source",
+      "productFingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi",
+          "hunt"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-093654-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-093654-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "local_source",
+      "productFingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-112718-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-112718-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "unknown",
+      "productFingerprintSha256": "",
+      "productSourceSha256": "",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "blocking_findings",
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-121904-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-121904-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "unknown",
+      "productFingerprintSha256": "",
+      "productSourceSha256": "",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-121957-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-121957-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "unknown",
+      "productFingerprintSha256": "",
+      "productSourceSha256": "",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-122213-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-122213-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "local_source",
+      "productFingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-155400-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-155400-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "local_source",
+      "productFingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-180753-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-180753-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "local_source",
+      "productFingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "current_audit_failed",
+        "game_settings_mismatch",
+        "isolation_not_proven",
+        "player_count_mismatch",
+        "product_identity_mismatch",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    },
+    {
+      "runId": "20260720-184703-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-184703-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "pass",
+      "productIdentityKind": "local_source",
+      "productFingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "game_settings_mismatch",
+        "player_count_mismatch",
+        "product_identity_mismatch"
+      ]
+    },
+    {
+      "runId": "20260720-192210-gangsi-3p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260720-192210-gangsi-3p",
+      "classification": "historical_only",
+      "productVerdict": "pass",
+      "productIdentityKind": "local_source",
+      "productFingerprintSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "productSourceSha256": "167ad45be5968d0e74b9ef2f54962156df0a39a4a70a5b83e82b7bc16f9c02d0",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi",
+          "hunt",
+          "trap"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "game_settings_mismatch",
+        "player_count_mismatch",
+        "product_identity_mismatch"
+      ]
+    },
+    {
+      "runId": "20260721-152722-gangsi-5p",
+      "runDir": "D:\\Codex\\avalon-online\\tests\\AI_E2E\\runs\\20260721-152722-gangsi-5p",
+      "classification": "historical_only",
+      "productVerdict": "not_evaluated",
+      "productIdentityKind": "deployed_web_assets",
+      "productFingerprintSha256": "18abbae208bca92fcf92f5f0f0a858e6b5a9c9ea5d317bc7470383993b5f33eb",
+      "productSourceSha256": "",
+      "timingFidelity": "production",
+      "matched": {
+        "criterionIds": [],
+        "checkpointIds": [],
+        "journeyIds": [],
+        "searchTerms": [
+          "gangsi",
+          "hunt",
+          "invisible",
+          "knife",
+          "trap"
+        ]
+      },
+      "missing": {
+        "criterionIds": [
+          "all_hunt_checkpoints_visible",
+          "hunt_information_isolated",
+          "hunt_terminals_consistent"
+        ],
+        "checkpointIds": [
+          "cp.hunt.5p_lobby_goal",
+          "cp.hunt.adventurer_terminal_consistency",
+          "cp.hunt.core_information_isolation",
+          "cp.hunt.exit_escape",
+          "cp.hunt.hatch_close_opens_exits",
+          "cp.hunt.interrupt_accounting",
+          "cp.hunt.last_survivor_hatch_open",
+          "cp.hunt.mechanism_progress",
+          "cp.hunt.mechanism_seal_lifecycle",
+          "cp.hunt.mummy.invisible",
+          "cp.hunt.mummy.knife",
+          "cp.hunt.mummy.trap",
+          "cp.hunt.mummy_terminal_consistency",
+          "cp.hunt.profession.doctor_vitality",
+          "cp.hunt.profession.engineer_mechanism",
+          "cp.hunt.profession.knight_guard",
+          "cp.hunt.profession.wizard_unlock",
+          "cp.hunt.settlement_rows",
+          "cp.hunt.team_treasure_tracking_start",
+          "cp.hunt.tracking_normal_turn_cadence"
+        ],
+        "journeyIds": [
+          "execute_hunt5_feature_coverage"
+        ]
+      },
+      "evidenceRefs": [],
+      "reusableCheckpointIds": [],
+      "blockers": [
+        "current_audit_failed",
+        "isolation_not_proven",
+        "product_verdict_not_pass",
+        "run_not_complete"
+      ]
+    }
+  ],
+  "assessmentSha256": "850028d334346417a1e2933e37083b317ea316693ef7e1d06bc4902ed78daa0c"
+}
