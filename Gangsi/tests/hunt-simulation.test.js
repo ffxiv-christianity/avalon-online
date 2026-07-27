@@ -37,12 +37,12 @@ function setup(run) {
   const { room, player: first } = Game.makeRoom(`H${run}-1`, `HS${run}`);
   const second = Game.joinRoom(room, `H${run}-2`).player;
   const mummy = Game.joinRoom(room, `H${run}-M`).player;
-  const professions = ["knight", "engineer", "doctor", "wizard"];
+  const professions = ["knight", "engineer", "doctor", "wizard", "scout", "tombRaider", "mason", "archaeologist", "cultist"];
   first.role = second.role = "adventurer";
   mummy.role = "mummy";
-  first.profession = professions.splice(Math.floor(random() * professions.length), 1)[0];
-  second.profession = professions.splice(Math.floor(random() * professions.length), 1)[0];
-  mummy.mummyType = ["trap", "invisible", "knife"][run % 3];
+  first.profession = professions[(run - 1) % professions.length];
+  second.profession = professions[run % professions.length];
+  mummy.mummyType = ["trap", "invisible", "knife", "burrow", "phantom", "gazer", "corrupt"][run % 7];
   first.tokenLabel = "甲";
   second.tokenLabel = "乙";
   room.settings = { mode: "hunt", playerCount: 3, mapId: "hunt-simulation", randomMap: false };
@@ -89,6 +89,12 @@ function chaseMove(room, legalMoves, random) {
 function assertBoundaries(room, players, mummy) {
   const mummyView = Game.makeView(room, mummy.id).room.game;
   if (!mummyView.hunt.trackingReveal) assert(mummyView.pieces.every((piece) => !Object.hasOwn(piece, "position")));
+  assert(mummyView.pieces.every((piece) => Object.hasOwn(piece, "bleeding")
+    && Object.hasOwn(piece, "trackedByKnife")
+    && Object.hasOwn(piece, "gazeStacks")
+    && Object.hasOwn(piece, "corrupted")));
+  assert(mummyView.hunt.knifeTrackedPositions.every((position) => typeof position === "string"));
+  assert(mummyView.hunt.gazeTrackedPositions.every((position) => typeof position === "string"));
   assert.strictEqual(mummyView.dice, null);
   assert.deepStrictEqual(mummyView.progress, []);
   for (const player of players.filter((candidate) => candidate.role === "adventurer")) {
@@ -118,25 +124,54 @@ function runSimulation(run) {
     if (actions.includes("skipAdventurerTurn")) error = Hunt.applyGameAction(room, actor, "skipAdventurerTurn");
     else if (actions.includes("finishAdventurerTurn")) error = Hunt.applyGameAction(room, actor, "finishAdventurerTurn");
     else if (room.phase === Hunt.PHASES.adventurerPrepare) {
-      if (actions.includes("activateMechanism") && random() < 0.3) {
+      if (actions.includes("stopBleeding") && (!actions.includes("rollAdventurerDice") || random() < 0.25)) {
+        error = Hunt.applyGameAction(room, actor, "stopBleeding");
+      } else if (actions.includes("activateMechanism") && random() < 0.3) {
         error = Hunt.applyGameAction(room, actor, "activateMechanism", { gateId: choose(view.legal.mechanisms, random) });
+      } else if (actions.includes("useMasonWall") && random() < 0.25) {
+        error = Hunt.applyGameAction(room, actor, "useMasonWall", { edge: choose(view.legal.masonWallEdges, random) });
+      } else if (actions.includes("useArchaeologistTask") && random() < 0.25) {
+        error = Hunt.applyGameAction(room, actor, "useArchaeologistTask", { taskId: choose(view.legal.archaeologistTasks, random).id });
       } else {
         const action = actions.includes("rollAdventurerDice") ? "rollAdventurerDice" : "unlockDice";
         error = Hunt.applyGameAction(room, actor, action);
       }
     } else if (room.phase === Hunt.PHASES.adventurerRoll && view.legal.dieIds?.length && random() < 0.8) {
-      error = Hunt.applyGameAction(room, actor, "selectDie", { dieId: choose(view.legal.dieIds, random) });
+      const dieId = choose(view.legal.dieIds, random);
+      const die = room.game.dice.find((candidate) => candidate.id === dieId);
+      error = Hunt.applyGameAction(room, actor, "selectDie", {
+        dieId,
+        ...(die?.face === "compass" ? { distance: choose(view.legal.compassDistances, random) } : {})
+      });
     } else if (actions.includes("rollAdventurerDice")) error = Hunt.applyGameAction(room, actor, "rollAdventurerDice");
     else if (actions.includes("moveNumeric")) error = Hunt.applyGameAction(room, actor, "moveNumeric", { path: choose(view.legal.paths, random) });
     else if (actions.includes("moveArrow")) error = Hunt.applyGameAction(room, actor, "moveArrow", { direction: choose(Object.keys(view.legal.directions), random) });
     else if (actions.includes("revealTreasure")) error = Hunt.applyGameAction(room, actor, random() < 0.75 ? "revealTreasure" : "declineTreasure");
-    else if (room.phase === Hunt.PHASES.monsterPrepare) error = Hunt.applyGameAction(room, actor, "rollMummyDie");
+    else if (room.phase === Hunt.PHASES.monsterPrepare) {
+      if (actions.includes("burrowToGrave") && random() < 0.2) {
+        error = Hunt.applyGameAction(room, actor, "burrowToGrave");
+      } else if (actions.includes("setGrave") && random() < 0.2) {
+        error = Hunt.applyGameAction(room, actor, "setGrave");
+      } else if (actions.includes("placePhantomWall") && random() < 0.2) {
+        error = Hunt.applyGameAction(room, actor, "placePhantomWall", { edge: choose(view.legal.phantomWallEdges, random) });
+      } else if (actions.includes("infectTreasure") && random() < 0.25) {
+        error = Hunt.applyGameAction(room, actor, "infectTreasure", {
+          treasureId: choose(view.legal.infectionTreasures, random).id
+        });
+      } else {
+        error = Hunt.applyGameAction(room, actor, "rollMummyDie");
+      }
+    }
     else if (actions.includes("rollMummyDie")) error = Hunt.applyGameAction(room, actor, "rollMummyDie");
     else if (actions.includes("moveMummy")) {
       const moves = view.legal.moves || [];
       error = moves.length
         ? Hunt.applyGameAction(room, actor, "moveMummy", { cell: chaseMove(room, moves, random) })
         : Hunt.applyGameAction(room, actor, "stopMummy");
+    } else if (actions.includes("chooseGazeDirection")) {
+      error = Hunt.applyGameAction(room, actor, "chooseGazeDirection", {
+        direction: choose(view.legal.gazeDirections, random)
+      });
     } else throw new Error(`unhandled Hunt action set: ${actions.join(",")}`);
     assert.strictEqual(error, null, `action failed in ${room.phase}: ${error}`);
   }

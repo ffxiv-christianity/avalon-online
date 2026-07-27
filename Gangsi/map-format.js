@@ -226,6 +226,95 @@
     };
   }
 
+  function graphDistances(graph, start) {
+    if (!graph?.passages?.[start]) return {};
+    const distances = { [start]: 0 };
+    const queue = [start];
+    while (queue.length) {
+      const current = queue.shift();
+      for (const next of graph.passages[current] || []) {
+        if (Object.prototype.hasOwnProperty.call(distances, next)) continue;
+        distances[next] = distances[current] + 1;
+        queue.push(next);
+      }
+    }
+    return distances;
+  }
+
+  function analyzePurificationPools(mapInput) {
+    const map = refreshZoneExits(mapInput);
+    const graph = buildMovementGraph(map, { hunt: true });
+    const treasureCells = [...new Set(map.treasures
+      .map((treasure) => treasure.position)
+      .filter((cell) => graph.passages[cell]))];
+    const specialCells = new Set([
+      map.zones.entrance.anchor,
+      map.zones.dungeon.anchor,
+      ...huntMarkerCells(map),
+      ...treasureCells
+    ].filter(Boolean));
+    const candidates = Object.keys(graph.passages)
+      .filter((cell) => !specialCells.has(cell))
+      .filter((cell) => (graph.passages[cell] || []).length > 1)
+      .sort(compareCells);
+    const distances = Object.fromEntries(candidates.map((cell) => [cell, graphDistances(graph, cell)]));
+    const pairs = [];
+    for (let leftIndex = 0; leftIndex < candidates.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < candidates.length; rightIndex += 1) {
+        const left = candidates[leftIndex];
+        const right = candidates[rightIndex];
+        const poolDistance = distances[left][right];
+        if (!Number.isInteger(poolDistance)) continue;
+        let maxTreasureDistance = 0;
+        let treasuresReachable = true;
+        for (const treasureCell of treasureCells) {
+          const nearest = Math.min(
+            distances[left][treasureCell] ?? Number.POSITIVE_INFINITY,
+            distances[right][treasureCell] ?? Number.POSITIVE_INFINITY
+          );
+          if (!Number.isFinite(nearest)) {
+            treasuresReachable = false;
+            maxTreasureDistance = Number.POSITIVE_INFINITY;
+            break;
+          }
+          maxTreasureDistance = Math.max(maxTreasureDistance, nearest);
+        }
+        pairs.push({
+          cells: [left, right],
+          poolDistance,
+          maxTreasureDistance,
+          standard: treasuresReachable && poolDistance >= 6 && maxTreasureDistance <= 9
+        });
+      }
+    }
+    const standardPairs = pairs.filter((pair) => pair.standard);
+    const ranked = (standardPairs.length ? standardPairs : pairs).slice().sort((left, right) => (
+      left.maxTreasureDistance - right.maxTreasureDistance
+      || right.poolDistance - left.poolDistance
+      || compareCells(left.cells[0], right.cells[0])
+      || compareCells(left.cells[1], right.cells[1])
+    ));
+    const best = ranked[0] || null;
+    const bestPairs = best
+      ? ranked.filter((pair) => pair.maxTreasureDistance === best.maxTreasureDistance
+        && pair.poolDistance === best.poolDistance)
+      : [];
+    return {
+      available: candidates.length >= 2 && bestPairs.length > 0,
+      fallback: standardPairs.length === 0,
+      candidates,
+      pairs,
+      bestPairs,
+      metrics: best ? {
+        poolDistance: best.poolDistance,
+        maxTreasureDistance: best.maxTreasureDistance
+      } : {
+        poolDistance: null,
+        maxTreasureDistance: null
+      }
+    };
+  }
+
   function validateHuntMap(input, options = {}) {
     const base = validateMap(input, options);
     const map = base.map;
@@ -441,6 +530,8 @@
     refreshZoneExits,
     huntMarkerCells,
     buildMovementGraph,
+    graphDistances,
+    analyzePurificationPools,
     validateMap,
     validateHuntMap,
     mapStats

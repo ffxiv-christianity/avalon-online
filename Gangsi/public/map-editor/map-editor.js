@@ -559,9 +559,18 @@
   function renderValidation() {
     const result = Format.validateMap(map);
     const huntResult = Format.validateHuntMap(map);
+    const purification = Format.analyzePurificationPools(map);
     validationList.replaceChildren();
     validationBadge.className = "validation-badge";
     const messages = [];
+    if (purification.available) {
+      messages.push({
+        type: purification.fallback ? "warning" : "success",
+        text: `淨化池分析：池距 ${purification.metrics.poolDistance}，最遠寶藏距離 ${purification.metrics.maxTreasureDistance}${purification.fallback ? "（備援配置）" : ""}`
+      });
+    } else {
+      messages.push({ type: "warning", text: "淨化池分析：找不到兩個符合禁放條件的候選格" });
+    }
     if (result.valid) {
       validationBadge.textContent = huntResult.valid ? "經典／獵殺可用" : "經典可用";
       validationBadge.classList.add("is-valid");

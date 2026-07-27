@@ -57,6 +57,16 @@ async function run() {
     assert(page.includes("gangsi-hunt-phase-grid"));
     assert(page.includes("gangsi-hunt-card-grid professions"));
     assert(page.includes("gangsi-hunt-card-grid monsters"));
+    for (const value of ["scout", "burrow", "cultist", "gazer", "corrupt"]) {
+      assert(page.includes(`<option value="${value}">`));
+    }
+    assert(page.includes("牆壁與翻牆"));
+    assert(page.includes("專屬骰組為 0、2、3、4、羅盤、怪物"));
+    assert(page.includes("墓穴存在時可傳送至墓穴並結束回合"));
+    assert(page.includes("首次命中會使冒險者進入流血與追蹤狀態"));
+    assert(page.includes("再次命中已流血的冒險者時"));
+    assert(page.includes("止血，放棄整個回合並解除流血"));
+    assert(page.includes("既有流血不會因此解除"));
     assert(page.includes("gangsi-hunt-detail-grid"));
     assert(page.includes("gangsi-rules-list"));
     assert(!page.includes("不下發"));
@@ -138,6 +148,8 @@ async function run() {
     assert(script.includes("startTreasureDrag"));
     assert(script.includes("startHuntMarkerDrag"));
     assert(script.includes("Format.validateHuntMap"));
+    assert(script.includes("Format.analyzePurificationPools"));
+    assert(script.includes("淨化池分析：池距"));
     assert(script.includes('addEventListener("drop"'));
     assert(script.includes("beginWallStroke"));
     assert(script.includes("continueWallStroke"));
@@ -196,6 +208,11 @@ async function run() {
     assert(gameScript.includes('sendAction("chooseMummyType"'));
     assert(gameScript.includes('sendAction("activateMechanism"'));
     assert(gameScript.includes('sendAction("throwKnife"'));
+    assert(gameScript.includes('sendAction("useMasonWall"'));
+    assert(gameScript.includes('sendAction("useArchaeologistTask"'));
+    assert(gameScript.includes('data-gangsi-game-action="burrowToGrave"'));
+    assert(gameScript.includes('sendAction("placePhantomWall"'));
+    assert(gameScript.includes("data-gangsi-compass-distance"));
     assert(gameScript.includes("data-gangsi-open-knife"));
     assert(gameScript.includes("data-gangsi-close-knife"));
     assert(gameScript.includes("knifeDirectionOpen"));
@@ -212,6 +229,8 @@ async function run() {
     assert(gameScript.includes("機關結果"));
     assert(gameScript.includes("is-mechanism-die"));
     assert(gameScript.includes("displayedDiceCount"));
+    assert(gameScript.includes("is-locked-summary"));
+    assert(gameScript.includes("<small>怪物骰</small><strong>×"));
     assert(gameScript.includes('"monster_interrupt_action"'));
     assert(gameScript.includes('"monster_prepare"'));
     assert(gameScript.includes('"adventurer_prepare"'));
@@ -232,6 +251,7 @@ async function run() {
     assert(gameScript.includes("機關貢獻"));
     assert(gameScript.includes("result.mechanismContribution"));
     assert(page.includes("全場最多共 6 點"));
+    assert(page.includes("團隊完成第一個寶藏後，準備階段可直接點擊未揭露寶藏進行感染"));
     assert(gameScript.includes("能力觸發"));
     assert(gameScript.includes("dismissGameOverLightbox"));
     assert(gameScript.includes('sendAction("returnLobby")'));
@@ -240,7 +260,14 @@ async function run() {
       assert(gameScript.includes(`"${action}"`), `Hunt client is missing Server action ${action}`);
     }
     assert(gameScript.includes("boardLegalTargets"));
-    assert(gameScript.includes("距離揭露還有"));
+    assert(gameScript.includes('sendAction("infectTreasure"'));
+    assert(gameScript.includes('sendAction("chooseGazeDirection"'));
+    assert(gameScript.includes("purificationPools"));
+    assert(gameScript.includes("gazeTrackedPositions"));
+    assert(gameScript.includes("dicePoolSize"));
+    assert(gameScript.includes("piecePublicStatus"));
+    assert(gameScript.includes("迷霧將於"));
+    assert(gameScript.includes("團隊完成第一個寶藏後，腐化鬼才能感染寶藏"));
     assert(gameScript.includes("trackingCountdown"));
     assert(!gameScript.includes("完成團隊寶藏後啟動"));
     assert(gameScript.includes("const trackingVisible"));
@@ -284,6 +311,15 @@ async function run() {
     const gameCss = await gameCssResponse.text();
     assert(gameCss.includes(".gangsi-board"));
     assert(gameCss.includes(".gangsi-board-piece"));
+    assert(gameCss.includes(".gangsi-grave-marker"));
+    assert(gameCss.includes(".gangsi-knife-tracked-marker"));
+    assert(gameCss.includes(".gangsi-gaze-tracked-marker"));
+    assert(gameCss.includes(".gangsi-purification-marker"));
+    assert(gameCss.includes(".gangsi-infection-marker"));
+    assert(gameCss.includes(".gangsi-die.is-forbidden"));
+    assert(gameCss.includes('[data-gangsi-gaze="up"]'));
+    assert(gameCss.includes(".gangsi-board-cell.is-temporary-wall-right"));
+    assert(gameCss.includes(".gangsi-board-cell.is-phantom-wall-right"));
     assert(gameCss.includes(".gangsi-task-card"));
     assert(gameCss.includes(".gangsi-capture-lightbox"));
     assert(gameCss.includes(".gangsi-game-over-lightbox"));
@@ -329,6 +365,15 @@ async function run() {
     assert(gameCss.includes(".gangsi-hunt-phase-grid"));
     assert(gameCss.includes(".gangsi-mechanism-faces"));
     assert(gameCss.includes(".gangsi-hunt-card-grid.monsters"));
+    assert(gameCss.includes(".gangsi-die.is-locked-summary"));
+    assert.match(
+      gameCss,
+      /\.gangsi-hunt-card-grid\.professions article\s*\{\s*max-height:\s*140px;\s*overflow-y:\s*auto;/
+    );
+    assert.match(
+      gameCss,
+      /\.gangsi-hunt-card-grid\.monsters article\s*\{\s*max-height:\s*350px;\s*overflow-y:\s*auto;/
+    );
     assert(gameCss.includes(".gangsi-hunt-detail-grid"));
     assert(!gameCss.includes(".gangsi-room-summary"));
 

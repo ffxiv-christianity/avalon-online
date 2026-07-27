@@ -81,6 +81,29 @@ const huntMap = MapFormat.normalizeMap(classic);
 huntMap.hunt.mechanisms = { A: "4,1", B: "5,2" };
 const huntValidation = MapFormat.validateHuntMap(huntMap);
 assert.strictEqual(huntValidation.valid, true, huntValidation.errors.join("; "));
+const purification = MapFormat.analyzePurificationPools(huntMap);
+assert.strictEqual(purification.available, true);
+assert.strictEqual(purification.fallback, false);
+assert.strictEqual(purification.bestPairs.length > 0, true);
+assert(purification.bestPairs.every((pair) => pair.poolDistance >= 6 && pair.maxTreasureDistance <= 9));
+const forbiddenPoolCells = new Set([
+  ...huntMap.treasures.map((treasure) => treasure.position),
+  ...Object.values(huntMap.hunt.mechanisms)
+]);
+assert(purification.candidates.every((cell) => !forbiddenPoolCells.has(cell)));
+assert(purification.candidates.every((cell) => MapFormat.buildMovementGraph(huntMap, { hunt: true }).passages[cell].length > 1));
+const noPoolMap = MapFormat.createBlankMap(6, 5);
+noPoolMap.zones.entrance.anchor = "1,1";
+noPoolMap.zones.dungeon.anchor = "6,5";
+noPoolMap.hunt.mechanisms = { A: "3,3", B: "4,3" };
+const noPoolFloors = Object.keys(MapFormat.buildMovementGraph(noPoolMap, { hunt: true }).passages);
+noPoolMap.treasures = noPoolFloors.map((position, index) => ({
+  id: MapFormat.TREASURE_IDS[index % MapFormat.TREASURE_IDS.length],
+  position
+}));
+const unavailablePools = MapFormat.analyzePurificationPools(noPoolMap);
+assert.strictEqual(unavailablePools.available, false);
+assert.strictEqual(unavailablePools.fallback, true);
 assert(MapFormat.buildMovementGraph(huntMap).passages["4,1"]);
 assert.strictEqual(MapFormat.buildMovementGraph(huntMap, { hunt: true }).passages["4,1"], undefined);
 const duplicateMechanism = MapFormat.clone(huntMap);

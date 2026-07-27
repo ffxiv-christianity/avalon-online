@@ -576,8 +576,18 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.gangsi-hunt-card-grid.professions article {
+  max-height: 140px;
+  overflow-y: auto;
+}
+
 .gangsi-hunt-card-grid.monsters {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gangsi-hunt-card-grid.monsters article {
+  max-height: 350px;
+  overflow-y: auto;
 }
 
 .gangsi-hunt-card-grid article {
@@ -944,7 +954,12 @@
 
 .gangsi-hunt-marker,
 .gangsi-hatch-marker,
-.gangsi-trap-marker {
+.gangsi-trap-marker,
+.gangsi-grave-marker,
+.gangsi-knife-tracked-marker,
+.gangsi-gaze-tracked-marker,
+.gangsi-purification-marker,
+.gangsi-infection-marker {
   position: relative;
   z-index: 1;
   display: grid;
@@ -1000,12 +1015,92 @@
   background: #8b2d3c;
 }
 
+.gangsi-grave-marker {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  min-width: 20px;
+  min-height: 20px;
+  background: #40334f;
+}
+
+.gangsi-knife-tracked-marker {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 20px;
+  min-height: 20px;
+  background: #a11d2f;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 72%);
+}
+
+.gangsi-infection-marker small {
+  font-size: .48rem;
+  line-height: 1;
+}
+
+.gangsi-board-cell.is-gaze-line {
+  background-image: linear-gradient(135deg, transparent 41%, rgb(114 42 139 / 28%) 42%, rgb(114 42 139 / 28%) 58%, transparent 59%);
+}
+
+.gangsi-gaze-tracked-marker {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  min-width: 20px;
+  min-height: 20px;
+  background: #722a8b;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 72%);
+}
+
+.gangsi-purification-marker {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  min-width: 20px;
+  min-height: 20px;
+  background: #167b83;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 72%);
+}
+
+.gangsi-infection-marker {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  min-width: 20px;
+  min-height: 20px;
+  background: #687015;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 72%);
+}
+
 .gangsi-board-cell.wall-right {
   border-right: 4px solid var(--gangsi-wall);
 }
 
 .gangsi-board-cell.wall-bottom {
   border-bottom: 4px solid var(--gangsi-wall);
+}
+
+.gangsi-board-cell.is-temporary-wall-right {
+  border-right-color: #75502f;
+  border-right-width: 6px;
+}
+
+.gangsi-board-cell.is-temporary-wall-bottom {
+  border-bottom-color: #75502f;
+  border-bottom-width: 6px;
+}
+
+.gangsi-board-cell.is-phantom-wall-right {
+  border-right-color: #7958a6;
+  border-right-style: double;
+  border-right-width: 6px;
+}
+
+.gangsi-board-cell.is-phantom-wall-bottom {
+  border-bottom-color: #7958a6;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
 }
 
 .gangsi-zone-label {
@@ -1189,7 +1284,7 @@
 }
 
 .gangsi-dice-row.has-mummy-die {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--dice-count, 6), minmax(0, 1fr));
 }
 
 .gangsi-die {
@@ -1215,6 +1310,23 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gangsi-wall) 22%, transparent);
 }
 
+.gangsi-die.is-locked-summary {
+  align-content: center;
+  gap: 3px;
+  line-height: 1;
+}
+
+.gangsi-die.is-locked-summary small {
+  font-size: clamp(.58rem, 1.7vw, .74rem);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.gangsi-die.is-locked-summary strong {
+  font-size: clamp(.82rem, 2.2vw, 1.05rem);
+  white-space: nowrap;
+}
+
 .gangsi-die.is-hidden-face {
   color: var(--muted);
 }
@@ -1224,6 +1336,24 @@
   background: #e7e8e5;
   color: #6d7472;
   box-shadow: none;
+}
+
+.gangsi-die.is-forbidden {
+  border-color: #5c2a72;
+  background: #eadcf0;
+  color: #4c1f5f;
+  box-shadow: inset 0 0 0 2px rgb(92 42 114 / 22%), 0 2px 5px rgb(76 31 95 / 16%);
+}
+
+.gangsi-die.is-forbidden.is-locked {
+  background: #5c2a72;
+  color: #fff;
+}
+
+.gangsi-die.is-forbidden.is-selectable {
+  border-color: #5c2a72;
+  background: #f2e8f6;
+  color: #4c1f5f;
 }
 
 .gangsi-die.is-mummy-die {
@@ -1376,6 +1506,10 @@
 .gangsi-direction-grid [data-gangsi-knife="left"] { grid-area: left; }
 .gangsi-direction-grid [data-gangsi-knife="down"] { grid-area: down; }
 .gangsi-direction-grid [data-gangsi-knife="right"] { grid-area: right; }
+.gangsi-direction-grid [data-gangsi-gaze="up"] { grid-area: up; }
+.gangsi-direction-grid [data-gangsi-gaze="left"] { grid-area: left; }
+.gangsi-direction-grid [data-gangsi-gaze="down"] { grid-area: down; }
+.gangsi-direction-grid [data-gangsi-gaze="right"] { grid-area: right; }
 
 .gangsi-direction-grid button {
   width: 44px;

@@ -28,6 +28,10 @@
   let mechanismSelectionKey = "";
   let knifeDirectionOpen = false;
   let knifeSelectionKey = "";
+  let compassDieId = "";
+  let masonWallOpen = false;
+  let archaeologistOpen = false;
+  let phantomWallOpen = false;
   let observedCaptureSerial = null;
   let captureTimer = null;
   let observedGameOverKey = "";
@@ -318,6 +322,10 @@
     knightGuardSelectionKey = "";
     knifeDirectionOpen = false;
     knifeSelectionKey = "";
+    compassDieId = "";
+    masonWallOpen = false;
+    archaeologistOpen = false;
+    phantomWallOpen = false;
     window.clearTimeout(captureTimer);
     page.captureLightbox.classList.add("hidden");
     observedGameOverKey = "";
@@ -439,6 +447,10 @@
       : "";
     if (nextKnifeKey !== knifeSelectionKey) knifeDirectionOpen = false;
     knifeSelectionKey = nextKnifeKey;
+    if (!(game.legal.actions || []).includes("selectDie")) compassDieId = "";
+    if (!(game.legal.actions || []).includes("useMasonWall")) masonWallOpen = false;
+    if (!(game.legal.actions || []).includes("useArchaeologistTask")) archaeologistOpen = false;
+    if (!(game.legal.actions || []).includes("placePhantomWall")) phantomWallOpen = false;
     const fragment = page.gameTemplate.content.cloneNode(true);
     fragment.querySelector("[data-template-slot='phase-header']").innerHTML = phaseHeader(
       game.winner ? "遊戲結束" : "古墓迷蹤",
@@ -462,8 +474,8 @@
     if (trackingVisible) {
       trackingBanner.classList.toggle("is-revealing", game.hunt.trackingReveal);
       trackingBanner.innerHTML = game.hunt.trackingReveal
-        ? "<span>位置追蹤</span><strong>人類位置揭露中</strong>"
-        : `<span>位置追蹤</span><strong>距離揭露還有 ${game.hunt.trackingCountdown} 回合</strong>`;
+        ? "<span>霧氣消散</span><strong>冒險者行蹤已暴露</strong>"
+        : `<span>古墓迷霧</span><strong>迷霧將於 ${game.hunt.trackingCountdown} 回合後消散</strong>`;
     }
     if (map) renderBoard(fragment.querySelector("[data-gangsi-board]"), map, game);
     const diceRow = fragment.querySelector("[data-gangsi-dice-row]");
@@ -493,7 +505,7 @@
         ? `${game.revealedTasks.length} / ${game.hunt.treasureGoal}`
         : `${ownProgress?.completed || 0} / ${ownProgress?.total || 0}`;
     }
-    fragment.querySelector("[data-gangsi-locked-dice]").textContent = `${game.lockedDiceCount} / 5`;
+    fragment.querySelector("[data-gangsi-locked-dice]").textContent = `${game.lockedDiceCount} / ${game.dicePoolSize || 5}`;
     const infoMessages = (game.actionInfo || snapshot.room.log.slice(-5)).slice(-5);
     if (snapshot.room.phase === "adventurer_roll" && isYourTurn(game)) {
       const hasRolledFaces = game.dice?.some((die) => !die.locked && die.face);
@@ -505,9 +517,11 @@
     }
     if ((game.legal.actions || []).includes("moveNumeric") && isYourTurn(game)) {
       const complete = isNumericPathComplete(game);
+      const movementCost = numericPathMovementCost(game);
+      const movementBudget = game.legal.movementBudget || game.legal.selectedFace;
       infoMessages.push(complete
-        ? `路徑已選滿 ${game.legal.selectedFace} 步，請確認移動。`
-        : `路徑預覽：${numericPath.length} / ${game.legal.selectedFace} 步`);
+        ? `路徑已使用 ${movementCost} 點移動力，請確認移動。`
+        : `路徑預覽：${movementCost} / ${movementBudget} 點移動力`);
     }
     fragment.querySelector("[data-gangsi-action-info]").innerHTML = SharedRoomUI.actionInfoBlock({
       messages: infoMessages,
@@ -517,7 +531,8 @@
     });
     const actionRow = fragment.querySelector("[data-gangsi-action-row]");
     actionRow.classList.toggle("is-two-column", ["adventurer_prepare", "adventurer_turn_start"].includes(snapshot.room.phase));
-    actionRow.classList.toggle("is-submenu", knightGuardOpen || mechanismSelectionOpen || knifeDirectionOpen);
+    actionRow.classList.toggle("is-submenu", knightGuardOpen || mechanismSelectionOpen || knifeDirectionOpen
+      || compassDieId || masonWallOpen || archaeologistOpen || phantomWallOpen);
     actionRow.classList.toggle("is-end-action", snapshot.room.phase === "adventurer_end");
     actionRow.innerHTML = renderGameActions(game);
     const huntStatus = fragment.querySelector("[data-gangsi-hunt-status]");
@@ -548,7 +563,7 @@
           </span>`).join("");
     const huntPiece = pieces[0];
     const huntState = game.mode === "hunt" && huntPiece
-      ? `${professionLabel(huntPiece.profession)} · ${huntPiece.escaped ? "已逃脫" : huntPiece.eliminated ? "已死亡" : huntPiece.guard ? "受守護" : huntPiece.injured ? "受傷" : "行動中"}`
+      ? `${professionLabel(huntPiece.profession)} · ${huntPiece.escaped ? "已逃脫" : huntPiece.eliminated ? "已死亡" : piecePublicStatus(huntPiece)}`
       : "";
     const detail = player.role === "mummy"
       ? (game.mode === "hunt"
@@ -571,7 +586,14 @@
 
   function renderGameDice(game) {
     const phase = snapshot.room.phase;
-    const lockedDice = Array.from({ length: game.lockedDiceCount }, () => '<span class="gangsi-die is-locked" title="鎖定的怪物骰">怪</span>').join("");
+    const publicLockedDice = game.lockedDice?.length
+      ? game.lockedDice
+      : Array.from({ length: game.lockedDiceCount }, (_, index) => ({ id: `locked-${index}`, kind: "normal" }));
+    const lockedDice = publicLockedDice.length
+      ? `<span class="gangsi-die is-locked is-locked-summary" title="鎖定的怪物骰共 ${publicLockedDice.length} 顆" aria-label="鎖定的怪物骰 ${publicLockedDice.length} 顆">
+          <small>怪物骰</small><strong>× ${publicLockedDice.length}</strong>
+        </span>`
+      : "";
     if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end", "mummy_interlude_move"].includes(phase)) return lockedDice;
     if (["monster_prepare", "monster_roll", "monster_action", "monster_end", "mummy_ability", "mummy_normal_roll", "mummy_normal_move"].includes(phase)) {
       const face = Number.isInteger(game.mummy.roll) ? game.mummy.roll : "?";
@@ -585,29 +607,36 @@
       ? `<span class="gangsi-die is-mechanism-die" title="機關骰擲出 ${escapeAttribute(game.endState.diceFace)}">${escapeHtml(game.endState.diceFace)}</span>`
       : "";
     if (!game.dice) {
-      const hiddenDice = Array.from({ length: 5 }, (_, index) => `
-        <span class="gangsi-die ${index < game.lockedDiceCount ? "is-locked" : "is-hidden-face"}">
-          ${index < game.lockedDiceCount ? "怪" : "?"}
-        </span>`).join("");
+      const lockedIds = new Set(publicLockedDice.map((die) => die.id));
+      const poolSize = game.dicePoolSize || 5;
+      const hiddenDice = Array.from({ length: poolSize }, (_, index) => {
+        const id = index === 5 ? "forbidden-die" : `die-${index + 1}`;
+        const forbidden = id === "forbidden-die";
+        const locked = lockedIds.has(id);
+        return `<span class="gangsi-die ${locked ? "is-locked" : "is-hidden-face"} ${forbidden ? "is-forbidden" : ""}">
+          ${locked ? "怪" : "?"}
+        </span>`;
+      }).join("");
       return hiddenDice + mummyDie + mechanismResult;
     }
     const selectable = new Set(game.legal.dieIds || []);
     const adventurerDice = game.dice.map((die) => {
       const label = die.locked ? "怪" : die.disabled ? "停" : dieFaceLabel(die.face);
+      const kindClass = die.kind === "forbidden" ? "is-forbidden" : "";
       if (selectable.has(die.id)) {
-        return `<button class="gangsi-die is-selectable" data-gangsi-die="${escapeAttribute(die.id)}" type="button" title="使用 ${escapeAttribute(label)} 骰">${escapeHtml(label)}</button>`;
+        return `<button class="gangsi-die is-selectable ${kindClass}" data-gangsi-die="${escapeAttribute(die.id)}" type="button" title="使用 ${escapeAttribute(label)}${die.kind === "forbidden" ? "禁忌" : ""}骰">${escapeHtml(label)}</button>`;
       }
-      return `<span class="gangsi-die ${die.locked ? "is-locked" : ""} ${die.disabled ? "is-disabled" : ""}" ${die.disabled ? 'title="受傷：本回合少用這顆骰子"' : ""}>${escapeHtml(label)}</span>`;
+      return `<span class="gangsi-die ${kindClass} ${die.locked ? "is-locked" : ""} ${die.disabled ? "is-disabled" : ""}" ${die.disabled ? 'title="受傷：本回合少用這顆骰子"' : ""}>${escapeHtml(label)}</span>`;
     }).join("");
     return adventurerDice + mummyDie + mechanismResult;
   }
 
   function displayedDiceCount(game) {
     const phase = snapshot.room.phase;
-    if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end", "mummy_interlude_move"].includes(phase)) return Math.max(1, game.lockedDiceCount);
-    if (["monster_prepare", "monster_roll", "monster_action", "monster_end", "mummy_ability", "mummy_normal_roll", "mummy_normal_move"].includes(phase)) return Math.min(6, game.lockedDiceCount + 1);
-    const base = game.dice?.length || 5;
-    return Math.min(6, base + (phase === "adventurer_end" && game.endState?.kind === "mechanism" ? 1 : 0));
+    if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end", "mummy_interlude_move"].includes(phase)) return game.dicePoolSize || 5;
+    if (["monster_prepare", "monster_roll", "monster_action", "monster_end", "mummy_ability", "mummy_normal_roll", "mummy_normal_move"].includes(phase)) return game.dicePoolSize || 5;
+    const base = game.dice?.length || game.dicePoolSize || 5;
+    return Math.min(7, base + (phase === "adventurer_end" && game.endState?.kind === "mechanism" ? 1 : 0));
   }
 
   function renderGameActions(game) {
@@ -634,10 +663,22 @@
         <span class="gangsi-action-hint">選擇機關</span>
         ${mechanisms.map((id) => `<button class="primary-button" data-gangsi-mechanism="${id}" type="button">機關 ${id}</button>`).join("")}
         <button class="ghost-button gangsi-submenu-cancel" data-gangsi-close-mechanism type="button">取消操作</button>`;
+      if (actions.has("useMasonWall") && masonWallOpen) return `
+        <span class="gangsi-action-hint">選擇相鄰牆邊</span>
+        ${(game.legal.masonWallEdges || []).map((edge) => `<button class="secondary-button" data-gangsi-mason-wall="${escapeAttribute(edge)}" type="button">${escapeHtml(edgeDirectionLabel(game, edge, currentPiece?.position))}</button>`).join("")}
+        <button class="ghost-button gangsi-submenu-cancel" data-gangsi-close-mason type="button">取消築牆</button>`;
+      if (actions.has("useArchaeologistTask") && archaeologistOpen) return `
+        <span class="gangsi-action-hint">選擇未完成任務</span>
+        ${(game.legal.archaeologistTasks || []).map((task) => `<button class="secondary-button" data-gangsi-archaeologist-task="${escapeAttribute(task.id)}" type="button">${escapeHtml(task.id)} · ${escapeHtml(Format.GROUPS[task.id[0]]?.name || "寶藏")}</button>`).join("")}
+        <button class="ghost-button gangsi-submenu-cancel" data-gangsi-close-archaeologist type="button">取消鑑定</button>`;
       const professionControl = actions.has("useKnightGuard")
         ? '<button class="secondary-button" data-gangsi-open-guard type="button" aria-expanded="false">騎士守護</button>'
         : actions.has("useWizardUnlock")
           ? `<button class="secondary-button" data-gangsi-game-action="useWizardUnlock" type="button">解鎖術（剩餘 ${currentPiece?.wizardCharges || 0} 次）</button>`
+          : actions.has("useMasonWall")
+            ? `<button class="secondary-button" data-gangsi-open-mason type="button">築起臨時牆（剩餘 ${currentPiece?.masonCharges || 0} 次）</button>`
+            : actions.has("useArchaeologistTask")
+              ? `<button class="secondary-button" data-gangsi-open-archaeologist type="button">禁忌鑑定（剩餘 ${currentPiece?.archaeologistCharges || 0} 次）</button>`
           : "";
       const mechanismControl = actions.has("activateMechanism")
         ? mechanisms.length === 1
@@ -648,9 +689,14 @@
         ${actions.has("rollAdventurerDice") ? '<button class="primary-button" data-gangsi-game-action="rollAdventurerDice" type="button">擲冒險者骰</button>' : ""}
         ${actions.has("unlockDice") ? '<button class="secondary-button" data-gangsi-game-action="unlockDice" type="button">解鎖全部骰子</button>' : ""}
         ${professionControl}
-        ${mechanismControl}`;
+        ${mechanismControl}
+        ${actions.has("stopBleeding") ? '<button class="danger-button" data-gangsi-game-action="stopBleeding" type="button">止血並放棄回合</button>' : ""}`;
     }
     if (actions.has("rollAdventurerDice")) {
+      if (compassDieId) return `
+        <span class="gangsi-action-hint">羅盤要移動幾步？</span>
+        ${(game.legal.compassDistances || []).map((distance) => `<button class="secondary-button" data-gangsi-compass-distance="${distance}" type="button">${distance} 步</button>`).join("")}
+        <button class="ghost-button gangsi-submenu-cancel" data-gangsi-close-compass type="button">取消選擇</button>`;
       const hasFaces = game.dice?.some((die) => !die.locked && die.face);
       return `<button class="primary-button" data-gangsi-game-action="rollAdventurerDice" type="button">${hasFaces ? "重擲未鎖定骰" : "擲冒險者骰"}</button>`;
     }
@@ -671,7 +717,15 @@
       <button class="primary-button" data-gangsi-game-action="revealTreasure" type="button">揭露寶藏</button>
       <button class="secondary-button" data-gangsi-game-action="declineTreasure" type="button">暫不揭露</button>`;
     if (actions.has("finishAdventurerTurn")) return '<button class="primary-button" data-gangsi-game-action="finishAdventurerTurn" type="button">結束回合</button>';
-    if ((["monster_prepare", "mummy_ability"].includes(snapshot.room.phase) && actions.has("rollMummyDie")) || actions.has("hideMummy") || actions.has("revealMummy") || actions.has("throwKnife") || actions.has("placeTrap") || actions.has("recoverTrap")) {
+    if (actions.has("chooseGazeDirection")) {
+      const directions = new Set(game.legal.gazeDirections || []);
+      return `<div class="gangsi-direction-grid" role="group" aria-label="選擇凝視方向">
+        ${[["up", "↑"], ["left", "←"], ["down", "↓"], ["right", "→"]]
+          .map(([direction, label]) => `<button class="ghost-button" data-gangsi-gaze="${direction}" type="button" title="${directionLabel(direction)}凝視" ${directions.has(direction) ? "" : "disabled"}>${label}</button>`).join("")}
+      </div>`;
+    }
+    if ((["monster_prepare", "mummy_ability"].includes(snapshot.room.phase) && actions.has("rollMummyDie")) || actions.has("hideMummy") || actions.has("revealMummy") || actions.has("throwKnife") || actions.has("placeTrap") || actions.has("recoverTrap")
+      || actions.has("setGrave") || actions.has("burrowToGrave") || actions.has("placePhantomWall") || actions.has("infectTreasure")) {
       if (actions.has("throwKnife") && knifeDirectionOpen) return `
         <span class="gangsi-action-hint">選擇方向</span>
         <div class="gangsi-direction-grid" role="group" aria-label="選擇飛刀方向">
@@ -679,12 +733,20 @@
             .map(([direction, label]) => `<button class="ghost-button" data-gangsi-knife="${direction}" type="button" title="向${directionLabel(direction)}投擲飛刀">${label}</button>`).join("")}
         </div>
         <button class="ghost-button gangsi-submenu-cancel" data-gangsi-close-knife type="button">取消投擲</button>`;
+      if (actions.has("placePhantomWall") && phantomWallOpen) return `
+        <span class="gangsi-action-hint">選擇相鄰牆邊</span>
+        ${(game.legal.phantomWallEdges || []).map((edge) => `<button class="secondary-button" data-gangsi-phantom-wall="${escapeAttribute(edge)}" type="button">${escapeHtml(edgeDirectionLabel(game, edge, game.mummy.position))}</button>`).join("")}
+        <button class="ghost-button gangsi-submenu-cancel" data-gangsi-close-phantom type="button">取消放牆</button>`;
       return `
         ${actions.has("hideMummy") ? '<button class="primary-button" data-gangsi-game-action="hideMummy" type="button">進入隱形</button>' : ""}
         ${actions.has("revealMummy") ? '<button class="secondary-button" data-gangsi-game-action="revealMummy" type="button">現形並結束回合</button>' : ""}
         ${actions.has("throwKnife") ? '<button class="primary-button" data-gangsi-open-knife type="button" aria-expanded="false">投擲飛刀</button>' : ""}
+        ${actions.has("setGrave") ? `<button class="secondary-button" data-gangsi-game-action="setGrave" type="button">${game.hunt.grave ? "搬移墓穴至目前位置" : "在目前位置設置墓穴"}</button>` : ""}
+        ${actions.has("burrowToGrave") ? '<button class="primary-button" data-gangsi-game-action="burrowToGrave" type="button">遁地至墓穴</button>' : ""}
+        ${actions.has("placePhantomWall") ? '<button class="secondary-button" data-gangsi-open-phantom type="button">建立幻影牆</button>' : ""}
         ${actions.has("placeTrap") ? '<span class="gangsi-action-hint">點選地圖上的亮起格放置陷阱</span>' : ""}
         ${actions.has("recoverTrap") ? '<span class="gangsi-action-hint">可點選標記格回收相鄰陷阱</span>' : ""}
+        ${actions.has("infectTreasure") ? '<span class="gangsi-action-hint">點選地圖上亮起的寶藏進行感染</span>' : ""}
         <button class="${actions.has("hideMummy") || actions.has("throwKnife") ? "secondary-button" : "primary-button"}" data-gangsi-game-action="rollMummyDie" type="button">擲提燈怪骰</button>`;
     }
     if (actions.has("rollMummyDie")) return '<button class="primary-button" data-gangsi-game-action="rollMummyDie" type="button">擲提燈怪骰</button>';
@@ -776,6 +838,21 @@
     }
     const traps = new Set(game.mode === "hunt" ? game.hunt.traps : []);
     const hatchCell = game.mode === "hunt" && game.hunt.hatch.status === "open" ? game.hunt.hatch.position : null;
+    const knifeTrackedCells = new Set((game.mode === "hunt" ? game.hunt.knifeTrackedPositions || [] : []).map((position) => (
+      position === "entrance" ? map.zones.entrance.anchor : position === "dungeon" ? map.zones.dungeon.anchor : position
+    )));
+    const gazeTrackedCells = new Set((game.mode === "hunt" ? game.hunt.gazeTrackedPositions || [] : []).map((position) => (
+      position === "entrance" ? map.zones.entrance.anchor : position === "dungeon" ? map.zones.dungeon.anchor : position
+    )));
+    const gazeCells = new Set(game.mode === "hunt" ? game.hunt.gazeLine?.cells || [] : []);
+    const purificationPools = new Set(game.mode === "hunt" ? game.hunt.purificationPools || [] : []);
+    const infectionByCell = new Map(game.mode === "hunt"
+      ? (game.hunt.infectedTreasures || []).map((infection) => [infection.position, infection])
+      : []);
+    const infectedCells = new Set(infectionByCell.keys());
+    const temporaryWall = game.mode === "hunt" ? game.hunt.temporaryWall?.edge : null;
+    const phantomWall = game.mode === "hunt" ? game.hunt.phantomWall?.edge : null;
+    const graveCell = game.mode === "hunt" ? game.hunt.grave : null;
     const cells = [];
     for (let y = 1; y <= map.height; y += 1) {
       for (let x = 1; x <= map.width; x += 1) {
@@ -789,6 +866,7 @@
         const labels = { entrance: "入口", dungeon: "地牢" };
         const treasureGroup = treasure ? Format.GROUPS[treasure.id[0]] : null;
         const huntMarker = huntMarkers.get(cell);
+        const infection = infectionByCell.get(cell);
         const pieceMarkup = cellPieces.map((piece) => `
           <span class="gangsi-board-piece ${seatToneByPlayerId.get(piece.controllerId) || ""} ${piece.id === game.currentPieceId ? "is-current" : ""}">
             ${escapeHtml(piece.tokenLabel)}${cellPieces.length > 1 || piece.ordinal > 1 ? `<small>${piece.ordinal}</small>` : ""}
@@ -797,11 +875,16 @@
           ? `<span class="gangsi-board-piece is-mummy ${game.currentPlayerId === game.mummy.playerId ? "is-current" : ""}">怪</span>`
           : "";
         cells.push(`
-          <button type="button" data-gangsi-board-cell="${cell}" ${originalTreasure ? `data-gangsi-treasure-origin="${originalTreasure.id}"` : ""} class="gangsi-board-cell is-${cellClass} ${huntMarker ? `is-hunt-${huntMarker.type} is-${huntMarker.status || "active"} ${huntMarker.actionable ? "is-mechanism-actionable" : ""}` : ""} ${hatchCell === cell ? "is-hatch" : ""} ${traps.has(cell) ? "has-trap" : ""} ${walls.has(rightEdge) ? "wall-right" : ""} ${walls.has(bottomEdge) ? "wall-bottom" : ""} ${legalTargets.has(cell) ? "is-legal-target" : ""} ${selectedPath.has(cell) ? "is-path-cell" : ""}"
-            aria-label="${escapeAttribute(`${cell} ${labels[cellClass] || "道路"}${treasure ? ` ${treasure.id} ${treasureGroup?.name || "寶藏"}` : ""}${huntMarker ? ` ${huntMarker.type === "mechanism" ? "機關" : "逃生出口"} ${huntMarker.id}${huntMarker.type === "mechanism" ? ` 進度 ${huntMarker.progress}/3${huntMarker.sealed ? " 封印中" : ""}` : ""}${huntMarker.actionable ? " 目前可操作" : ""}` : ""}${hatchCell === cell ? " 密道" : ""}`)}">
+          <button type="button" data-gangsi-board-cell="${cell}" ${originalTreasure ? `data-gangsi-treasure-origin="${originalTreasure.id}"` : ""} class="gangsi-board-cell is-${cellClass} ${huntMarker ? `is-hunt-${huntMarker.type} is-${huntMarker.status || "active"} ${huntMarker.actionable ? "is-mechanism-actionable" : ""}` : ""} ${hatchCell === cell ? "is-hatch" : ""} ${graveCell === cell ? "has-grave" : ""} ${knifeTrackedCells.has(cell) ? "is-knife-tracked" : ""} ${gazeTrackedCells.has(cell) ? "is-gaze-tracked" : ""} ${gazeCells.has(cell) ? "is-gaze-line" : ""} ${purificationPools.has(cell) ? "has-purification-pool" : ""} ${infectedCells.has(cell) ? "has-infection" : ""} ${traps.has(cell) ? "has-trap" : ""} ${walls.has(rightEdge) ? "wall-right" : ""} ${walls.has(bottomEdge) ? "wall-bottom" : ""} ${temporaryWall === rightEdge ? "wall-right is-temporary-wall-right" : ""} ${temporaryWall === bottomEdge ? "wall-bottom is-temporary-wall-bottom" : ""} ${phantomWall === rightEdge ? "wall-right is-phantom-wall-right" : ""} ${phantomWall === bottomEdge ? "wall-bottom is-phantom-wall-bottom" : ""} ${legalTargets.has(cell) ? "is-legal-target" : ""} ${selectedPath.has(cell) ? "is-path-cell" : ""}"
+            aria-label="${escapeAttribute(`${cell} ${labels[cellClass] || "道路"}${treasure ? ` ${treasure.id} ${treasureGroup?.name || "寶藏"}` : ""}${huntMarker ? ` ${huntMarker.type === "mechanism" ? "機關" : "逃生出口"} ${huntMarker.id}${huntMarker.type === "mechanism" ? ` 進度 ${huntMarker.progress}/3${huntMarker.sealed ? " 封印中" : ""}` : ""}${huntMarker.actionable ? " 目前可操作" : ""}` : ""}${hatchCell === cell ? " 密道" : ""}${graveCell === cell ? " 墓穴" : ""}${knifeTrackedCells.has(cell) ? " 飛刀追蹤座標" : ""}${gazeTrackedCells.has(cell) ? " 凝視追蹤座標" : ""}${gazeCells.has(cell) ? " 凝視線" : ""}${purificationPools.has(cell) ? " 淨化池" : ""}${infection ? ` 感染寶藏，傳染倒數 ${infection.remaining} 回合` : ""}`)}">
             ${labels[cellClass] ? `<span class="gangsi-zone-label">${labels[cellClass]}</span>` : ""}
             ${huntMarker ? `<span class="gangsi-hunt-marker">${huntMarker.sealed ? "封" : huntMarker.type === "mechanism" ? `機${huntMarker.id}<small>${huntMarker.actionable ? "可操作" : `${huntMarker.progress}/3`}</small>` : `出${huntMarker.id}<small>${huntMarker.status === "open" ? "開" : "關"}</small>`}</span>` : ""}
             ${hatchCell === cell ? '<span class="gangsi-hatch-marker">密</span>' : ""}
+            ${graveCell === cell ? '<span class="gangsi-grave-marker" title="遁地鬼墓穴">墓</span>' : ""}
+            ${knifeTrackedCells.has(cell) ? '<span class="gangsi-knife-tracked-marker" title="飛刀追蹤中的匿名座標">追</span>' : ""}
+            ${gazeTrackedCells.has(cell) ? '<span class="gangsi-gaze-tracked-marker" title="凝視追蹤中的匿名座標">視</span>' : ""}
+            ${purificationPools.has(cell) ? '<span class="gangsi-purification-marker" title="淨化池">淨</span>' : ""}
+            ${infection ? `<span class="gangsi-infection-marker" title="受感染的寶藏，傳染倒數 ${infection.remaining} 回合">染<small>${infection.remaining}</small></span>` : ""}
             ${traps.has(cell) ? '<span class="gangsi-trap-marker" title="你放置的陷阱">陷</span>' : ""}
             ${treasure ? `<span class="gangsi-treasure-token" data-gangsi-treasure-id="${treasure.id}" data-group="${treasure.id[0]}" title="${escapeAttribute(`${treasure.id} ${treasureGroup?.name || "寶藏"}`)}">${treasure.id}</span>` : ""}
             <span class="gangsi-board-piece-stack">${pieceMarkup}${mummyMarkup}</span>
@@ -821,7 +904,8 @@
     if ((game.legal.actions || []).includes("moveMummy")) return game.legal.moves || [];
     if (["monster_prepare", "mummy_ability"].includes(snapshot.room.phase)) return [
       ...(game.legal.trapPlacements || []),
-      ...(game.legal.trapRecoveries || [])
+      ...(game.legal.trapRecoveries || []),
+      ...(game.legal.infectionTreasures || []).map((treasure) => treasure.position)
     ];
     return [];
   }
@@ -859,6 +943,7 @@
       knifeDirectionOpen = true;
       knightGuardOpen = false;
       mechanismSelectionOpen = false;
+      phantomWallOpen = false;
       renderMain();
       return;
     }
@@ -867,12 +952,70 @@
       renderMain();
       return;
     }
+    if (event.target.closest("[data-gangsi-open-mason]")) {
+      masonWallOpen = true;
+      knightGuardOpen = false;
+      mechanismSelectionOpen = false;
+      archaeologistOpen = false;
+      renderMain();
+      return;
+    }
+    if (event.target.closest("[data-gangsi-close-mason]")) {
+      masonWallOpen = false;
+      renderMain();
+      return;
+    }
+    if (event.target.closest("[data-gangsi-open-archaeologist]")) {
+      archaeologistOpen = true;
+      knightGuardOpen = false;
+      mechanismSelectionOpen = false;
+      masonWallOpen = false;
+      renderMain();
+      return;
+    }
+    if (event.target.closest("[data-gangsi-close-archaeologist]")) {
+      archaeologistOpen = false;
+      renderMain();
+      return;
+    }
+    if (event.target.closest("[data-gangsi-open-phantom]")) {
+      phantomWallOpen = true;
+      knifeDirectionOpen = false;
+      renderMain();
+      return;
+    }
+    if (event.target.closest("[data-gangsi-close-phantom]")) {
+      phantomWallOpen = false;
+      renderMain();
+      return;
+    }
+    if (event.target.closest("[data-gangsi-close-compass]")) {
+      compassDieId = "";
+      renderMain();
+      return;
+    }
     const gameAction = event.target.closest("[data-gangsi-game-action]");
     if (gameAction) return sendAction(gameAction.dataset.gangsiGameAction);
     const die = event.target.closest("[data-gangsi-die]");
-    if (die) return sendAction("selectDie", { dieId: die.dataset.gangsiDie });
+    if (die) {
+      const selected = snapshot.room.game.dice?.find((candidate) => candidate.id === die.dataset.gangsiDie);
+      if (selected?.face === "compass") {
+        compassDieId = selected.id;
+        renderMain();
+        return;
+      }
+      return sendAction("selectDie", { dieId: die.dataset.gangsiDie });
+    }
+    const compass = event.target.closest("[data-gangsi-compass-distance]");
+    if (compass) {
+      const dieId = compassDieId;
+      compassDieId = "";
+      return sendAction("selectDie", { dieId, distance: Number(compass.dataset.gangsiCompassDistance) });
+    }
     const arrow = event.target.closest("[data-gangsi-arrow]");
     if (arrow) return sendAction("moveArrow", { direction: arrow.dataset.gangsiArrow });
+    const gaze = event.target.closest("[data-gangsi-gaze]");
+    if (gaze) return sendAction("chooseGazeDirection", { direction: gaze.dataset.gangsiGaze });
     const guard = event.target.closest("[data-gangsi-guard-target]");
     if (guard) {
       knightGuardOpen = false;
@@ -883,10 +1026,25 @@
       mechanismSelectionOpen = false;
       return sendAction("activateMechanism", { gateId: mechanism.dataset.gangsiMechanism });
     }
+    const masonWall = event.target.closest("[data-gangsi-mason-wall]");
+    if (masonWall) {
+      masonWallOpen = false;
+      return sendAction("useMasonWall", { edge: masonWall.dataset.gangsiMasonWall });
+    }
+    const archaeologistTask = event.target.closest("[data-gangsi-archaeologist-task]");
+    if (archaeologistTask) {
+      archaeologistOpen = false;
+      return sendAction("useArchaeologistTask", { taskId: archaeologistTask.dataset.gangsiArchaeologistTask });
+    }
     const knife = event.target.closest("[data-gangsi-knife]");
     if (knife) {
       knifeDirectionOpen = false;
       return sendAction("throwKnife", { direction: knife.dataset.gangsiKnife });
+    }
+    const phantomWall = event.target.closest("[data-gangsi-phantom-wall]");
+    if (phantomWall) {
+      phantomWallOpen = false;
+      return sendAction("placePhantomWall", { edge: phantomWall.dataset.gangsiPhantomWall });
     }
     if (event.target.closest("[data-gangsi-confirm-path]")) {
       const path = numericPath.slice();
@@ -915,7 +1073,9 @@
       return;
     }
     if (["monster_prepare", "mummy_ability"].includes(snapshot.room.phase)) {
-      if ((game.legal.trapRecoveries || []).includes(cell)) sendAction("recoverTrap", { cell });
+      const infection = (game.legal.infectionTreasures || []).find((treasure) => treasure.position === cell);
+      if (infection) sendAction("infectTreasure", { treasureId: infection.id });
+      else if ((game.legal.trapRecoveries || []).includes(cell)) sendAction("recoverTrap", { cell });
       else if ((game.legal.trapPlacements || []).includes(cell)) sendAction("placeTrap", { cell });
     }
   }
@@ -1047,11 +1207,40 @@
   }
 
   function professionLabel(profession) {
-    return { knight: "騎士", engineer: "工程師", doctor: "醫生", wizard: "魔法師" }[profession] || "未選職業";
+    return {
+      knight: "騎士",
+      engineer: "工程師",
+      doctor: "醫生",
+      wizard: "魔法師",
+      scout: "斥候",
+      tombRaider: "盜墓者",
+      mason: "石匠",
+      archaeologist: "考古學家",
+      cultist: "邪教徒"
+    }[profession] || "未選職業";
   }
 
   function mummyTypeLabel(type) {
-    return { trap: "陷阱鬼", invisible: "隱形鬼", knife: "飛刀手" }[type] || "未選類型";
+    return {
+      trap: "陷阱鬼",
+      invisible: "隱形鬼",
+      knife: "飛刀手",
+      burrow: "遁地鬼",
+      phantom: "幻影鬼",
+      gazer: "凝視者",
+      corrupt: "腐化鬼"
+    }[type] || "未選類型";
+  }
+
+  function piecePublicStatus(piece) {
+    const statuses = [];
+    if (piece.guard) statuses.push("受守護");
+    if (piece.injured) statuses.push("受傷");
+    if (piece.bleeding) statuses.push("流血");
+    if (piece.trackedByKnife) statuses.push("被飛刀追蹤");
+    if (piece.gazeStacks > 0) statuses.push(`凝視 ${piece.gazeStacks} 層`);
+    if (piece.corrupted) statuses.push(`腐化 ${piece.corruptionTurns} 回合`);
+    return statuses.length ? statuses.join("、") : "行動中";
   }
 
   function lobbySpecialization(player) {
@@ -1133,24 +1322,32 @@
     }
     if (snapshot.room.phase === "adventurer_forced_skip") {
       return game.forcedSkipReason === "all_dice_locked"
-        ? `${current?.name || "冒險者"} 的五顆骰子全部鎖定，只能略過回合。`
+        ? `${current?.name || "冒險者"} 的 ${game.dicePoolSize || 5} 顆骰子全部鎖定，只能略過回合。`
         : `${current?.name || "冒險者"} 沒有任何合法移動，只能略過回合。`;
     }
     if (["adventurer_prepare", "adventurer_turn_start"].includes(snapshot.room.phase)) return game.mode === "hunt"
-      ? `${current?.name || "冒險者"} 正在選擇能力、機關、解鎖或直接擲骰。`
+      ? `${current?.name || "冒險者"} 正在選擇能力、機關、止血、解鎖或直接擲骰。`
       : `${current?.name || "冒險者"} 正在決定是否解鎖冒險者骰。`;
-    if (["monster_prepare", "mummy_ability"].includes(snapshot.room.phase)) return game.mummy.type === "invisible" && game.mummy.invisible
-      ? "隱形鬼可維持隱形並擲骰，或現形後立即結束回合。"
-      : `提燈怪可先使用${mummyTypeLabel(game.mummy.type)}能力，或直接擲骰。`;
+    if (["monster_prepare", "mummy_ability"].includes(snapshot.room.phase)) {
+      if (game.mummy.type === "corrupt" && game.revealedTasks.length === 0) {
+        return "團隊完成第一個寶藏後，腐化鬼才能感染寶藏；目前可直接擲骰。";
+      }
+      return game.mummy.type === "invisible" && game.mummy.invisible
+        ? "隱形鬼可維持隱形並擲骰，或現形後立即結束回合。"
+        : `提燈怪可先使用${mummyTypeLabel(game.mummy.type)}能力，或直接擲骰。`;
+    }
     if (snapshot.room.phase === "adventurer_roll") return `${current?.name || "冒險者"} 正在擲骰並選擇本回合的移動方式。`;
     if (snapshot.room.phase === "adventurer_action") return game.legal.selectedFace === "arrow"
       ? `${current?.name || "冒險者"} 已選擇箭頭骰，正在決定移動方向。`
-      : `${current?.name || "冒險者"} 已選擇移動 ${game.legal.selectedFace || game.lastPublicDie} 步。`;
+      : `${current?.name || "冒險者"} 已選擇${game.legal.selectedFace === "compass" ? `羅盤 ${game.legal.movementBudget} 步` : `移動 ${game.legal.movementBudget || game.legal.selectedFace || game.lastPublicDie} 步`}。`;
     if (snapshot.room.phase === "adventurer_numeric_move") return `${current?.name || "冒險者"} 已選擇移動 ${game.legal.selectedFace || game.lastPublicDie} 步。`;
     if (snapshot.room.phase === "adventurer_arrow_move") return `${current?.name || "冒險者"} 已選擇箭頭骰，正在決定移動方向。`;
     if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end", "mummy_interlude_move"].includes(snapshot.room.phase)) return `提燈怪正在進行插入回合，還可移動 ${game.mummy.remaining} 步，也可以立即結束。`;
     if (snapshot.room.phase === "mummy_normal_roll") return "請提燈怪擲一次提燈怪骰，決定本回合的最大移動步數。";
     if (["monster_action", "mummy_normal_move"].includes(snapshot.room.phase)) return `提燈怪骰擲出 ${game.mummy.roll} 點；還可移動 ${game.mummy.remaining} 步，也可以立即結束。`;
+    if (snapshot.room.phase === "monster_end" && (game.legal.actions || []).includes("chooseGazeDirection")) {
+      return "凝視者正在選擇凝視方向。";
+    }
     if (snapshot.room.phase === "treasure_decision") return `${current?.name || "冒險者"} 正在決定是否揭露這項寶藏。`;
     if (snapshot.room.phase === "adventurer_end") {
       if (game.endState?.kind === "mechanism") {
@@ -1175,7 +1372,7 @@
   }
 
   function dieFaceLabel(face) {
-    return { arrow: "箭", mummy: "怪", null: "--" }[face] || face || "--";
+    return { arrow: "箭", compass: "羅", mummy: "怪", null: "--" }[face] || face || "--";
   }
 
   function directionLabel(direction) {
@@ -1187,17 +1384,49 @@
       && path.every((cell, index) => cell === numericPath[index]));
   }
 
+  function numericPathMovementCost(game) {
+    const current = game.pieces.find((piece) => piece.id === game.currentPieceId);
+    if (!current?.position || !numericPath.length) return 0;
+    const walls = new Set([
+      ...(snapshot.room.selectedMap?.walls || []),
+      game.hunt?.temporaryWall?.edge,
+      game.hunt?.phantomWall?.edge
+    ].filter(Boolean));
+    let position = current.position;
+    let cost = 0;
+    for (const cell of numericPath) {
+      const edge = Format.canonicalEdge(position, cell);
+      cost += walls.has(edge) ? 2 : 1;
+      position = cell;
+    }
+    return cost;
+  }
+
+  function edgeDirectionLabel(game, edge, origin) {
+    const cells = String(edge || "").split("|");
+    const target = cells.find((cell) => cell !== origin);
+    if (!target || !origin) return edge;
+    const [originX, originY] = Format.parseCell(origin);
+    const [targetX, targetY] = Format.parseCell(target);
+    if (targetY < originY) return "上方";
+    if (targetX > originX) return "右方";
+    if (targetY > originY) return "下方";
+    if (targetX < originX) return "左方";
+    return edge;
+  }
+
   function renderHuntStatus(game) {
     const currentPiece = game.pieces.find((piece) => piece.controllerId === snapshot.you.id);
     const ability = snapshot.you.role === "mummy"
       ? `${mummyTypeLabel(game.mummy.type)}${game.mummy.invisible ? " · 隱形中" : ""} · 冷卻 ${game.mummy.abilityCooldown}`
       : currentPiece
-        ? `${professionLabel(currentPiece.profession)}${currentPiece.guard ? " · 受守護" : ""}${currentPiece.injured ? " · 受傷" : ""}${currentPiece.profession === "wizard" ? ` · 解鎖術 ${currentPiece.wizardCharges}` : currentPiece.profession === "knight" ? ` · 冷卻 ${currentPiece.abilityCooldown}` : ""}`
+        ? `${professionLabel(currentPiece.profession)} · ${piecePublicStatus(currentPiece)}${currentPiece.profession === "wizard" ? ` · 解鎖術 ${currentPiece.wizardCharges}` : currentPiece.profession === "mason" ? ` · 築牆 ${currentPiece.masonCharges}` : currentPiece.profession === "archaeologist" ? ` · 鑑定 ${currentPiece.archaeologistCharges}` : ["knight", "tombRaider"].includes(currentPiece.profession) ? ` · 冷卻 ${currentPiece.abilityCooldown}` : ""}`
         : "";
     return `
       <div><span>團隊寶藏</span><strong>${game.revealedTasks.length} / ${game.hunt.treasureGoal}</strong></div>
       ${Format.HUNT_MECHANISM_IDS.map((id) => `<div><span>機關 ${id}</span><strong>${game.hunt.mechanisms[id]} / 3 · ${game.hunt.exits[id] === "open" ? "已轉為出口" : game.hunt.mechanismSeals?.[id] ? "封印中" : "尚未完成"}</strong></div>`).join("")}
       <div><span>你的能力</span><strong>${escapeHtml(ability)}</strong></div>
+      ${game.mummy.type === "corrupt" && game.hunt.purificationFallback ? `<div class="is-alert"><span>淨化池</span><strong>${game.hunt.purificationPools.length === 2 ? "本局採用備援配置" : "本地圖無法生成淨化池"}</strong></div>` : ""}
       ${game.hunt.hatch.status === "open" ? `<div><span>密道</span><strong>已在 (${escapeHtml(game.hunt.hatch.position)}) 開啟</strong></div>` : ""}`;
   }
 

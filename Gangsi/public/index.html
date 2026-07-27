@@ -70,9 +70,10 @@
         <details class="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/07/24</small>
+            <small>最新版本 2026/07/27</small>
           </summary>
           <ul>
+            <li><strong>2026/07/27</strong> 擴充獵殺模式：新增斥候、盜墓者、石匠、考古學家與邪教徒，加入專屬骰、翻牆、臨時牆、禁忌鑑定及禁忌骰；新增遁地鬼、幻影鬼、凝視者與腐化鬼，加入墓穴傳送、幻影牆、凝視、感染、腐化與淨化池，且感染改為完成第一個團隊寶藏後啟用；飛刀命中改為流血與匿名追蹤，再次命中流血者會損失生命，並可放棄回合止血；統一特殊牆互動與公開 Buff/Debuff，改善提燈怪骰區、角色規則卡、地圖標記及淨化池相容性分析。</li>
             <li><strong>2026/07/24</strong> 修改機關貢獻的計算方式。</li>
             <li><strong>2026/07/21</strong> 新增獵殺模式(參考DBD)：冒險者合作完成「人數 × 2 + 1」個團隊寶藏，操作任一機關累積進度並開啟出口，且支援最後生還者密道；加入騎士、工程師、醫生、魔法師，以及陷阱鬼、隱形鬼與飛刀手，並調整能力範圍與冷卻；新增機關骰、封印、每 3 個提燈怪正常回合的位置揭露倒數與全員成果結算；重整回合操作、骰區及資訊遮蔽，規則視窗新增經典／獵殺分頁，地圖編輯器支援獵殺模式標記。</li>
             <li><strong>2026/07/16 v2</strong> 改善地圖編輯器：牆壁可沿同一直線連續放置或移除；新增編輯器說明，補充入口、地牢與下載地圖的使用方式，並改善地圖區域排版。</li>
@@ -151,6 +152,11 @@
                 <option value="engineer">工程師</option>
                 <option value="doctor">醫生</option>
                 <option value="wizard">魔法師</option>
+                <option value="scout">*斥候</option>
+                <option value="tombRaider">*盜墓者</option>
+                <option value="mason">*石匠</option>
+                <option value="archaeologist">*考古學家</option>
+                <option value="cultist">*邪教徒</option>
               </select>
             </label>
             <label class="field gangsi-mummy-type-field hidden">
@@ -160,6 +166,10 @@
                 <option value="trap">陷阱鬼</option>
                 <option value="invisible">隱形鬼</option>
                 <option value="knife">飛刀手</option>
+                <option value="burrow">*遁地鬼</option>
+                <option value="phantom">*幻影鬼</option>
+                <option value="gazer">*凝視者</option>
+                <option value="corrupt">*腐化鬼</option>
               </select>
             </label>
             <div class="button-row">
@@ -477,21 +487,42 @@
               <article><span class="gangsi-hunt-card-icon">盾</span><div><h4>騎士</h4><ul><li>守護周圍 8 格內一名隊友，包含斜角且不受牆壁影響。</li><li>抵銷一次生命損失或受傷；冷卻 5 個自己的正常回合。</li></ul></div></article>
               <article><span class="gangsi-hunt-card-icon">機</span><div><h4>工程師</h4><ul><li>操作機關時照常擲機關骰。</li><li>最終進度額外 +1；X 仍依規則封印。</li></ul></div></article>
               <article><span class="gangsi-hunt-card-icon">醫</span><div><h4>醫生</h4><ul><li>初始生命為 4 點。</li><li>生命上限同樣為 4 點。</li></ul></div></article>
-              <article><span class="gangsi-hunt-card-icon">法</span><div><h4>魔法師</h4><ul><li>鎖定 2～4 顆怪物骰時，可免費解鎖其中 1 顆。</li><li>每回合一次、全局 3 次；五骰全鎖不能使用。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">法</span><div><h4>魔法師</h4><ul><li>鎖定數介於 2 顆與骰池總數減 1 顆時，可隨機解鎖其中 1 顆。</li><li>每回合一次、全局 3 次；全部骰子鎖定時不能使用。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">斥</span><div><h4>斥候</h4><ul><li>專屬骰組為 0、2、3、4、羅盤、怪物，不能切換為一般骰組。</li><li>羅盤可選擇移動 1～3 步；提燈怪會看到羅盤及實際步數，但看不到路徑。</li><li>選擇 0 時留在原地並結束回合。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">越</span><div><h4>盜墓者</h4><ul><li>使用數字骰時，可在一次移動中翻越一面牆；跨牆消耗 2 點移動力。</li><li>箭頭骰不能翻牆；使用後冷卻 2 個自己的正常回合。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">牆</span><div><h4>石匠</h4><ul><li>準備階段可放棄擲骰，在相鄰道路邊築起一面臨時牆並結束回合。</li><li>牆會阻擋所有角色與飛刀，持續到石匠下個正常回合開始；每局最多 2 次。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">考</span><div><h4>考古學家</h4><ul><li>準備階段可放棄整個回合，完成自己一張未完成任務並增加 1 點團隊寶藏。</li><li>失去 1 點不能被守護抵銷的生命；生命至少 2 點才能使用，每局最多 1 次。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">禁</span><div><h4>邪教徒</h4><ul><li>開局時在全隊骰池永久加入一顆禁忌骰；邪教徒死亡、逃出或斷線後仍會保留。</li><li>禁忌骰面為 0、3、4、5、怪物、怪物，所有冒險者都能使用。</li><li>禁忌骰會一起鎖定、解鎖或因受傷而停用，並照常增加提燈怪移動力。</li></ul></div></article>
             </div>
-            <ul class="gangsi-rules-list"><li>冒險者職業不可重複。</li><li>陷阱與飛刀只造成受傷：受傷者下一個正常回合少用 1 顆未鎖定骰；該骰不會變成怪物骰，也不增加提燈怪步數。</li></ul>
+            <ul class="gangsi-rules-list"><li>冒險者職業不可重複。</li><li>陷阱會造成受傷：受傷者下一個正常回合少用 1 顆未鎖定骰；該骰不會變成怪物骰，也不增加提燈怪步數。</li></ul>
           </section>
           <section>
             <h3>提燈怪類型</h3>
             <div class="gangsi-hunt-card-grid monsters">
               <article><span class="gangsi-hunt-card-icon">陷</span><div><h4>陷阱鬼</h4><ul><li>擲骰前可放置或回收相鄰陷阱，最多同時 2 個；放置冷卻 2 回合。</li><li>陷阱不能放在入口、地牢或離開地牢必須踏入的第一格；再外一層道路仍可放置。</li><li>踩中者停步並受傷；陷阱鬼也會踩中自己的陷阱。</li></ul></div></article>
               <article><span class="gangsi-hunt-card-icon">隱</span><div><h4>隱形鬼</h4><ul><li>無冷卻，可跨回合維持隱形；隱形期間不能抓捕。</li><li>任一方碰撞時移動者停在前一格，鬼現形且不造成傷害。</li></ul></div></article>
-              <article><span class="gangsi-hunt-card-icon">刀</span><div><h4>飛刀手</h4><ul><li>向四方向投擲後立即結束回合；射程不限、冷卻 2 回合。</li><li>命中第一名冒險者後造成受傷並公開座標，不公開身分。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">刀</span><div><h4>飛刀手</h4><ul><li>向四方向投擲後立即結束回合；射程不限、冷卻 2 回合。</li><li>首次命中會使冒險者進入流血與追蹤狀態，不再造成受傷；流血不會自動解除。</li><li>再次命中已流血的冒險者時，該冒險者失去 1 點生命、維持流血並重新進入追蹤。</li><li>流血者可在準備階段選擇止血，放棄整個回合並解除流血。</li><li>飛刀手會持續看到被追蹤者的匿名座標，直到其下一個正常回合結束；不公開身分與職業。</li><li>騎士守護可以抵擋整次飛刀效果；既有流血不會因此解除。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">墓</span><div><h4>遁地鬼</h4><ul><li>準備階段可在目前普通道路設置或搬移一個公開墓穴，之後仍可擲骰。</li><li>墓穴存在時可傳送至墓穴並結束回合；若有人站在墓穴格，照常抓捕。</li><li>傳送後冷卻 2 個提燈怪正常回合；插入回合不能操作墓穴。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">幻</span><div><h4>幻影鬼</h4><ul><li>準備階段可在相鄰道路邊建立一面公開幻影牆，之後仍可擲骰。</li><li>牆會阻擋冒險者，但提燈怪與飛刀可以通過；持續兩個完整冒險者行動輪。</li><li>能力冷卻 2 個提燈怪正常回合，牆消失後至少留有一個冒險者行動輪的空窗。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">視</span><div><h4>凝視者</h4><ul><li>正常移動結束後選擇一個方向建立凝視線，持續到下個正常回合開始。</li><li>冒險者移動經過凝視線會累積公開層數；第 2 層時，凝視者可追蹤其匿名座標直到該冒險者回合結束。</li><li>已有 2 層再次觸發時失去 1 點生命並歸零；守護可以抵銷這次生命損失。</li><li>永久牆、固定障礙、臨時牆及幻影牆都會即時截斷凝視線。</li></ul></div></article>
+              <article><span class="gangsi-hunt-card-icon">腐</span><div><h4>腐化鬼</h4><ul><li>本局會生成兩座公開淨化池；若地圖無法完全符合標準，會公開提示採用備援配置。</li><li>團隊完成第一個寶藏後，準備階段可直接點擊未揭露寶藏進行感染；冷卻 3 個正常回合，之後仍可擲骰。</li><li>每個感染會獨立倒數 5 個正常回合，期滿後向永久拓樸最近的合法寶藏傳播。</li><li>完成感染寶藏的人會腐化 3 個自己的正常回合；經過淨化池可立即解除。</li></ul></div></article>
             </div>
             <ul class="gangsi-rules-list">
               <li>主動能力只能在提燈怪正常回合使用，插入回合不能使用。</li>
               <li>提燈怪正常回合的骰區只顯示鎖定怪物骰與自己的一顆骰；插入回合只顯示鎖定怪物骰。</li>
               <li>結算會列出冒險者成果與提燈怪能力實際觸發次數；陷阱只計踩中、隱形只計碰撞現形、飛刀只計命中。</li>
+              <li>遁地鬼只計成功傳送；幻影鬼每次成功建立幻影牆計 1 次。</li>
+              <li>凝視、感染、腐化、受傷、流血與守護等狀態會顯示在上方玩家狀態中，所有玩家都看得到。</li>
+            </ul>
+          </section>
+          <section>
+            <h3>牆壁與翻牆</h3>
+            <ul class="gangsi-rules-list">
+              <li>永久牆與石匠臨時牆會阻擋所有角色；幻影牆只阻擋冒險者。</li>
+              <li>盜墓者使用數字骰時能以 2 點移動力翻越一面永久牆、臨時牆或幻影牆，不能越過地圖邊界、封閉格或未完成機關。</li>
+              <li>臨時牆會擋住飛刀，幻影牆不會；箭頭骰遇到有效牆壁時停在牆前。</li>
+              <li>臨時牆與幻影牆的位置向所有玩家公開；只能放在兩個相鄰普通道路格之間，且不能和既有牆重疊。</li>
+              <li>新牆不能切斷地圖，也不能封死入口、地牢出口、目前唯一可用的逃生出口或最後生還者密道。</li>
             </ul>
           </section>
           <section>
@@ -507,7 +538,7 @@
               </article>
               <article class="wide">
                 <h4>提燈怪可取得的資訊</h4>
-                <ul class="gangsi-rules-list"><li>提燈怪看得到目前由誰行動及公開的骰子；寶藏揭露時會看到寶藏及原始位置，機關操作時會看到機關與進度。</li><li>操作結果不會額外標示操作者身分；手牌、個人進度、平時位置、守護與受傷狀態也不會顯示，提燈怪必須自行記憶與推理。</li></ul>
+                <ul class="gangsi-rules-list"><li>提燈怪看得到目前由誰行動、公開骰子，以及玩家狀態列上的公開 Buff／Debuff。</li><li>飛刀與凝視追蹤只顯示持續更新的匿名座標，不會把該座標直接連結到玩家、棋子或職業。</li><li>操作結果不會額外標示操作者身分；手牌、個人進度、平時位置與完整移動路徑仍需由提燈怪自行記憶與推理。</li></ul>
               </article>
             </div>
           </section>

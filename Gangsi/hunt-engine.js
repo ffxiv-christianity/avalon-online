@@ -21,17 +21,19 @@ const PHASES = Object.freeze({
 
 const PHASE_ACTIONS = Object.freeze({
   [PHASES.adventurerPrepare]: Object.freeze([
-    "rollAdventurerDice", "unlockDice", "useWizardUnlock", "useKnightGuard", "activateMechanism"
+    "rollAdventurerDice", "unlockDice", "useWizardUnlock", "useKnightGuard", "activateMechanism",
+    "useMasonWall", "useArchaeologistTask", "stopBleeding"
   ]),
   [PHASES.adventurerRoll]: Object.freeze(["rollAdventurerDice", "selectDie"]),
   [PHASES.adventurerAction]: Object.freeze(["moveNumeric", "moveArrow"]),
   [PHASES.adventurerEnd]: Object.freeze(["revealTreasure", "declineTreasure", "finishAdventurerTurn"]),
   [PHASES.monsterPrepare]: Object.freeze([
-    "rollMummyDie", "placeTrap", "recoverTrap", "hideMummy", "revealMummy", "throwKnife"
+    "rollMummyDie", "placeTrap", "recoverTrap", "hideMummy", "revealMummy", "throwKnife",
+    "setGrave", "burrowToGrave", "placePhantomWall", "infectTreasure"
   ]),
   [PHASES.monsterRoll]: Object.freeze([]),
   [PHASES.monsterAction]: Object.freeze(["moveMummy", "stopMummy"]),
-  [PHASES.monsterEnd]: Object.freeze([]),
+  [PHASES.monsterEnd]: Object.freeze(["chooseGazeDirection"]),
   [PHASES.monsterInterruptPrepare]: Object.freeze([]),
   [PHASES.monsterInterruptAction]: Object.freeze(["moveMummy", "stopMummy"]),
   [PHASES.monsterInterruptEnd]: Object.freeze([]),
@@ -39,6 +41,8 @@ const PHASE_ACTIONS = Object.freeze({
 });
 
 const ADVENTURER_FACES = Object.freeze(["1", "2", "3", "4", "arrow", "mummy"]);
+const SCOUT_FACES = Object.freeze(["0", "2", "3", "4", "compass", "mummy"]);
+const FORBIDDEN_FACES = Object.freeze(["0", "3", "4", "5", "mummy", "mummy"]);
 const MECHANISM_FACES = Object.freeze(["X", 0, 1, 1, 1, 2]);
 const MUMMY_FACES = Object.freeze([1, 1, 2, 2, 3, 3]);
 const DIRECTIONS = Object.freeze({
@@ -48,6 +52,9 @@ const DIRECTIONS = Object.freeze({
   left: Object.freeze([-1, 0])
 });
 const TRACKING_INTERVAL = 3;
+const INFECTION_INTERVAL = 5;
+const CORRUPTION_DURATION = 3;
+const CORRUPT_COOLDOWN = 3;
 
 function setupGame(room) {
   const map = MapCatalog.getBuiltInMap(room.settings.mapId);
@@ -76,10 +83,18 @@ function setupGame(room) {
       injuredTurns: 0,
       injuryActive: false,
       injuryCreatedTurnId: null,
+      bleeding: false,
+      knifeTracked: false,
+      gazeStacks: 0,
+      gazeTracked: false,
+      corruptionTurns: 0,
+      corruptionCreatedTurnId: null,
       abilityCooldown: 0,
       cooldownCreatedTurnId: null,
       wizardCharges: player.profession === "wizard" ? 3 : 0,
       wizardUsedThisTurn: false,
+      masonCharges: player.profession === "mason" ? 2 : 0,
+      archaeologistCharges: player.profession === "archaeologist" ? 1 : 0,
       mechanismContribution: 0
     };
     adventurerOrder.push(id);
@@ -96,7 +111,17 @@ function setupGame(room) {
     adventurerOrder,
     pieces,
     hands: dealHands(map, adventurers),
-    dice: Array.from({ length: 5 }, (_, index) => ({ id: `die-${index + 1}`, locked: false, face: null })),
+    dice: [
+      ...Array.from({ length: 5 }, (_, index) => ({
+        id: `die-${index + 1}`,
+        kind: "normal",
+        locked: false,
+        face: null
+      })),
+      ...(adventurers.some((player) => player.profession === "cultist")
+        ? [{ id: "forbidden-die", kind: "forbidden", locked: false, face: null }]
+        : [])
+    ],
     disabledDieId: null,
     selectedDieId: null,
     selectedFace: null,
@@ -106,6 +131,7 @@ function setupGame(room) {
     endState: null,
     pendingUnlock: null,
     resumeState: null,
+    monsterEndState: null,
     lastPublicDie: null,
     turnSerial: 0,
     activeAdventurerTurnId: null,
@@ -130,6 +156,12 @@ function setupGame(room) {
       mechanismSeals: { A: null, B: null },
       exits: { A: "closed", B: "closed" },
       traps: [],
+      temporaryWall: null,
+      phantomWall: null,
+      grave: null,
+      gaze: null,
+      purification: createPurificationState(map, mummyPlayer.mummyType),
+      infections: {},
       hatch: { status: "unavailable", position: null },
       tracking: { enabled: false, countdown: null, revealThisTurn: false }
     },
@@ -141,7 +173,27 @@ function setupGame(room) {
   };
 
   addLog(room, `獵殺模式開始；全隊需要揭露 ${room.game.hunt.treasureGoal} 張寶藏。`);
+  if (room.game.mummy.type === "corrupt" && room.game.hunt.purification.fallback) {
+    addLog(room, room.game.hunt.purification.pools.length === 2
+      ? "本局淨化池採用備援配置。"
+      : "本地圖無法生成兩座淨化池，本局沒有淨化池。");
+  }
   beginAdventurerAtIndex(room, 0);
+}
+
+function createPurificationState(map, mummyType) {
+  if (mummyType !== "corrupt") return { pools: [], fallback: false, metrics: null };
+  const analysis = MapFormat.analyzePurificationPools(map);
+  if (!analysis.available) return { pools: [], fallback: true, metrics: analysis.metrics };
+  const pair = analysis.bestPairs[randomIntInclusive(0, analysis.bestPairs.length - 1)];
+  return {
+    pools: pair.cells.slice(),
+    fallback: analysis.fallback,
+    metrics: {
+      poolDistance: pair.poolDistance,
+      maxTreasureDistance: pair.maxTreasureDistance
+    }
+  };
 }
 
 function dealHands(map, adventurers) {
@@ -166,9 +218,12 @@ function applyGameAction(room, actor, action, payload = {}) {
     case "useWizardUnlock": return useWizardUnlock(room, actor);
     case "useKnightGuard": return useKnightGuard(room, actor, payload.pieceId);
     case "activateMechanism": return activateMechanism(room, actor, payload.gateId);
+    case "useMasonWall": return useMasonWall(room, actor, payload.edge);
+    case "useArchaeologistTask": return useArchaeologistTask(room, actor, payload.taskId);
+    case "stopBleeding": return stopBleeding(room, actor);
     case "finishAdventurerTurn": return finishAdventurerTurn(room, actor);
     case "rollAdventurerDice": return rollAdventurerDice(room, actor);
-    case "selectDie": return selectDie(room, actor, payload.dieId);
+    case "selectDie": return selectDie(room, actor, payload.dieId, payload.distance);
     case "moveNumeric": return moveNumeric(room, actor, payload.path);
     case "moveArrow": return moveArrow(room, actor, payload.direction);
     case "revealTreasure": return revealTreasure(room, actor);
@@ -178,6 +233,11 @@ function applyGameAction(room, actor, action, payload = {}) {
     case "hideMummy": return hideMummy(room, actor);
     case "revealMummy": return revealMummy(room, actor);
     case "throwKnife": return throwKnife(room, actor, payload.direction);
+    case "setGrave": return setGrave(room, actor);
+    case "burrowToGrave": return burrowToGrave(room, actor);
+    case "placePhantomWall": return placePhantomWall(room, actor, payload.edge);
+    case "infectTreasure": return infectTreasure(room, actor, payload.treasureId);
+    case "chooseGazeDirection": return chooseGazeDirection(room, actor, payload.direction);
     case "rollMummyDie": return rollMummyDie(room, actor);
     case "moveMummy": return moveMummy(room, actor, payload.cell);
     case "stopMummy": return stopMummy(room, actor);
@@ -209,9 +269,10 @@ function useWizardUnlock(room, actor) {
   if (piece.wizardCharges <= 0) return "解鎖術已經用完。";
   if (piece.wizardUsedThisTurn) return "解鎖術每回合只能使用一次。";
   const locked = lockedDiceCount(room);
-  if (locked === room.game.dice.length) return "五顆骰子全部鎖定時不能使用解鎖術。";
+  if (locked === room.game.dice.length) return "全部骰子鎖定時不能使用解鎖術。";
   if (locked < 2) return "至少鎖定 2 顆怪物骰才能使用解鎖術。";
-  const die = room.game.dice.find((candidate) => candidate.locked);
+  const candidates = room.game.dice.filter((candidate) => candidate.locked);
+  const die = candidates[randomIntInclusive(0, candidates.length - 1)];
   if (!die) return "目前沒有鎖定骰。";
   die.locked = false;
   die.face = null;
@@ -234,6 +295,56 @@ function useKnightGuard(room, actor, targetPieceId) {
   addRedactedLog(room, "騎士使用了守護。", {
     adventurer: `${pieceName(room, piece)} 守護了 ${pieceName(room, target)}。`
   });
+  finishAdventurerFullTurnAction(room);
+  return null;
+}
+
+function useMasonWall(room, actor, rawEdge) {
+  if (room.phase !== PHASES.adventurerPrepare) return "現在不能築起臨時牆。";
+  const piece = currentPiece(room);
+  if (!isCurrentAdventurer(room, actor) || piece?.profession !== "mason") return "你的職業不能築起臨時牆。";
+  if (piece.masonCharges <= 0) return "本局的築牆次數已用完。";
+  const edge = MapFormat.canonicalEdge(rawEdge);
+  if (!masonWallEdges(room, piece).includes(edge)) return "這一條邊不能築起臨時牆。";
+  piece.masonCharges -= 1;
+  room.game.hunt.temporaryWall = {
+    edge,
+    ownerPieceId: piece.id
+  };
+  addRedactedLog(room, `一面臨時牆出現在 ${edge}。`, {
+    adventurer: `${pieceName(room, piece)} 在 ${edge} 築起臨時牆。`
+  });
+  finishAdventurerFullTurnAction(room);
+  return null;
+}
+
+function useArchaeologistTask(room, actor, taskId) {
+  if (room.phase !== PHASES.adventurerPrepare) return "現在不能進行禁忌鑑定。";
+  const piece = currentPiece(room);
+  if (!isCurrentAdventurer(room, actor) || piece?.profession !== "archaeologist") return "你的職業不能進行禁忌鑑定。";
+  if (piece.archaeologistCharges <= 0) return "本局已經使用過禁忌鑑定。";
+  if (piece.life < 2) return "生命至少為 2 點才能進行禁忌鑑定。";
+  const task = archaeologistTasks(room, piece).find((candidate) => candidate.id === String(taskId || "").toUpperCase());
+  if (!task) return "找不到可鑑定的未完成任務。";
+  piece.archaeologistCharges -= 1;
+  piece.life -= 1;
+  const position = treasurePosition(room, task.id);
+  const infected = completeTreasureTask(room, piece, task, position);
+  addRedactedLog(room, `寶藏 ${task.id} 在 (${position}) 經禁忌鑑定完成；全隊進度 ${room.game.revealedTasks.length} / ${room.game.hunt.treasureGoal}。`, {
+    adventurer: `${pieceName(room, piece)} 犧牲 1 點生命完成寶藏 ${task.id}；全隊進度 ${room.game.revealedTasks.length} / ${room.game.hunt.treasureGoal}。`
+  });
+  if (infected) addLog(room, `${pieceName(room, piece)} 完成受感染的寶藏，受到 ${CORRUPTION_DURATION} 回合腐化。`);
+  finishAdventurerFullTurnAction(room);
+  return null;
+}
+
+function stopBleeding(room, actor) {
+  if (room.phase !== PHASES.adventurerPrepare) return "現在不能止血。";
+  const piece = currentPiece(room);
+  if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
+  if (!piece?.bleeding) return "你目前沒有流血。";
+  piece.bleeding = false;
+  addLog(room, `${pieceName(room, piece)} 放棄本回合進行止血，流血已解除。`);
   finishAdventurerFullTurnAction(room);
   return null;
 }
@@ -303,7 +414,10 @@ function rollAdventurerDice(room, actor) {
   if (room.phase !== PHASES.adventurerRoll) return "現在不能擲冒險者骰。";
   const dice = usableDice(room);
   if (!dice.length) return "目前沒有可擲的骰子。";
-  resolveAdventurerFaces(room, dice.map(() => ADVENTURER_FACES[randomIntInclusive(0, ADVENTURER_FACES.length - 1)]));
+  resolveAdventurerFaces(room, dice.map((die) => {
+    const faces = dieFacesFor(room, die);
+    return faces[randomIntInclusive(0, faces.length - 1)];
+  }));
   return null;
 }
 
@@ -312,7 +426,8 @@ function resolveAdventurerFaces(room, faces) {
   if (!Array.isArray(faces) || faces.length !== dice.length) throw new Error("Hunt dice face count mismatch");
   dice.forEach((die, index) => {
     const face = String(faces[index]);
-    if (!ADVENTURER_FACES.includes(face)) throw new Error(`Invalid Hunt die face: ${face}`);
+    const allowedFaces = dieFacesFor(room, die);
+    if (!allowedFaces.includes(face)) throw new Error(`Invalid Hunt die face: ${face}`);
     die.face = face;
     if (face === "mummy") die.locked = true;
   });
@@ -320,17 +435,31 @@ function resolveAdventurerFaces(room, faces) {
   if (lockedDiceCount(room) === room.game.dice.length) beginForcedAdventurerSkip(room, "all_dice_locked");
 }
 
-function selectDie(room, actor, dieId) {
+function selectDie(room, actor, dieId, rawDistance) {
   if (room.phase !== PHASES.adventurerRoll) return "現在不能選擇骰子。";
   if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
   const die = room.game.dice.find((candidate) => candidate.id === dieId);
   if (!die || die.locked || die.id === room.game.disabledDieId || !die.face) return "找不到可用的骰子。";
   if (!legalDieIds(room).includes(die.id)) return "這顆骰子目前沒有合法移動。";
+  if (die.face === "0") {
+    room.game.lastPublicDie = "0";
+    addLog(room, `${currentPieceName(room)} 選用了 0 骰，留在原地。`);
+    finishAdventurerFullTurnAction(room);
+    return null;
+  }
+  let movementBudget = Number(die.face);
+  if (die.face === "compass") {
+    movementBudget = Number(rawDistance);
+    if (!compassDistances(room, currentPiece(room)).includes(movementBudget)) return "請選擇合法的羅盤步數。";
+  }
   room.game.selectedDieId = die.id;
   room.game.selectedFace = die.face;
-  room.game.actionState = { kind: die.face === "arrow" ? "arrow" : "numeric" };
-  room.game.lastPublicDie = die.face;
-  addLog(room, `${currentPieceName(room)} 選用了${die.face === "arrow" ? "箭頭" : die.face}骰。`);
+  room.game.actionState = {
+    kind: die.face === "arrow" ? "arrow" : "numeric",
+    movementBudget: die.face === "arrow" ? null : movementBudget
+  };
+  room.game.lastPublicDie = die.face === "compass" ? `羅盤 ${movementBudget}` : die.face;
+  addLog(room, `${currentPieceName(room)} 選用了${die.face === "arrow" ? "箭頭" : die.face === "compass" ? `羅盤 ${movementBudget} 步` : die.face}骰。`);
   room.phase = PHASES.adventurerAction;
   return null;
 }
@@ -339,8 +468,15 @@ function moveNumeric(room, actor, rawPath) {
   if (room.phase !== PHASES.adventurerAction || room.game.actionState?.kind !== "numeric") return "現在不能提交數字路徑。";
   if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
   const path = Array.isArray(rawPath) ? rawPath.map((cell) => MapFormat.cellKey(cell)) : [];
-  const legalPaths = numericPaths(room, currentPiece(room), Number(room.game.selectedFace));
-  if (!legalPaths.some((candidate) => samePath(candidate, path))) return "這條移動路徑不合法。";
+  const piece = currentPiece(room);
+  const movementBudget = room.game.actionState.movementBudget ?? Number(room.game.selectedFace);
+  const options = numericPathOptions(room, piece, movementBudget);
+  const selected = options.find((candidate) => samePath(candidate.path, path));
+  if (!selected) return "這條移動路徑不合法。";
+  if (selected.crossedWallEdge) {
+    piece.abilityCooldown = 2;
+    piece.cooldownCreatedTurnId = room.game.activeAdventurerTurnId;
+  }
   resolveAdventurerPath(room, path);
   return null;
 }
@@ -356,29 +492,64 @@ function moveArrow(room, actor, direction) {
 
 function resolveAdventurerPath(room, path) {
   const piece = currentPiece(room);
-  const hiddenMummyIndex = room.game.mummy.invisible ? path.indexOf(room.game.mummy.position) : -1;
-  const trapIndex = room.game.mummy.type === "trap" ? path.findIndex((cell) => room.game.hunt.traps.includes(cell)) : -1;
-  const collisionIndexes = [hiddenMummyIndex, trapIndex].filter((index) => index >= 0);
-  const interruption = collisionIndexes.length ? Math.min(...collisionIndexes) : -1;
-  if (interruption >= 0) {
-    const cell = path[interruption];
-    if (interruption > 0) piece.position = path[interruption - 1];
-    if (hiddenMummyIndex === interruption) {
+  let gazeTriggered = false;
+  if (isFloorPosition(room, piece.position)) {
+    purifyPieceAt(room, piece, piece.position);
+    gazeTriggered = applyGazeAt(room, piece, piece.position);
+    if (!isActivePiece(piece)) {
+      clearSelectedMove(room);
+      finishAdventurerWithoutInteraction(room);
+      return;
+    }
+  }
+  for (const cell of path) {
+    if (room.game.mummy.invisible && cell === room.game.mummy.position) {
       room.game.mummy.invisible = false;
       recordMummyAbilityTrigger(room);
       addLog(room, `冒險者與隱形提燈怪在 (${cell}) 發生碰撞；提燈怪現形，冒險者停在前一格。`);
-    } else {
-      piece.position = cell;
+      clearSelectedMove(room);
+      finishAdventurerWithoutInteraction(room);
+      return;
+    }
+    piece.position = cell;
+    purifyPieceAt(room, piece, cell);
+    if (!gazeTriggered) gazeTriggered = applyGazeAt(room, piece, cell);
+    if (!isActivePiece(piece)) {
+      clearSelectedMove(room);
+      finishAdventurerWithoutInteraction(room);
+      return;
+    }
+    if (room.game.mummy.type === "trap" && room.game.hunt.traps.includes(cell)) {
       removeTrap(room, cell);
       recordMummyAbilityTrigger(room);
       applyInjury(room, piece, `冒險者在 (${cell}) 觸發陷阱`);
+      clearSelectedMove(room);
+      finishAdventurerWithoutInteraction(room);
+      return;
     }
-    clearSelectedMove(room);
-    finishAdventurerWithoutInteraction(room);
-    return;
   }
-  piece.position = path.at(-1);
   completeAdventurerMove(room);
+}
+
+function purifyPieceAt(room, piece, cell) {
+  if (piece.corruptionTurns <= 0 || !room.game.hunt.purification.pools.includes(cell)) return false;
+  piece.corruptionTurns = 0;
+  piece.corruptionCreatedTurnId = null;
+  addLog(room, `${pieceName(room, piece)} 經過淨化池，腐化已解除。`);
+  return true;
+}
+
+function applyGazeAt(room, piece, cell) {
+  if (room.game.mummy.type !== "gazer" || !gazeRay(room).includes(cell)) return false;
+  if (piece.gazeStacks < 2) {
+    piece.gazeStacks += 1;
+    if (piece.gazeStacks === 2 && !piece.gazeTracked) piece.gazeTracked = true;
+    addLog(room, `${pieceName(room, piece)} 的凝視層數增加為 ${piece.gazeStacks}。`);
+    return true;
+  }
+  piece.gazeStacks = 0;
+  applyHostileLifeLoss(room, piece, "凝視層數再次觸發");
+  return true;
 }
 
 function completeAdventurerMove(room) {
@@ -407,16 +578,42 @@ function revealTreasure(room, actor) {
   const id = room.game.pendingTreasureIds[0];
   const task = (room.game.hands[piece.controllerId] || []).find((candidate) => candidate.id === id && !candidate.revealed);
   if (!task || treasurePosition(room, id) !== piece.position) return "這張任務目前不能揭露。";
-  task.revealed = true;
-  task.completedByPieceId = piece.id;
-  room.game.revealedTasks.push({ id, playerId: piece.controllerId, pieceId: piece.id, position: piece.position });
+  const infected = completeTreasureTask(room, piece, task, piece.position);
   room.game.pendingTreasureIds = [];
   addRedactedLog(room, `寶藏 ${id} 在 (${piece.position}) 被揭露；全隊進度 ${room.game.revealedTasks.length} / ${room.game.hunt.treasureGoal}。`, {
     adventurer: `${pieceName(room, piece)} 揭露寶藏 ${id}；全隊進度 ${room.game.revealedTasks.length} / ${room.game.hunt.treasureGoal}。`
   });
-  if (room.game.revealedTasks.length >= room.game.hunt.treasureGoal) enableTracking(room);
+  if (infected) addLog(room, `${pieceName(room, piece)} 完成受感染的寶藏，受到 ${CORRUPTION_DURATION} 回合腐化。`);
   advanceAfterAdventurer(room);
   return null;
+}
+
+function completeTreasureTask(room, piece, task, position) {
+  task.revealed = true;
+  task.completedByPieceId = piece.id;
+  room.game.revealedTasks.push({
+    id: task.id,
+    playerId: piece.controllerId,
+    pieceId: piece.id,
+    position
+  });
+  const infected = Boolean(room.game.hunt.infections[task.id]);
+  if (infected) {
+    delete room.game.hunt.infections[task.id];
+    if (piece.corruptionTurns <= 0) {
+      piece.corruptionTurns = CORRUPTION_DURATION;
+      piece.corruptionCreatedTurnId = room.game.activeAdventurerTurnId;
+    }
+    if (room.game.mummy.type === "corrupt") {
+      room.game.mummy.abilityCooldown = CORRUPT_COOLDOWN;
+      room.game.mummy.cooldownCreatedTurnId = null;
+    }
+  }
+  if (room.game.revealedTasks.length >= room.game.hunt.treasureGoal) {
+    enableTracking(room);
+    room.game.hunt.infections = {};
+  }
+  return infected;
 }
 
 function declineTreasure(room, actor) {
@@ -484,12 +681,105 @@ function throwKnife(room, actor, direction) {
   room.game.mummy.abilityUsedThisTurn = true;
   if (hit) {
     const piece = activePieces(room).find((candidate) => candidate.position === hit);
+    const wasBleeding = piece.bleeding;
     recordMummyAbilityTrigger(room);
-    applyInjury(room, piece, `飛刀命中 (${hit})`);
+    if (piece.guard) {
+      piece.guard = false;
+      addRedactedLog(room, `飛刀命中 (${hit})，但守護抵擋了這次飛刀效果。`, {
+        adventurer: `飛刀命中 (${hit})，${pieceName(room, piece)} 的守護抵擋了這次飛刀效果${wasBleeding ? "；既有流血仍然保留" : ""}。`
+      });
+    } else {
+      piece.bleeding = true;
+      piece.knifeTracked = true;
+      if (wasBleeding) {
+        addRedactedLog(room, `飛刀命中 (${hit})；該座標的冒險者已在流血，傷勢進一步惡化。`, {
+          adventurer: `飛刀命中 (${hit})；${pieceName(room, piece)} 已在流血，傷勢進一步惡化。`
+        });
+        applyHostileLifeLoss(room, piece, "流血時再次被飛刀命中");
+      } else {
+        addRedactedLog(room, `飛刀命中 (${hit})；該座標的冒險者進入流血與追蹤狀態。`, {
+          adventurer: `飛刀命中 (${hit})；${pieceName(room, piece)} 進入流血與追蹤狀態。`
+        });
+      }
+    }
   } else {
     addLog(room, `提燈怪向${directionLabel(direction)}投擲飛刀，沒有命中冒險者。`);
   }
   enterMonsterEnd(room);
+  return null;
+}
+
+function setGrave(room, actor) {
+  if (room.phase !== PHASES.monsterPrepare || !isMummy(room, actor) || room.game.mummy.type !== "burrow") {
+    return "現在不能設置墓穴。";
+  }
+  if (room.game.mummy.abilityUsedThisTurn) return "本回合已經使用過特殊能力。";
+  if (room.game.mummy.abilityCooldown > 0) return "遁地能力仍在冷卻。";
+  const position = room.game.mummy.position;
+  if (!canSetGrave(room, position)) return "提燈怪目前不在可設置墓穴的普通道路格。";
+  if (room.game.hunt.grave === position) return "墓穴已經在目前位置。";
+  const moved = Boolean(room.game.hunt.grave);
+  room.game.hunt.grave = position;
+  room.game.mummy.abilityUsedThisTurn = true;
+  addLog(room, `提燈怪在 (${position}) ${moved ? "搬移" : "設置"}墓穴。`);
+  return null;
+}
+
+function burrowToGrave(room, actor) {
+  if (room.phase !== PHASES.monsterPrepare || !isMummy(room, actor) || room.game.mummy.type !== "burrow") {
+    return "現在不能發動遁地。";
+  }
+  if (room.game.mummy.abilityUsedThisTurn) return "本回合已經使用過特殊能力。";
+  if (room.game.mummy.abilityCooldown > 0) return "遁地能力仍在冷卻。";
+  const grave = room.game.hunt.grave;
+  if (!grave || grave === room.game.mummy.position) return "目前沒有可傳送的墓穴。";
+  room.game.mummy.position = grave;
+  room.game.mummy.abilityCooldown = 2;
+  room.game.mummy.cooldownCreatedTurnId = room.game.activeMonsterTurnId;
+  room.game.mummy.abilityUsedThisTurn = true;
+  recordMummyAbilityTrigger(room);
+  addLog(room, `提燈怪遁地至公開墓穴 (${grave})，並結束回合。`);
+  const captured = activePieces(room).filter((piece) => piece.position === grave);
+  if (captured.length) capturePieces(room, captured);
+  if (room.phase !== PHASES.gameOver) enterMonsterEnd(room);
+  return null;
+}
+
+function placePhantomWall(room, actor, rawEdge) {
+  if (room.phase !== PHASES.monsterPrepare || !isMummy(room, actor) || room.game.mummy.type !== "phantom") {
+    return "現在不能建立幻影牆。";
+  }
+  if (room.game.mummy.abilityUsedThisTurn) return "本回合已經使用過特殊能力。";
+  if (room.game.mummy.abilityCooldown > 0 || room.game.hunt.phantomWall) return "幻影牆能力仍在冷卻。";
+  const edge = MapFormat.canonicalEdge(rawEdge);
+  if (!phantomWallEdges(room).includes(edge)) return "這一條邊不能建立幻影牆。";
+  room.game.hunt.phantomWall = { edge };
+  room.game.mummy.abilityCooldown = 2;
+  room.game.mummy.cooldownCreatedTurnId = room.game.activeMonsterTurnId;
+  room.game.mummy.abilityUsedThisTurn = true;
+  recordMummyAbilityTrigger(room);
+  addLog(room, `提燈怪在 ${edge} 建立幻影牆。`);
+  return null;
+}
+
+function infectTreasure(room, actor, rawTreasureId) {
+  if (room.phase !== PHASES.monsterPrepare || !isMummy(room, actor) || room.game.mummy.type !== "corrupt") {
+    return "現在不能感染寶藏。";
+  }
+  if (!infectionUnlocked(room)) return "團隊完成第一個寶藏後才能感染寶藏。";
+  if (room.game.mummy.abilityUsedThisTurn) return "本回合已經使用過特殊能力。";
+  if (room.game.mummy.abilityCooldown > 0) return "感染能力仍在冷卻。";
+  const treasureId = String(rawTreasureId || "").toUpperCase();
+  if (!infectionTargetIds(room).includes(treasureId)) return "這個寶藏目前不能被感染。";
+  room.game.hunt.infections[treasureId] = {
+    remaining: INFECTION_INTERVAL,
+    createdTurnId: room.game.activeMonsterTurnId
+  };
+  room.game.mummy.abilityCooldown = CORRUPT_COOLDOWN;
+  room.game.mummy.cooldownCreatedTurnId = room.game.activeMonsterTurnId;
+  room.game.mummy.abilityUsedThisTurn = true;
+  recordMummyAbilityTrigger(room);
+  addLog(room, `寶藏 ${treasureId} 已受到感染。`);
   return null;
 }
 
@@ -575,6 +865,15 @@ function capturePieces(room, pieces) {
     piece.eliminated = piece.life <= 0;
     piece.outcome = piece.eliminated ? "dead" : null;
     piece.position = piece.eliminated ? null : "dungeon";
+    if (piece.eliminated) {
+      piece.bleeding = false;
+      piece.knifeTracked = false;
+      piece.gazeTracked = false;
+      piece.gazeStacks = 0;
+      piece.corruptionTurns = 0;
+      piece.corruptionCreatedTurnId = null;
+      removeOwnedTemporaryWall(room, piece.id);
+    }
     addLog(room, guarded
       ? `${pieceName(room, piece)} 被提燈怪抓到；守護抵銷生命損失，但仍被送入地牢。`
       : `${pieceName(room, piece)} 被提燈怪抓到，失去 1 點生命${piece.eliminated ? "並死亡" : "並被送入地牢"}。`);
@@ -640,10 +939,36 @@ function finishMummyMove(room) {
 function enterMonsterEnd(room) {
   if (room.phase === PHASES.gameOver) return;
   room.phase = PHASES.monsterEnd;
+  if (room.game.mummy.type === "gazer") {
+    const directions = gazeDirections(room);
+    if (directions.length) {
+      room.game.monsterEndState = { kind: "gazeDirection" };
+      return;
+    }
+  }
   finishNormalMummyTurn(room);
 }
 
+function chooseGazeDirection(room, actor, direction) {
+  if (room.phase !== PHASES.monsterEnd || room.game.monsterEndState?.kind !== "gazeDirection"
+    || !isMummy(room, actor) || room.game.mummy.type !== "gazer") {
+    return "現在不能選擇凝視方向。";
+  }
+  if (!gazeDirections(room).includes(direction)) return "這個方向沒有合法凝視線。";
+  room.game.hunt.gaze = {
+    origin: room.game.mummy.position,
+    direction
+  };
+  room.game.monsterEndState = null;
+  recordMummyAbilityTrigger(room);
+  addLog(room, `凝視者將視線轉向${directionLabel(direction)}。`);
+  finishNormalMummyTurn(room);
+  return null;
+}
+
 function finishNormalMummyTurn(room) {
+  room.game.monsterEndState = null;
+  if (room.game.mummy.type === "corrupt") finishInfectionTimers(room);
   finishMummyCooldown(room);
   const tracking = room.game.hunt.tracking;
   if (tracking.revealThisTurn) {
@@ -679,7 +1004,7 @@ function beginInterlude(room, pieceId, count, automatic) {
 function beginForcedAdventurerSkip(room, reason) {
   room.game.forcedSkipReason = reason;
   addLog(room, reason === "all_dice_locked"
-    ? `${currentPieceName(room)} 的五顆骰子全部鎖定，沒有可用骰子，系統自動略過回合。`
+    ? `${currentPieceName(room)} 的 ${room.game.dice.length} 顆骰子全部鎖定，沒有可用骰子，系統自動略過回合。`
     : `${currentPieceName(room)} 沒有任何合法移動或可用能力，系統自動略過回合。`);
   finishAdventurerWithoutInteraction(room);
 }
@@ -730,6 +1055,7 @@ function beginAdventurerAtIndex(room, startIndex) {
     if (!isActivePiece(piece)) continue;
     room.game.turnIndex = index;
     room.game.currentPieceId = piece.id;
+    removeOwnedTemporaryWall(room, piece.id);
     if (lockedDiceCount(room) === room.game.dice.length) {
       beginInterlude(room, piece.id, room.game.dice.length, true);
       return;
@@ -746,8 +1072,9 @@ function prepareAdventurerTurn(room, piece) {
   room.game.turnSerial += 1;
   room.game.activeAdventurerTurnId = room.game.turnSerial;
   piece.wizardUsedThisTurn = false;
-  room.game.disabledDieId = piece.injuredTurns > 0
-    ? room.game.dice.find((die) => !die.locked)?.id || null
+  const injuryCandidates = room.game.dice.filter((die) => !die.locked);
+  room.game.disabledDieId = piece.injuredTurns > 0 && injuryCandidates.length
+    ? injuryCandidates[randomIntInclusive(0, injuryCandidates.length - 1)].id
     : null;
   piece.injuryActive = Boolean(room.game.disabledDieId);
   if (!hasAnyAdventurerMove(room, piece) && !hasFullTurnAbility(room, piece)) {
@@ -771,6 +1098,11 @@ function resumeAdventurerPrepare(room, piece) {
 function beginMummyNormalTurn(room) {
   room.game.turnSerial += 1;
   room.game.activeMonsterTurnId = room.game.turnSerial;
+  if (room.game.mummy.type === "gazer") room.game.hunt.gaze = null;
+  if (room.game.mummy.type === "phantom" && room.game.hunt.phantomWall && room.game.mummy.abilityCooldown === 1) {
+    room.game.hunt.phantomWall = null;
+    addLog(room, "幻影牆已消失。");
+  }
   room.game.disabledDieId = null;
   room.game.mummy.roll = null;
   room.game.mummy.remaining = 0;
@@ -789,24 +1121,42 @@ function beginMummyNormalTurn(room) {
 }
 
 function numericPaths(room, piece, distance) {
-  if (!isActivePiece(piece) || !Number.isInteger(distance) || distance < 1 || distance > 4) return [];
+  return numericPathOptions(room, piece, distance).map((option) => option.path);
+}
+
+function numericPathOptions(room, piece, distance) {
+  if (!isActivePiece(piece) || !Number.isInteger(distance) || distance < 1 || distance > 5) return [];
   const results = [];
   const otherPositions = occupiedAdventurerCells(room, piece.id);
-  const visit = (position, path) => {
-    if (path.length === distance) {
-      if (!otherPositions.has(position)) results.push(path.slice());
+  const canCrossWall = piece.profession === "tombRaider" && piece.abilityCooldown === 0;
+  const visit = (position, path, spent, crossedWallEdge) => {
+    if (spent === distance) {
+      if (!otherPositions.has(position)) {
+        results.push({
+          path: path.slice(),
+          movementCost: spent,
+          crossedWallEdge
+        });
+      }
       return;
     }
-    for (const next of adventurerNeighbors(room, position)) {
+    for (const step of adventurerNumericSteps(room, position, canCrossWall && !crossedWallEdge)) {
+      if (spent + step.cost > distance) continue;
+      const next = step.cell;
       if (!room.game.mummy.invisible && next === room.game.mummy.position) continue;
       path.push(next);
-      if (isEscapeTarget(room, next)) results.push(path.slice());
-      else visit(next, path);
+      const nextCost = spent + step.cost;
+      const nextCrossedWall = crossedWallEdge || step.wallEdge || null;
+      if (isEscapeTarget(room, next)) {
+        results.push({ path: path.slice(), movementCost: nextCost, crossedWallEdge: nextCrossedWall });
+      } else {
+        visit(next, path, nextCost, nextCrossedWall);
+      }
       path.pop();
     }
   };
-  visit(piece.position, []);
-  return uniquePaths(results);
+  visit(piece.position, [], 0, null);
+  return uniquePathOptions(results);
 }
 
 function arrowMoves(room, piece) {
@@ -835,8 +1185,10 @@ function arrowMoves(room, piece) {
 
 function mummyMoves(room) {
   const position = room.game.mummy.position;
-  if (position === "dungeon") return gameMap(room).zones.dungeon.exits.filter((cell) => gameGraph(room).passages[cell]);
-  return (gameGraph(room).passages[position] || []).slice();
+  const base = position === "dungeon"
+    ? gameMap(room).zones.dungeon.exits.filter((cell) => gameGraph(room).passages[cell])
+    : (gameGraph(room).passages[position] || []).slice();
+  return base.filter((cell) => wallTypeAt(room, position, cell) !== "temporary");
 }
 
 function adventurerNeighbors(room, position) {
@@ -845,21 +1197,26 @@ function adventurerNeighbors(room, position) {
     : position === "dungeon"
       ? gameMap(room).zones.dungeon.exits.filter((cell) => gameGraph(room).passages[cell])
       : (gameGraph(room).passages[position] || []).slice();
+  const filtered = base.filter((cell) => !wallTypeAt(room, position, cell));
   if (!isFloorPosition(room, position)) return base;
   for (const cell of escapeTargetCells(room)) {
     if (MapFormat.areAdjacent(position, cell)
-      && !gameMap(room).walls.includes(MapFormat.canonicalEdge(position, cell))) base.push(cell);
+      && !wallTypeAt(room, position, cell)) filtered.push(cell);
   }
-  return [...new Set(base)];
+  return [...new Set(filtered)];
 }
 
 function legalDieIds(room) {
   const piece = currentPiece(room);
   return room.game.dice
     .filter((die) => !die.locked && die.id !== room.game.disabledDieId && die.face)
-    .filter((die) => die.face === "arrow"
-      ? Object.keys(arrowMoves(room, piece)).length > 0
-      : numericPaths(room, piece, Number(die.face)).length > 0)
+    .filter((die) => {
+      if (die.face === "0") return piece.profession === "scout" || die.kind === "forbidden";
+      if (die.face === "compass") return compassDistances(room, piece).length > 0;
+      return die.face === "arrow"
+        ? Object.keys(arrowMoves(room, piece)).length > 0
+        : numericPaths(room, piece, Number(die.face)).length > 0;
+    })
     .map((die) => die.id);
 }
 
@@ -896,12 +1253,17 @@ function makeGameView(room, viewer) {
       escaped: piece.escaped,
       outcome: piece.outcome,
       abilityCooldown: piece.abilityCooldown,
-      wizardCharges: piece.wizardCharges
+      wizardCharges: piece.wizardCharges,
+      masonCharges: piece.masonCharges,
+      archaeologistCharges: piece.archaeologistCharges,
+      guard: piece.guard,
+      injured: piece.injuredTurns > 0,
+      bleeding: Boolean(piece.bleeding),
+      trackedByKnife: Boolean(piece.knifeTracked),
+      gazeStacks: piece.gazeStacks,
+      corrupted: piece.corruptionTurns > 0,
+      corruptionTurns: piece.corruptionTurns
     };
-    if (!isMummyViewer) {
-      result.guard = piece.guard;
-      result.injured = piece.injuredTurns > 0;
-    }
     if (!isMummyViewer || revealsHumans) result.position = piece.position;
     return result;
   });
@@ -926,6 +1288,8 @@ function makeGameView(room, viewer) {
     pieces,
     progress: isMummyViewer ? [] : room.players.filter((player) => player.role === "adventurer").map((player) => taskProgress(room, player.id)),
     lockedDiceCount: lockedDiceCount(room),
+    lockedDice: room.game.dice.filter((die) => die.locked).map((die) => ({ id: die.id, kind: die.kind })),
+    dicePoolSize: room.game.dice.length,
     disabledDieId: isMummyViewer ? null : room.game.disabledDieId,
     forcedSkipReason: room.game.forcedSkipReason,
     lastPublicDie: room.game.lastPublicDie,
@@ -938,7 +1302,32 @@ function makeGameView(room, viewer) {
       hatch: { ...room.game.hunt.hatch },
       trackingReveal: room.game.hunt.tracking.revealThisTurn,
       trackingCountdown: trackingCountdownForView(room),
-      traps: isMummyViewer ? room.game.hunt.traps.slice() : []
+      traps: isMummyViewer ? room.game.hunt.traps.slice() : [],
+      temporaryWall: publicWall(room.game.hunt.temporaryWall, "temporary"),
+      phantomWall: publicWall(room.game.hunt.phantomWall, "phantom"),
+      grave: room.game.hunt.grave,
+      gazeLine: room.game.hunt.gaze ? {
+        origin: room.game.hunt.gaze.origin,
+        direction: room.game.hunt.gaze.direction,
+        cells: gazeRay(room)
+      } : null,
+      gazeTrackedPositions: isMummyViewer && room.game.mummy.type === "gazer"
+        ? [...new Set(Object.values(room.game.pieces)
+          .filter((piece) => piece.gazeTracked && piece.position && !piece.eliminated && !piece.escaped)
+          .map((piece) => piece.position))]
+        : [],
+      purificationPools: room.game.hunt.purification.pools.slice(),
+      purificationFallback: room.game.hunt.purification.fallback,
+      infectedTreasures: Object.entries(room.game.hunt.infections).map(([id, infection]) => ({
+        id,
+        position: treasurePosition(room, id),
+        remaining: infection.remaining
+      })),
+      knifeTrackedPositions: isMummyViewer
+        ? [...new Set(Object.values(room.game.pieces)
+          .filter((piece) => piece.knifeTracked && piece.position && !piece.eliminated && !piece.escaped)
+          .map((piece) => piece.position))]
+        : []
     },
     revealedTasks,
     captureEvent: room.game.captureEvent ? { ...room.game.captureEvent } : null,
@@ -965,6 +1354,7 @@ function addLegalView(room, viewer, view) {
     const locked = lockedDiceCount(room);
     if (usableDice(room).length && hasAnyAdventurerMove(room, piece)) actions.push("rollAdventurerDice");
     if (locked) actions.push("unlockDice");
+    if (piece.bleeding) actions.push("stopBleeding");
     const mechanisms = mechanismIdsForPiece(room, piece);
     if (mechanisms.length) {
       actions.push("activateMechanism");
@@ -978,14 +1368,29 @@ function addLegalView(room, viewer, view) {
     if (piece.profession === "wizard" && piece.wizardCharges > 0 && !piece.wizardUsedThisTurn && locked >= 2 && locked < room.game.dice.length) {
       actions.push("useWizardUnlock");
     }
+    const masonEdges = masonWallEdges(room, piece);
+    if (piece.profession === "mason" && piece.masonCharges > 0 && masonEdges.length) {
+      actions.push("useMasonWall");
+      view.legal.masonWallEdges = masonEdges;
+    }
+    const tasks = archaeologistTasks(room, piece);
+    if (piece.profession === "archaeologist" && piece.archaeologistCharges > 0 && piece.life >= 2 && tasks.length) {
+      actions.push("useArchaeologistTask");
+      view.legal.archaeologistTasks = tasks.map((task) => ({ id: task.id, position: treasurePosition(room, task.id) }));
+    }
     view.legal.actions = actions;
   } else if (isCurrent && room.phase === PHASES.adventurerRoll) {
     view.legal.dieIds = legalDieIds(room);
+    view.legal.compassDistances = compassDistances(room, piece);
     view.legal.actions = ["rollAdventurerDice", ...(view.legal.dieIds.length ? ["selectDie"] : [])];
   } else if (isCurrent && room.phase === PHASES.adventurerAction && room.game.actionState?.kind === "numeric") {
     view.legal.actions = ["moveNumeric"];
-    view.legal.paths = numericPaths(room, piece, Number(room.game.selectedFace));
+    const movementBudget = room.game.actionState.movementBudget ?? Number(room.game.selectedFace);
+    const options = numericPathOptions(room, piece, movementBudget);
+    view.legal.paths = options.map((option) => option.path);
+    view.legal.pathOptions = options.map((option) => ({ ...option, cells: option.path.slice() }));
     view.legal.selectedFace = room.game.selectedFace;
+    view.legal.movementBudget = movementBudget;
   } else if (isCurrent && room.phase === PHASES.adventurerAction && room.game.actionState?.kind === "arrow") {
     view.legal.actions = ["moveArrow"];
     view.legal.directions = arrowMoves(room, piece);
@@ -1010,10 +1415,36 @@ function addLegalView(room, viewer, view) {
     } else if (room.game.mummy.type === "knife" && !room.game.mummy.abilityUsedThisTurn && room.game.mummy.abilityCooldown === 0) {
       view.legal.actions.push("throwKnife");
       view.legal.knifeDirections = Object.keys(DIRECTIONS);
+    } else if (room.game.mummy.type === "burrow" && !room.game.mummy.abilityUsedThisTurn && room.game.mummy.abilityCooldown === 0) {
+      if (canSetGrave(room, room.game.mummy.position) && room.game.hunt.grave !== room.game.mummy.position) {
+        view.legal.actions.push("setGrave");
+      }
+      if (room.game.hunt.grave && room.game.hunt.grave !== room.game.mummy.position) view.legal.actions.push("burrowToGrave");
+    } else if (room.game.mummy.type === "phantom" && !room.game.mummy.abilityUsedThisTurn
+      && room.game.mummy.abilityCooldown === 0 && !room.game.hunt.phantomWall) {
+      const edges = phantomWallEdges(room);
+      if (edges.length) {
+        view.legal.actions.push("placePhantomWall");
+        view.legal.phantomWallEdges = edges;
+      }
+    } else if (room.game.mummy.type === "corrupt" && !room.game.mummy.abilityUsedThisTurn
+      && room.game.mummy.abilityCooldown === 0) {
+      const treasureIds = infectionTargetIds(room);
+      if (treasureIds.length) {
+        view.legal.actions.push("infectTreasure");
+        view.legal.infectionTreasures = treasureIds.map((id) => ({
+          id,
+          position: treasurePosition(room, id)
+        }));
+      }
     }
   } else if (viewer.role === "mummy" && [PHASES.monsterAction, PHASES.monsterInterruptAction].includes(room.phase)) {
     view.legal.actions = ["moveMummy", "stopMummy"];
     view.legal.moves = mummyMoves(room);
+  } else if (viewer.role === "mummy" && room.phase === PHASES.monsterEnd
+    && room.game.monsterEndState?.kind === "gazeDirection") {
+    view.legal.actions = ["chooseGazeDirection"];
+    view.legal.gazeDirections = gazeDirections(room);
   }
 }
 
@@ -1031,7 +1462,7 @@ function mechanismIdsForPiece(room, piece) {
     .filter((id) => {
       const mechanism = gameMap(room).hunt.mechanisms[id];
       return MapFormat.areAdjacent(piece.position, mechanism)
-        && !gameMap(room).walls.includes(MapFormat.canonicalEdge(piece.position, mechanism));
+        && !wallTypeAt(room, piece.position, mechanism);
     });
 }
 
@@ -1048,7 +1479,16 @@ function isWithinKnightGuardRange(origin, target) {
 }
 
 function hasFullTurnAbility(room, piece) {
-  return mechanismIdsForPiece(room, piece).length > 0 || knightTargets(room, piece).length > 0;
+  return mechanismIdsForPiece(room, piece).length > 0
+    || knightTargets(room, piece).length > 0
+    || masonWallEdges(room, piece).length > 0
+    || archaeologistTasks(room, piece).length > 0
+    || Boolean(piece?.bleeding);
+}
+
+function archaeologistTasks(room, piece) {
+  if (piece?.profession !== "archaeologist" || piece.archaeologistCharges <= 0 || piece.life < 2) return [];
+  return (room.game.hands[piece.controllerId] || []).filter((task) => !task.revealed);
 }
 
 function openExit(room, id) {
@@ -1086,6 +1526,13 @@ function escapePiece(room, piece, source) {
   piece.escaped = true;
   piece.outcome = "escaped";
   piece.position = null;
+  piece.bleeding = false;
+  piece.knifeTracked = false;
+  piece.gazeTracked = false;
+  piece.gazeStacks = 0;
+  piece.corruptionTurns = 0;
+  piece.corruptionCreatedTurnId = null;
+  removeOwnedTemporaryWall(room, piece.id);
   addLog(room, `${pieceName(room, piece)} 已從${source}逃出古墓。`);
   evaluateHuntResolution(room);
   if (room.phase !== PHASES.gameOver) finishAdventurerWithoutInteraction(room);
@@ -1104,7 +1551,7 @@ function openHatch(room, survivor) {
   const reachable = reachableFloorCells(room, survivor.position);
   const occupied = new Set(activePieces(room).map((piece) => piece.position));
   occupied.add(room.game.mummy.position);
-  const candidates = [...reachable].filter((cell) => !occupied.has(cell));
+  const candidates = [...reachable].filter((cell) => !occupied.has(cell) && cell !== room.game.hunt.grave);
   if (!candidates.length) return;
   const position = candidates[randomIntInclusive(0, candidates.length - 1)];
   if (room.game.hunt.traps.includes(position)) removeTrap(room, position);
@@ -1139,6 +1586,108 @@ function finishGame(room) {
   addLog(room, escaped > 0 ? `${escaped} 名冒險者成功逃出古墓。` : "所有冒險者都已死亡，提燈怪獲勝。 ");
 }
 
+function applyHostileLifeLoss(room, piece, source) {
+  if (piece.guard) {
+    piece.guard = false;
+    addLog(room, `${pieceName(room, piece)} 因${source}將失去生命，但守護抵銷了這次損失。`);
+    return false;
+  }
+  piece.life -= 1;
+  piece.eliminated = piece.life <= 0;
+  piece.outcome = piece.eliminated ? "dead" : piece.outcome;
+  addLog(room, `${pieceName(room, piece)} 因${source}失去 1 點生命${piece.eliminated ? "並死亡" : ""}。`);
+  if (piece.eliminated) {
+    piece.position = null;
+    piece.bleeding = false;
+    piece.knifeTracked = false;
+    piece.gazeTracked = false;
+    piece.gazeStacks = 0;
+    piece.corruptionTurns = 0;
+    piece.corruptionCreatedTurnId = null;
+    removeOwnedTemporaryWall(room, piece.id);
+    evaluateHuntResolution(room);
+  }
+  return true;
+}
+
+function gazeRay(room, direction = room.game.hunt.gaze?.direction, origin = room.game.hunt.gaze?.origin) {
+  if (!Object.hasOwn(DIRECTIONS, direction) || !isFloorPosition(room, origin)) return [];
+  const [dx, dy] = DIRECTIONS[direction];
+  let current = origin;
+  let [x, y] = MapFormat.parseCell(origin);
+  const ray = [];
+  while (true) {
+    const next = MapFormat.cellKey(x + dx, y + dy);
+    if (!next || !MapFormat.inBounds(next, gameMap(room).width, gameMap(room).height)) break;
+    if (wallTypeAt(room, current, next) || !gameGraph(room).passages[next]) break;
+    ray.push(next);
+    current = next;
+    [x, y] = MapFormat.parseCell(next);
+  }
+  return ray;
+}
+
+function gazeDirections(room) {
+  if (room.game.mummy.type !== "gazer" || !isFloorPosition(room, room.game.mummy.position)) return [];
+  return Object.keys(DIRECTIONS).filter((direction) => gazeRay(room, direction, room.game.mummy.position).length > 0);
+}
+
+function unrevealedTreasureIds(room) {
+  const revealed = new Set(room.game.revealedTasks.map((task) => task.id));
+  return gameMap(room).treasures
+    .map((treasure) => treasure.id)
+    .filter((id) => !revealed.has(id));
+}
+
+function infectionLimit(room) {
+  return Math.floor(unrevealedTreasureIds(room).length / 2);
+}
+
+function infectionUnlocked(room) {
+  return room.game.revealedTasks.length > 0;
+}
+
+function infectionTargetIds(room) {
+  if (room.game.mummy.type !== "corrupt" || !infectionUnlocked(room)
+    || room.game.mummy.abilityCooldown > 0
+    || room.game.mummy.abilityUsedThisTurn
+    || Object.keys(room.game.hunt.infections).length >= infectionLimit(room)) return [];
+  const infected = new Set(Object.keys(room.game.hunt.infections));
+  return unrevealedTreasureIds(room).filter((id) => !infected.has(id)).sort();
+}
+
+function nearestInfectionTarget(room, sourceId) {
+  const infected = new Set(Object.keys(room.game.hunt.infections));
+  const candidates = unrevealedTreasureIds(room).filter((id) => !infected.has(id));
+  const distances = MapFormat.graphDistances(gameGraph(room), treasurePosition(room, sourceId));
+  return candidates
+    .map((id) => ({ id, distance: distances[treasurePosition(room, id)] }))
+    .filter((entry) => Number.isInteger(entry.distance))
+    .sort((left, right) => left.distance - right.distance || left.id.localeCompare(right.id))[0]?.id || null;
+}
+
+function finishInfectionTimers(room) {
+  const sourceIds = Object.keys(room.game.hunt.infections).sort();
+  for (const sourceId of sourceIds) {
+    const infection = room.game.hunt.infections[sourceId];
+    if (!infection || infection.createdTurnId === room.game.activeMonsterTurnId) continue;
+    infection.remaining = Math.max(0, infection.remaining - 1);
+    if (infection.remaining > 0) continue;
+    if (Object.keys(room.game.hunt.infections).length < infectionLimit(room)) {
+      const targetId = nearestInfectionTarget(room, sourceId);
+      if (targetId) {
+        room.game.hunt.infections[targetId] = {
+          remaining: INFECTION_INTERVAL,
+          createdTurnId: room.game.activeMonsterTurnId
+        };
+        addLog(room, `感染從寶藏 ${sourceId} 傳播至寶藏 ${targetId}。`);
+      }
+    }
+    infection.remaining = INFECTION_INTERVAL;
+    infection.createdTurnId = null;
+  }
+}
+
 function knifeRay(room, direction) {
   const [dx, dy] = DIRECTIONS[direction];
   const origin = specialAnchor(gameMap(room), room.game.mummy.position) || room.game.mummy.position;
@@ -1151,7 +1700,7 @@ function knifeRay(room, direction) {
     const allowed = current === "dungeon"
       ? gameMap(room).zones.dungeon.exits.includes(next) && Boolean(gameGraph(room).passages[next])
       : (gameGraph(room).passages[current] || []).includes(next);
-    if (!allowed) break;
+    if (!allowed || wallTypeAt(room, current, next) === "temporary") break;
     ray.push(next);
     current = next;
     [x, y] = MapFormat.parseCell(next);
@@ -1194,7 +1743,7 @@ function reachableFloorCells(room, position) {
   const queue = [...starts];
   while (queue.length) {
     const current = queue.shift();
-    for (const next of gameGraph(room).passages[current] || []) {
+    for (const next of adventurerNeighbors(room, current).filter((cell) => gameGraph(room).passages[cell])) {
       if (visited.has(next)) continue;
       visited.add(next);
       queue.push(next);
@@ -1215,6 +1764,97 @@ function isEscapeTarget(room, cell) {
   return escapeTargetCells(room).includes(cell);
 }
 
+function wallTypeAt(room, left, right) {
+  const edge = MapFormat.canonicalEdge(left, right);
+  if (!edge) return null;
+  if (gameMap(room).walls.includes(edge)) return "permanent";
+  if (room.game.hunt.temporaryWall?.edge === edge) return "temporary";
+  if (room.game.hunt.phantomWall?.edge === edge) return "phantom";
+  return null;
+}
+
+function adventurerNumericSteps(room, position, allowWallCrossing) {
+  if (isSpecialPosition(position)) {
+    return adventurerNeighbors(room, position).map((cell) => ({ cell, cost: 1, wallEdge: null }));
+  }
+  const candidates = [
+    ...MapFormat.neighbors(position, gameMap(room).width, gameMap(room).height),
+    ...escapeTargetCells(room).filter((cell) => MapFormat.areAdjacent(position, cell))
+  ];
+  return [...new Set(candidates)].flatMap((cell) => {
+    const isFloor = Boolean(gameGraph(room).passages[cell]);
+    const isExit = isEscapeTarget(room, cell);
+    if (!isFloor && !isExit) return [];
+    const edge = MapFormat.canonicalEdge(position, cell);
+    const wallType = wallTypeAt(room, position, cell);
+    if (wallType) return allowWallCrossing ? [{ cell, cost: 2, wallEdge: edge }] : [];
+    const naturallyConnected = (gameGraph(room).passages[position] || []).includes(cell) || isExit;
+    return naturallyConnected ? [{ cell, cost: 1, wallEdge: null }] : [];
+  });
+}
+
+function compassDistances(room, piece) {
+  if (piece?.profession !== "scout") return [];
+  return [1, 2, 3].filter((distance) => numericPathOptions(room, piece, distance).length > 0);
+}
+
+function wallPlacementEdges(room, origin) {
+  if (!isFloorPosition(room, origin)) return [];
+  return MapFormat.neighbors(origin, gameMap(room).width, gameMap(room).height)
+    .filter((cell) => isFloorPosition(room, cell))
+    .map((cell) => MapFormat.canonicalEdge(origin, cell))
+    .filter((edge) => edge && !wallTypeAt(room, ...edge.split("|")))
+    .filter((edge) => preservesFloorConnectivity(room, edge));
+}
+
+function preservesFloorConnectivity(room, candidateEdge) {
+  const floors = Object.keys(gameGraph(room).passages);
+  if (!floors.length) return false;
+  const blocked = new Set([
+    room.game.hunt.temporaryWall?.edge,
+    room.game.hunt.phantomWall?.edge,
+    candidateEdge
+  ].filter(Boolean));
+  const visited = new Set([floors[0]]);
+  const queue = [floors[0]];
+  while (queue.length) {
+    const current = queue.shift();
+    for (const next of gameGraph(room).passages[current] || []) {
+      if (blocked.has(MapFormat.canonicalEdge(current, next)) || visited.has(next)) continue;
+      visited.add(next);
+      queue.push(next);
+    }
+  }
+  return visited.size === floors.length;
+}
+
+function masonWallEdges(room, piece) {
+  if (piece?.profession !== "mason" || piece.masonCharges <= 0 || room.game.hunt.temporaryWall) return [];
+  return wallPlacementEdges(room, piece.position);
+}
+
+function phantomWallEdges(room) {
+  if (room.game.mummy.type !== "phantom" || room.game.mummy.abilityCooldown > 0 || room.game.hunt.phantomWall) return [];
+  return wallPlacementEdges(room, room.game.mummy.position);
+}
+
+function canSetGrave(room, position) {
+  return isFloorPosition(room, position)
+    && !isEscapeTarget(room, position)
+    && position !== room.game.hunt.hatch.position
+    && !Object.values(gameMap(room).hunt.mechanisms).includes(position);
+}
+
+function publicWall(wall, type) {
+  return wall?.edge ? { edge: wall.edge, type } : null;
+}
+
+function removeOwnedTemporaryWall(room, pieceId) {
+  if (room.game.hunt.temporaryWall?.ownerPieceId !== pieceId) return;
+  room.game.hunt.temporaryWall = null;
+  addLog(room, "石匠的臨時牆已移除。");
+}
+
 function finishPieceTurn(room, piece) {
   if (!piece) return;
   if (piece.injuryActive) {
@@ -1226,6 +1866,15 @@ function finishPieceTurn(room, piece) {
     if (piece.cooldownCreatedTurnId !== room.game.activeAdventurerTurnId) piece.abilityCooldown -= 1;
     if (piece.abilityCooldown === 0) piece.cooldownCreatedTurnId = null;
   }
+  if (piece.corruptionTurns > 0 && piece.corruptionCreatedTurnId !== room.game.activeAdventurerTurnId) {
+    piece.corruptionTurns = Math.max(0, piece.corruptionTurns - 1);
+    if (piece.corruptionTurns === 0) {
+      piece.corruptionCreatedTurnId = null;
+      applyHostileLifeLoss(room, piece, "腐化發作");
+    }
+  }
+  piece.knifeTracked = false;
+  piece.gazeTracked = false;
 }
 
 function finishMummyCooldown(room) {
@@ -1237,8 +1886,16 @@ function finishMummyCooldown(room) {
 }
 
 function hasAnyAdventurerMove(room, piece) {
-  return [1, 2, 3, 4].some((distance) => numericPaths(room, piece, distance).length)
+  const dice = usableDice(room);
+  return (piece?.profession === "scout" && dice.some((die) => die.kind !== "forbidden"))
+    || dice.some((die) => die.kind === "forbidden")
+    || [1, 2, 3, 4].some((distance) => numericPaths(room, piece, distance).length)
     || Object.keys(arrowMoves(room, piece)).length > 0;
+}
+
+function dieFacesFor(room, die) {
+  if (die?.kind === "forbidden") return FORBIDDEN_FACES;
+  return currentPiece(room)?.profession === "scout" ? SCOUT_FACES : ADVENTURER_FACES;
 }
 
 function usableDice(room) {
@@ -1305,6 +1962,9 @@ function isSpecialPosition(position) { return position === "entrance" || positio
 function specialAnchor(map, position) { return isSpecialPosition(position) ? map.zones[position].anchor : null; }
 function samePath(left, right) { return left.length === right.length && left.every((cell, index) => cell === right[index]); }
 function uniquePaths(paths) { return [...new Map(paths.map((path) => [path.join("|"), path])).values()]; }
+function uniquePathOptions(options) {
+  return [...new Map(options.map((option) => [option.path.join("|"), option])).values()];
+}
 function directionLabel(direction) { return { up: "上方", right: "右方", down: "下方", left: "左方" }[direction] || direction; }
 
 function addLog(room, message) {
@@ -1334,14 +1994,19 @@ module.exports = {
   PHASES,
   PHASE_ACTIONS,
   ADVENTURER_FACES,
+  SCOUT_FACES,
+  FORBIDDEN_FACES,
   MECHANISM_FACES,
   setupGame,
   applyGameAction,
   makeGameView,
   resetGame,
   numericPaths,
+  numericPathOptions,
   arrowMoves,
   mummyMoves,
+  gazeRay,
+  infectionLimit,
   resolveAdventurerFaces,
   resolveMechanismFace,
   resolveMummyRoll

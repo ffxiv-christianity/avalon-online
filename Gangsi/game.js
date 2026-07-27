@@ -17,8 +17,11 @@ const Engine = require("./engine");
 const PLAYER_COUNTS = Object.freeze([2, 3, 4, 5]);
 const PLAYER_ROLES = Object.freeze({ adventurer: "adventurer", mummy: "mummy" });
 const GAME_MODES = Object.freeze({ classic: "classic", hunt: "hunt" });
-const PROFESSIONS = Object.freeze(["knight", "engineer", "doctor", "wizard"]);
-const MUMMY_TYPES = Object.freeze(["trap", "invisible", "knife"]);
+const PROFESSIONS = Object.freeze([
+  "knight", "engineer", "doctor", "wizard",
+  "scout", "tombRaider", "mason", "archaeologist", "cultist"
+]);
+const MUMMY_TYPES = Object.freeze(["trap", "invisible", "knife", "burrow", "phantom", "gazer", "corrupt"]);
 
 function mapOptions() {
   return MapCatalog.loadBuiltInMaps().map((entry) => ({
