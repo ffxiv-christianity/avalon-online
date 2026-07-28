@@ -48,6 +48,12 @@ async function run() {
     assert(page.includes("插入回合只顯示鎖定怪物骰"));
     assert(page.includes("陷阱不能放在入口、地牢或離開地牢必須踏入的第一格"));
     assert(page.includes("再外一層道路仍可放置"));
+    assert(page.includes("沿道路 1～2 步範圍內放置或回收陷阱"));
+    assert(page.includes("沒有使用次數上限；使用後冷卻 3 個自己的正常回合"));
+    assert(page.includes("顯示 1 時，下一次進入準備階段就會恢復可用"));
+    assert(page.includes("提燈怪看不到這些冷卻資訊"));
+    assert(page.includes("石匠臨時牆可以封鎖一般道路的唯一通路"));
+    assert(page.includes("自動視為封閉格；盜墓者也不能翻牆進入"));
     assert(page.includes('role="tablist" aria-label="選擇規則模式"'));
     assert(page.includes('data-gangsi-rules-tab="classic"'));
     assert(page.includes('data-gangsi-rules-tab="hunt"'));
@@ -111,6 +117,7 @@ async function run() {
     assert(editorPage.includes('id="huntPalette"'));
     assert(editorPage.includes("機關 A 與機關 B"));
     assert(editorPage.includes("機關／出口 A、B"));
+    assert(editorPage.includes("衍生封閉格"));
     assert(editorPage.includes("請將 <code>.JSON</code> 檔案傳給網站作者"));
     assert(editorPage.includes('id="importInput"'));
     assert(editorPage.includes('id="mapDate"'));
@@ -149,6 +156,8 @@ async function run() {
     assert(script.includes("startHuntMarkerDrag"));
     assert(script.includes("Format.validateHuntMap"));
     assert(script.includes("Format.analyzePurificationPools"));
+    assert(script.includes("Format.deriveHuntVoidCells"));
+    assert(script.includes("is-derived-void"));
     assert(script.includes("淨化池分析：池距"));
     assert(script.includes('addEventListener("drop"'));
     assert(script.includes("beginWallStroke"));
@@ -172,6 +181,7 @@ async function run() {
     for (const color of treasureColors) assert(css.includes(color));
     assert.strictEqual(new Set(treasureColors).size, 5);
     assert(css.includes(".edge-layer.is-wall-stroke .edge-button"));
+    assert(css.includes(".map-cell.is-derived-void"));
     assert(css.includes("touch-action: none"));
 
     const rulesResponse = await fetch(`${base}/Gangsi/rules.js`);
@@ -265,7 +275,16 @@ async function run() {
     assert(gameScript.includes("purificationPools"));
     assert(gameScript.includes("gazeTrackedPositions"));
     assert(gameScript.includes("dicePoolSize"));
-    assert(gameScript.includes("piecePublicStatus"));
+    assert(gameScript.includes("piecePublicStatuses"));
+    assert(gameScript.includes("renderPiecePublicStatuses"));
+    assert(gameScript.includes("gangsi-player-seat-title"));
+    assert(gameScript.includes("gangsi-player-status is-"));
+    assert(gameScript.includes('snapshot.you.role === "adventurer"'));
+    assert(gameScript.includes('if (isCurrent && !game.winner) detailParts.push("行動中")'));
+    assert(!gameScript.includes('return statuses.length ? statuses.join("、") : "行動中"'));
+    assert(gameScript.includes("築起臨時牆（目前無合法位置）"));
+    assert(gameScript.includes('const isCurrentAdventurer = snapshot.you.role === "adventurer"'));
+    assert(gameScript.includes(': isCurrentAdventurer && currentPiece?.profession === "mason"'));
     assert(gameScript.includes("迷霧將於"));
     assert(gameScript.includes("團隊完成第一個寶藏後，腐化鬼才能感染寶藏"));
     assert(gameScript.includes("trackingCountdown"));
@@ -336,6 +355,12 @@ async function run() {
     assert(gameScript.includes('"is-mechanism-actionable"'));
     assert(gameCss.includes('.gangsi-dice-panel h3[data-stage="roll"]'));
     assert(gameCss.includes(".gangsi-hunt-status"));
+    assert(gameCss.includes(".gangsi-player-status.is-buff"));
+    assert(gameCss.includes(".gangsi-player-status.is-debuff"));
+    const statusColors = [...gameCss.matchAll(/--gangsi-(?:buff|debuff):\s*(#[0-9a-f]{6})/gi)].map((match) => match[1].toLowerCase());
+    assert.strictEqual(statusColors.length, 2);
+    assert.strictEqual(new Set(statusColors).size, 2);
+    assert(statusColors.every((color) => !treasureColors.includes(color)));
     assert(gameCss.includes(".gangsi-tracking-banner"));
     assert(gameCss.includes("color: var(--evil)"));
     assert(!gameScript.includes(">黑骰<"));

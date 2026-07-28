@@ -124,13 +124,20 @@ function runSimulation(run) {
     if (actions.includes("skipAdventurerTurn")) error = Hunt.applyGameAction(room, actor, "skipAdventurerTurn");
     else if (actions.includes("finishAdventurerTurn")) error = Hunt.applyGameAction(room, actor, "finishAdventurerTurn");
     else if (room.phase === Hunt.PHASES.adventurerPrepare) {
+      const hasBasicDiceAction = actions.includes("rollAdventurerDice") || actions.includes("unlockDice");
       if (actions.includes("stopBleeding") && (!actions.includes("rollAdventurerDice") || random() < 0.25)) {
         error = Hunt.applyGameAction(room, actor, "stopBleeding");
-      } else if (actions.includes("activateMechanism") && random() < 0.3) {
+      } else if (actions.includes("useKnightGuard") && (!hasBasicDiceAction || random() < 0.25)) {
+        error = Hunt.applyGameAction(room, actor, "useKnightGuard", {
+          pieceId: choose(view.legal.guardTargets, random)
+        });
+      } else if (actions.includes("useWizardUnlock") && (!hasBasicDiceAction || random() < 0.25)) {
+        error = Hunt.applyGameAction(room, actor, "useWizardUnlock");
+      } else if (actions.includes("activateMechanism") && (!hasBasicDiceAction || random() < 0.3)) {
         error = Hunt.applyGameAction(room, actor, "activateMechanism", { gateId: choose(view.legal.mechanisms, random) });
-      } else if (actions.includes("useMasonWall") && random() < 0.25) {
+      } else if (actions.includes("useMasonWall") && (!hasBasicDiceAction || random() < 0.25)) {
         error = Hunt.applyGameAction(room, actor, "useMasonWall", { edge: choose(view.legal.masonWallEdges, random) });
-      } else if (actions.includes("useArchaeologistTask") && random() < 0.25) {
+      } else if (actions.includes("useArchaeologistTask") && (!hasBasicDiceAction || random() < 0.25)) {
         error = Hunt.applyGameAction(room, actor, "useArchaeologistTask", { taskId: choose(view.legal.archaeologistTasks, random).id });
       } else {
         const action = actions.includes("rollAdventurerDice") ? "rollAdventurerDice" : "unlockDice";

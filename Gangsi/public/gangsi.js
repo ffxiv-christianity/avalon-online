@@ -562,24 +562,45 @@
             ${escapeHtml(piece.tokenLabel)}${pieces.length > 1 ? `<small>${piece.ordinal}</small>` : ""}
           </span>`).join("");
     const huntPiece = pieces[0];
-    const huntState = game.mode === "hunt" && huntPiece
-      ? `${professionLabel(huntPiece.profession)} · ${huntPiece.escaped ? "已逃脫" : huntPiece.eliminated ? "已死亡" : piecePublicStatus(huntPiece)}`
+    const publicStatuses = game.mode === "hunt" && player.role === "adventurer"
+      && huntPiece && !huntPiece.escaped && !huntPiece.eliminated
+      ? renderPiecePublicStatuses(huntPiece, { includeCooldown: snapshot.you.role === "adventurer" })
       : "";
-    const detail = player.role === "mummy"
-      ? (game.mode === "hunt"
-        ? `${mummyTypeLabel(game.mummy.type)}${snapshot.you.role === "mummy" ? ` · 技能冷卻 ${game.mummy.abilityCooldown}` : ""}`
-        : `生命標記 ${game.mummy.score}/${game.mummy.target}`)
-      : (game.mode === "hunt"
-        ? `生命 ${pieces.map((piece) => Math.max(0, piece.life)).join("/")} · ${huntState}`
-        : `生命 ${pieces.map((piece) => Math.max(0, piece.life)).join("/")} · 任務 ${progress?.completed || 0}/${progress?.total || 0}`);
+    const identity = game.mode === "hunt"
+      ? player.role === "mummy"
+        ? mummyTypeLabel(game.mummy.type)
+        : professionLabel(huntPiece?.profession)
+      : roleLabel(player.role);
+    const detailParts = [];
+    if (player.role === "mummy") {
+      if (game.mode !== "hunt") detailParts.push(`生命標記 ${game.mummy.score}/${game.mummy.target}`);
+    } else if (game.mode === "hunt") {
+      detailParts.push(`生命 ${pieces.map((piece) => Math.max(0, piece.life)).join("/")}`);
+      const huntState = huntPiece?.escaped
+        ? "已逃脫"
+        : huntPiece?.eliminated
+          ? "已死亡"
+          : "";
+      if (huntState) detailParts.push(huntState);
+    } else {
+      detailParts.push(
+        `生命 ${pieces.map((piece) => Math.max(0, piece.life)).join("/")}`,
+        `任務 ${progress?.completed || 0}/${progress?.total || 0}`
+      );
+    }
+    if (isCurrent && !game.winner) detailParts.push("行動中");
+    detailParts.push(player.online ? "在線" : "離線");
     return `
       <article class="gangsi-player-seat ${player.id === snapshot.you.id ? "is-self" : ""} ${isCurrent ? "is-current" : ""} ${player.online ? "" : "is-offline"}">
         ${SharedRoomUI.seatNumber(index, "gangsi-seat-number")}
         <span class="gangsi-seat-pieces">${tokens}</span>
         <div class="gangsi-player-seat-body">
-          <strong title="${escapeAttribute(player.name)}">${escapeHtml(player.name)}</strong>
+          <div class="gangsi-player-seat-title">
+            <strong title="${escapeAttribute(player.name)}">${escapeHtml(player.name)}</strong>
+            ${publicStatuses}
+          </div>
           ${groupProgress}
-          <small>${roleLabel(player.role)} · ${escapeHtml(detail)} · ${player.online ? "在線" : "離線"}</small>
+          <small>${escapeHtml([identity, ...detailParts].join(" · "))}</small>
         </div>
       </article>`;
   }
@@ -649,6 +670,8 @@
       <button class="primary-button" data-gangsi-game-action="unlockDice" type="button">解鎖全部骰子</button>`;
     if (["adventurer_prepare", "adventurer_turn_start"].includes(snapshot.room.phase)) {
       const currentPiece = game.pieces.find((piece) => piece.id === game.currentPieceId);
+      const isCurrentAdventurer = snapshot.you.role === "adventurer"
+        && currentPiece?.controllerId === snapshot.you.id;
       const guardButtons = (game.legal.guardTargets || []).map((pieceId) => {
         const target = game.pieces.find((piece) => piece.id === pieceId);
         const player = playerById(target?.controllerId);
@@ -676,7 +699,11 @@
         : actions.has("useWizardUnlock")
           ? `<button class="secondary-button" data-gangsi-game-action="useWizardUnlock" type="button">解鎖術（剩餘 ${currentPiece?.wizardCharges || 0} 次）</button>`
           : actions.has("useMasonWall")
-            ? `<button class="secondary-button" data-gangsi-open-mason type="button">築起臨時牆（剩餘 ${currentPiece?.masonCharges || 0} 次）</button>`
+            ? '<button class="secondary-button" data-gangsi-open-mason type="button">築起臨時牆</button>'
+            : isCurrentAdventurer && currentPiece?.profession === "mason"
+              ? currentPiece.abilityCooldown > 0
+                ? `<button class="secondary-button" type="button" disabled>築起臨時牆（冷卻 ${currentPiece.abilityCooldown}）</button>`
+                : '<button class="secondary-button" type="button" disabled title="目前位置沒有合法的相鄰道路邊">築起臨時牆（目前無合法位置）</button>'
             : actions.has("useArchaeologistTask")
               ? `<button class="secondary-button" data-gangsi-open-archaeologist type="button">禁忌鑑定（剩餘 ${currentPiece?.archaeologistCharges || 0} 次）</button>`
           : "";
@@ -744,8 +771,8 @@
         ${actions.has("setGrave") ? `<button class="secondary-button" data-gangsi-game-action="setGrave" type="button">${game.hunt.grave ? "搬移墓穴至目前位置" : "在目前位置設置墓穴"}</button>` : ""}
         ${actions.has("burrowToGrave") ? '<button class="primary-button" data-gangsi-game-action="burrowToGrave" type="button">遁地至墓穴</button>' : ""}
         ${actions.has("placePhantomWall") ? '<button class="secondary-button" data-gangsi-open-phantom type="button">建立幻影牆</button>' : ""}
-        ${actions.has("placeTrap") ? '<span class="gangsi-action-hint">點選地圖上的亮起格放置陷阱</span>' : ""}
-        ${actions.has("recoverTrap") ? '<span class="gangsi-action-hint">可點選標記格回收相鄰陷阱</span>' : ""}
+        ${actions.has("placeTrap") ? '<span class="gangsi-action-hint">點選沿道路 1～2 步內的亮起格放置陷阱</span>' : ""}
+        ${actions.has("recoverTrap") ? '<span class="gangsi-action-hint">可點選沿道路 1～2 步內的陷阱回收</span>' : ""}
         ${actions.has("infectTreasure") ? '<span class="gangsi-action-hint">點選地圖上亮起的寶藏進行感染</span>' : ""}
         <button class="${actions.has("hideMummy") || actions.has("throwKnife") ? "secondary-button" : "primary-button"}" data-gangsi-game-action="rollMummyDie" type="button">擲提燈怪骰</button>`;
     }
@@ -1232,15 +1259,44 @@
     }[type] || "未選類型";
   }
 
-  function piecePublicStatus(piece) {
+  function piecePublicStatuses(piece, { includeCooldown = false } = {}) {
     const statuses = [];
-    if (piece.guard) statuses.push("受守護");
-    if (piece.injured) statuses.push("受傷");
-    if (piece.bleeding) statuses.push("流血");
-    if (piece.trackedByKnife) statuses.push("被飛刀追蹤");
-    if (piece.gazeStacks > 0) statuses.push(`凝視 ${piece.gazeStacks} 層`);
-    if (piece.corrupted) statuses.push(`腐化 ${piece.corruptionTurns} 回合`);
-    return statuses.length ? statuses.join("、") : "行動中";
+    if (!piece) return statuses;
+    if (piece.guard) statuses.push({ label: "守護", description: "受守護", tone: "buff" });
+    if (piece.injured) statuses.push({ label: "受傷", description: "受傷", tone: "debuff" });
+    if (piece.bleeding) statuses.push({ label: "流血", description: "流血", tone: "debuff" });
+    if (piece.trackedByKnife) statuses.push({ label: "追蹤", description: "被飛刀追蹤", tone: "debuff" });
+    if (piece.gazeStacks > 0) {
+      statuses.push({
+        label: `凝視 ${piece.gazeStacks}`,
+        description: `凝視 ${piece.gazeStacks} 層`,
+        tone: "debuff"
+      });
+    }
+    if (piece.corrupted) {
+      statuses.push({
+        label: `腐化 ${piece.corruptionTurns}`,
+        description: `腐化 ${piece.corruptionTurns} 回合`,
+        tone: "debuff"
+      });
+    }
+    if (includeCooldown && ["knight", "tombRaider", "mason"].includes(piece.profession)
+      && piece.abilityCooldown > 0) {
+      statuses.push({
+        label: `冷卻 ${piece.abilityCooldown}`,
+        description: `職業能力冷卻 ${piece.abilityCooldown} 回合`,
+        tone: "debuff"
+      });
+    }
+    return statuses;
+  }
+
+  function renderPiecePublicStatuses(piece, options) {
+    const statuses = piecePublicStatuses(piece, options);
+    if (!statuses.length) return "";
+    return `<span class="gangsi-player-status-list" aria-label="公開狀態">
+      ${statuses.map((status) => `<span class="gangsi-player-status is-${status.tone}" title="${escapeAttribute(status.description)}">${escapeHtml(status.label)}</span>`).join("")}
+    </span>`;
   }
 
   function lobbySpecialization(player) {
@@ -1420,7 +1476,18 @@
     const ability = snapshot.you.role === "mummy"
       ? `${mummyTypeLabel(game.mummy.type)}${game.mummy.invisible ? " · 隱形中" : ""} · 冷卻 ${game.mummy.abilityCooldown}`
       : currentPiece
-        ? `${professionLabel(currentPiece.profession)} · ${piecePublicStatus(currentPiece)}${currentPiece.profession === "wizard" ? ` · 解鎖術 ${currentPiece.wizardCharges}` : currentPiece.profession === "mason" ? ` · 築牆 ${currentPiece.masonCharges}` : currentPiece.profession === "archaeologist" ? ` · 鑑定 ${currentPiece.archaeologistCharges}` : ["knight", "tombRaider"].includes(currentPiece.profession) ? ` · 冷卻 ${currentPiece.abilityCooldown}` : ""}`
+        ? [
+            professionLabel(currentPiece.profession),
+            currentPiece.profession === "wizard"
+              ? `解鎖術 ${currentPiece.wizardCharges}`
+              : currentPiece.profession === "mason"
+                ? `冷卻 ${currentPiece.abilityCooldown}`
+                : currentPiece.profession === "archaeologist"
+                  ? `鑑定 ${currentPiece.archaeologistCharges}`
+                  : ["knight", "tombRaider"].includes(currentPiece.profession)
+                    ? `冷卻 ${currentPiece.abilityCooldown}`
+                    : ""
+          ].filter(Boolean).join(" · ")
         : "";
     return `
       <div><span>團隊寶藏</span><strong>${game.revealedTasks.length} / ${game.hunt.treasureGoal}</strong></div>

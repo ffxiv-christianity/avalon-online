@@ -57,8 +57,9 @@ const CORRUPTION_DURATION = 3;
 const CORRUPT_COOLDOWN = 3;
 
 function setupGame(room) {
-  const map = MapCatalog.getBuiltInMap(room.settings.mapId);
-  if (!map || !MapFormat.validateHuntMap(map).valid) throw new Error("Cannot start Hunt mode without a compatible map");
+  const sourceMap = MapCatalog.getBuiltInMap(room.settings.mapId);
+  if (!sourceMap || !MapFormat.validateHuntMap(sourceMap).valid) throw new Error("Cannot start Hunt mode without a compatible map");
+  const map = MapFormat.applyHuntDerivedVoidCells(sourceMap);
   const adventurers = room.players.filter((player) => player.role === "adventurer");
   const mummyPlayer = room.players.find((player) => player.role === "mummy");
   if (!mummyPlayer || adventurers.length < 2) throw new Error("Hunt mode roles are incomplete");
@@ -93,7 +94,6 @@ function setupGame(room) {
       cooldownCreatedTurnId: null,
       wizardCharges: player.profession === "wizard" ? 3 : 0,
       wizardUsedThisTurn: false,
-      masonCharges: player.profession === "mason" ? 2 : 0,
       archaeologistCharges: player.profession === "archaeologist" ? 1 : 0,
       mechanismContribution: 0
     };
@@ -303,14 +303,15 @@ function useMasonWall(room, actor, rawEdge) {
   if (room.phase !== PHASES.adventurerPrepare) return "現在不能築起臨時牆。";
   const piece = currentPiece(room);
   if (!isCurrentAdventurer(room, actor) || piece?.profession !== "mason") return "你的職業不能築起臨時牆。";
-  if (piece.masonCharges <= 0) return "本局的築牆次數已用完。";
+  if (piece.abilityCooldown > 0) return "築牆能力仍在冷卻。";
   const edge = MapFormat.canonicalEdge(rawEdge);
   if (!masonWallEdges(room, piece).includes(edge)) return "這一條邊不能築起臨時牆。";
-  piece.masonCharges -= 1;
   room.game.hunt.temporaryWall = {
     edge,
     ownerPieceId: piece.id
   };
+  piece.abilityCooldown = 3;
+  piece.cooldownCreatedTurnId = room.game.activeAdventurerTurnId;
   addRedactedLog(room, `一面臨時牆出現在 ${edge}。`, {
     adventurer: `${pieceName(room, piece)} 在 ${edge} 築起臨時牆。`
   });
@@ -969,7 +970,6 @@ function chooseGazeDirection(room, actor, direction) {
 function finishNormalMummyTurn(room) {
   room.game.monsterEndState = null;
   if (room.game.mummy.type === "corrupt") finishInfectionTimers(room);
-  finishMummyCooldown(room);
   const tracking = room.game.hunt.tracking;
   if (tracking.revealThisTurn) {
     tracking.revealThisTurn = false;
@@ -1071,6 +1071,7 @@ function beginAdventurerAtIndex(room, startIndex) {
 function prepareAdventurerTurn(room, piece) {
   room.game.turnSerial += 1;
   room.game.activeAdventurerTurnId = room.game.turnSerial;
+  advanceAdventurerCooldown(piece);
   piece.wizardUsedThisTurn = false;
   const injuryCandidates = room.game.dice.filter((die) => !die.locked);
   room.game.disabledDieId = piece.injuredTurns > 0 && injuryCandidates.length
@@ -1098,16 +1099,19 @@ function resumeAdventurerPrepare(room, piece) {
 function beginMummyNormalTurn(room) {
   room.game.turnSerial += 1;
   room.game.activeMonsterTurnId = room.game.turnSerial;
+  const cooldownBeforeTurn = room.game.mummy.abilityCooldown;
+  room.game.mummy.abilityUsedThisTurn = false;
+  advanceMummyCooldown(room);
   if (room.game.mummy.type === "gazer") room.game.hunt.gaze = null;
-  if (room.game.mummy.type === "phantom" && room.game.hunt.phantomWall && room.game.mummy.abilityCooldown === 1) {
+  if (room.game.mummy.type === "phantom" && room.game.hunt.phantomWall && cooldownBeforeTurn === 1) {
     room.game.hunt.phantomWall = null;
+    room.game.mummy.abilityUsedThisTurn = true;
     addLog(room, "幻影牆已消失。");
   }
   room.game.disabledDieId = null;
   room.game.mummy.roll = null;
   room.game.mummy.remaining = 0;
   room.game.mummy.moveKind = null;
-  room.game.mummy.abilityUsedThisTurn = false;
   const tracking = room.game.hunt.tracking;
   if (tracking.enabled && Number.isInteger(tracking.countdown)) {
     tracking.countdown -= 1;
@@ -1184,11 +1188,32 @@ function arrowMoves(room, piece) {
 }
 
 function mummyMoves(room) {
-  const position = room.game.mummy.position;
+  return mummyMovesFrom(room, room.game.mummy.position);
+}
+
+function mummyMovesFrom(room, position) {
   const base = position === "dungeon"
     ? gameMap(room).zones.dungeon.exits.filter((cell) => gameGraph(room).passages[cell])
     : (gameGraph(room).passages[position] || []).slice();
   return base.filter((cell) => wallTypeAt(room, position, cell) !== "temporary");
+}
+
+function mummyAbilityRange(room, maxDistance = 2) {
+  const origin = room.game.mummy.position;
+  const visited = new Set([origin]);
+  const cells = [];
+  const queue = [{ cell: origin, distance: 0 }];
+  while (queue.length) {
+    const current = queue.shift();
+    if (current.distance >= maxDistance) continue;
+    for (const next of mummyMovesFrom(room, current.cell)) {
+      if (visited.has(next)) continue;
+      visited.add(next);
+      cells.push(next);
+      queue.push({ cell: next, distance: current.distance + 1 });
+    }
+  }
+  return cells;
 }
 
 function adventurerNeighbors(room, position) {
@@ -1254,7 +1279,6 @@ function makeGameView(room, viewer) {
       outcome: piece.outcome,
       abilityCooldown: piece.abilityCooldown,
       wizardCharges: piece.wizardCharges,
-      masonCharges: piece.masonCharges,
       archaeologistCharges: piece.archaeologistCharges,
       guard: piece.guard,
       injured: piece.injuredTurns > 0,
@@ -1264,6 +1288,7 @@ function makeGameView(room, viewer) {
       corrupted: piece.corruptionTurns > 0,
       corruptionTurns: piece.corruptionTurns
     };
+    if (isMummyViewer) delete result.abilityCooldown;
     if (!isMummyViewer || revealsHumans) result.position = piece.position;
     return result;
   });
@@ -1369,7 +1394,7 @@ function addLegalView(room, viewer, view) {
       actions.push("useWizardUnlock");
     }
     const masonEdges = masonWallEdges(room, piece);
-    if (piece.profession === "mason" && piece.masonCharges > 0 && masonEdges.length) {
+    if (piece.profession === "mason" && piece.abilityCooldown === 0 && masonEdges.length) {
       actions.push("useMasonWall");
       view.legal.masonWallEdges = masonEdges;
     }
@@ -1717,16 +1742,15 @@ function trapPlacements(room) {
     map.zones.dungeon.anchor,
     ...map.zones.dungeon.exits
   ]);
-  return mummyMoves(room).filter((cell) => !occupied.has(cell)
+  return mummyAbilityRange(room).filter((cell) => !occupied.has(cell)
     && !forbidden.has(cell)
     && cell !== room.game.hunt.hatch.position
     && !room.game.hunt.traps.includes(cell));
 }
 
 function trapRecoveries(room) {
-  const position = room.game.mummy.position;
-  const adjacent = position === "dungeon" ? gameMap(room).zones.dungeon.exits : MapFormat.neighbors(position, gameMap(room).width, gameMap(room).height);
-  return room.game.hunt.traps.filter((cell) => adjacent.includes(cell));
+  const reachable = new Set(mummyAbilityRange(room));
+  return room.game.hunt.traps.filter((cell) => reachable.has(cell));
 }
 
 function removeTrap(room, cell) {
@@ -1804,19 +1828,35 @@ function wallPlacementEdges(room, origin) {
     .filter((cell) => isFloorPosition(room, cell))
     .map((cell) => MapFormat.canonicalEdge(origin, cell))
     .filter((edge) => edge && !wallTypeAt(room, ...edge.split("|")))
-    .filter((edge) => preservesFloorConnectivity(room, edge));
+    .filter((edge) => preservesZoneExitAccess(room, edge));
 }
 
-function preservesFloorConnectivity(room, candidateEdge) {
-  const floors = Object.keys(gameGraph(room).passages);
-  if (!floors.length) return false;
-  const blocked = new Set([
+function dynamicWallEdges(room, candidateEdge = null) {
+  return new Set([
     room.game.hunt.temporaryWall?.edge,
     room.game.hunt.phantomWall?.edge,
     candidateEdge
   ].filter(Boolean));
-  const visited = new Set([floors[0]]);
-  const queue = [floors[0]];
+}
+
+function zoneHasFloorAccess(room, type, blocked) {
+  return gameMap(room).zones[type].exits
+    .filter((cell) => isFloorPosition(room, cell))
+    .some((cell) => (gameGraph(room).passages[cell] || [])
+      .some((next) => !blocked.has(MapFormat.canonicalEdge(cell, next))));
+}
+
+function preservesZoneExitAccess(room, candidateEdge) {
+  const before = dynamicWallEdges(room);
+  const after = dynamicWallEdges(room, candidateEdge);
+  return ["entrance", "dungeon"].every((type) => (
+    !zoneHasFloorAccess(room, type, before) || zoneHasFloorAccess(room, type, after)
+  ));
+}
+
+function reachableWithDynamicWalls(room, starts, blocked) {
+  const visited = new Set(starts.filter((cell) => isFloorPosition(room, cell)));
+  const queue = [...visited];
   while (queue.length) {
     const current = queue.shift();
     for (const next of gameGraph(room).passages[current] || []) {
@@ -1825,17 +1865,42 @@ function preservesFloorConnectivity(room, candidateEdge) {
       queue.push(next);
     }
   }
-  return visited.size === floors.length;
+  return visited;
+}
+
+function pieceCanReachEscape(room, piece, blocked) {
+  const targets = escapeTargetCells(room);
+  if (!targets.length || !isActivePiece(piece)) return true;
+  const starts = isSpecialPosition(piece.position)
+    ? gameMap(room).zones[piece.position].exits
+    : [piece.position];
+  const visited = reachableWithDynamicWalls(room, starts, blocked);
+  return targets.some((target) => (
+    visited.has(target)
+    || [...visited].some((cell) => MapFormat.areAdjacent(cell, target)
+      && !gameMap(room).walls.includes(MapFormat.canonicalEdge(cell, target))
+      && !blocked.has(MapFormat.canonicalEdge(cell, target)))
+  ));
+}
+
+function preservesExistingEscapeAccess(room, candidateEdge) {
+  if (!escapeTargetCells(room).length) return true;
+  const before = dynamicWallEdges(room);
+  const after = dynamicWallEdges(room, candidateEdge);
+  return activePieces(room).every((piece) => (
+    !pieceCanReachEscape(room, piece, before) || pieceCanReachEscape(room, piece, after)
+  ));
 }
 
 function masonWallEdges(room, piece) {
-  if (piece?.profession !== "mason" || piece.masonCharges <= 0 || room.game.hunt.temporaryWall) return [];
+  if (piece?.profession !== "mason" || piece.abilityCooldown > 0 || room.game.hunt.temporaryWall) return [];
   return wallPlacementEdges(room, piece.position);
 }
 
 function phantomWallEdges(room) {
   if (room.game.mummy.type !== "phantom" || room.game.mummy.abilityCooldown > 0 || room.game.hunt.phantomWall) return [];
-  return wallPlacementEdges(room, room.game.mummy.position);
+  return wallPlacementEdges(room, room.game.mummy.position)
+    .filter((edge) => preservesExistingEscapeAccess(room, edge));
 }
 
 function canSetGrave(room, position) {
@@ -1862,10 +1927,6 @@ function finishPieceTurn(room, piece) {
     piece.injuryActive = false;
     if (piece.injuredTurns === 0) piece.injuryCreatedTurnId = null;
   }
-  if (piece.abilityCooldown > 0) {
-    if (piece.cooldownCreatedTurnId !== room.game.activeAdventurerTurnId) piece.abilityCooldown -= 1;
-    if (piece.abilityCooldown === 0) piece.cooldownCreatedTurnId = null;
-  }
   if (piece.corruptionTurns > 0 && piece.corruptionCreatedTurnId !== room.game.activeAdventurerTurnId) {
     piece.corruptionTurns = Math.max(0, piece.corruptionTurns - 1);
     if (piece.corruptionTurns === 0) {
@@ -1877,10 +1938,17 @@ function finishPieceTurn(room, piece) {
   piece.gazeTracked = false;
 }
 
-function finishMummyCooldown(room) {
+function advanceAdventurerCooldown(piece) {
+  if (piece?.abilityCooldown > 0) {
+    piece.abilityCooldown -= 1;
+    if (piece.abilityCooldown === 0) piece.cooldownCreatedTurnId = null;
+  }
+}
+
+function advanceMummyCooldown(room) {
   const mummy = room.game.mummy;
   if (mummy.abilityCooldown > 0) {
-    if (mummy.cooldownCreatedTurnId !== room.game.activeMonsterTurnId) mummy.abilityCooldown -= 1;
+    mummy.abilityCooldown -= 1;
     if (mummy.abilityCooldown === 0) mummy.cooldownCreatedTurnId = null;
   }
 }

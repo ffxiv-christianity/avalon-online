@@ -11,6 +11,8 @@
   --treasure-c-ink: #332900;
   --treasure-d: #a90f9b;
   --treasure-e: #d62828;
+  --gangsi-buff: #24777b;
+  --gangsi-debuff: #493a36;
 }
 
 .gangsi-brand-mark {
@@ -755,12 +757,43 @@
   min-width: 0;
 }
 
+.gangsi-player-seat-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
 .gangsi-player-seat strong {
   display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.gangsi-player-status-list {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.gangsi-player-status {
+  border: 1px solid color-mix(in srgb, var(--status-color) 76%, var(--line));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--status-color) 13%, #fff);
+  padding: 2px 5px;
+  color: color-mix(in srgb, var(--status-color) 88%, #221b13);
+  font-size: .66rem;
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.gangsi-player-status.is-buff { --status-color: var(--gangsi-buff); }
+.gangsi-player-status.is-debuff { --status-color: var(--gangsi-debuff); }
 
 .gangsi-player-seat small {
   color: var(--muted);

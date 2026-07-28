@@ -9,6 +9,7 @@ const MapCatalog = require("../map-catalog");
 const Rules = require("../public/rules");
 
 const classic = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "maps", "classic.json"), "utf8"));
+const testMap = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "maps", "test-map.json"), "utf8"));
 const result = MapFormat.validateMap(classic);
 
 assert.strictEqual(result.valid, true, result.errors.join("; "));
@@ -81,6 +82,48 @@ const huntMap = MapFormat.normalizeMap(classic);
 huntMap.hunt.mechanisms = { A: "4,1", B: "5,2" };
 const huntValidation = MapFormat.validateHuntMap(huntMap);
 assert.strictEqual(huntValidation.valid, true, huntValidation.errors.join("; "));
+const classicDerivedVoids = MapFormat.deriveHuntVoidCells(classic);
+assert(classicDerivedVoids.includes("4,1"), "a road sealed only after placing a mechanism must become a derived Hunt void");
+assert(!classic.voidCells.includes("4,1"), "derived Hunt voids must not mutate the map file");
+const appliedDerivedMap = MapFormat.applyHuntDerivedVoidCells(classic);
+assert(appliedDerivedMap.voidCells.includes("4,1"));
+assert.strictEqual(MapFormat.buildMovementGraph(classic, { hunt: true }).passages["4,1"], undefined);
+assert(MapFormat.buildMovementGraph(classic).passages["4,1"], "the same cell remains a road in Classic mode");
+const treasureOnDerivedVoid = MapFormat.clone(classic);
+treasureOnDerivedVoid.treasures[0].position = "4,1";
+assert(MapFormat.validateHuntMap(treasureOnDerivedVoid).errors
+  .some((error) => error.includes("獵殺模式衍生封閉格")));
+const mechanismCutsOffRoadSegment = MapFormat.clone(testMap);
+mechanismCutsOffRoadSegment.hunt.mechanisms.A = "4,1";
+assert.deepStrictEqual(
+  MapFormat.deriveHuntVoidCells(mechanismCutsOffRoadSegment),
+  ["2,1", "3,1"],
+  "hunt mechanisms should derive every road cell in a disconnected component"
+);
+const cutOffTreasureValidation = MapFormat.validateHuntMap(mechanismCutsOffRoadSegment);
+assert.strictEqual(
+  cutOffTreasureValidation.valid,
+  false,
+  "hunt validation should reject a treasure in a road segment disconnected by a mechanism"
+);
+assert(
+  cutOffTreasureValidation.errors.some((error) =>
+    error.includes("寶藏 C3") &&
+    error.includes("獵殺模式衍生封閉格 2,1")
+  ),
+  "hunt validation should identify the treasure and derived void cell"
+);
+const cutOffRoadGraph = MapFormat.buildMovementGraph(mechanismCutsOffRoadSegment, { hunt: true });
+assert.strictEqual(
+  cutOffRoadGraph.passages["2,1"],
+  undefined,
+  "hunt movement graph should exclude the full disconnected road segment"
+);
+assert.strictEqual(
+  cutOffRoadGraph.passages["3,1"],
+  undefined,
+  "hunt movement graph should exclude every cell in the disconnected road segment"
+);
 const purification = MapFormat.analyzePurificationPools(huntMap);
 assert.strictEqual(purification.available, true);
 assert.strictEqual(purification.fallback, false);

@@ -207,11 +207,62 @@
     return HUNT_MECHANISM_IDS.map((id) => map.hunt?.mechanisms?.[id]).filter(Boolean);
   }
 
+  function deriveHuntVoidCells(mapInput) {
+    const map = refreshZoneExits(mapInput);
+    const baseFloors = new Set(floorCells(map));
+    const huntFloors = new Set(baseFloors);
+    const markers = new Set(huntMarkerCells(map));
+    for (const cell of markers) huntFloors.delete(cell);
+    const zoneExits = [
+      ...map.zones.entrance.exits,
+      ...map.zones.dungeon.exits
+    ];
+    const walls = new Set(map.walls);
+
+    const reachableWithin = (floors) => {
+      const starts = zoneExits.filter((cell) => floors.has(cell));
+      const reached = new Set(starts);
+      const queue = starts.slice();
+      while (queue.length) {
+        const current = queue.shift();
+        for (const next of neighbors(current, map.width, map.height)) {
+          if (
+            reached.has(next) ||
+            !floors.has(next) ||
+            walls.has(canonicalEdge(current, next))
+          ) {
+            continue;
+          }
+          reached.add(next);
+          queue.push(next);
+        }
+      }
+      return reached;
+    };
+
+    const baseReachable = reachableWithin(baseFloors);
+    if (!baseReachable.size) return [];
+    const huntReachable = reachableWithin(huntFloors);
+
+    return [...baseReachable]
+      .filter((cell) => huntFloors.has(cell) && !huntReachable.has(cell))
+      .sort(compareCells);
+  }
+
+  function applyHuntDerivedVoidCells(mapInput) {
+    const map = refreshZoneExits(mapInput);
+    const derived = deriveHuntVoidCells(map);
+    if (!derived.length) return map;
+    map.voidCells = [...new Set([...map.voidCells, ...derived])].sort(compareCells);
+    return refreshZoneExits(map);
+  }
+
   function buildMovementGraph(mapInput, options = {}) {
     const map = refreshZoneExits(mapInput);
     const floors = new Set(floorCells(map));
     if (options.hunt === true) {
       for (const cell of huntMarkerCells(map)) floors.delete(cell);
+      for (const cell of deriveHuntVoidCells(map)) floors.delete(cell);
     }
     const walls = new Set(map.walls);
     const passages = {};
@@ -324,6 +375,8 @@
     const zoneAnchors = new Set([map.zones.entrance.anchor, map.zones.dungeon.anchor].filter(Boolean));
     const treasureCells = new Set(map.treasures.map((treasure) => treasure.position));
     const markerCells = new Map();
+    const derivedVoidCells = deriveHuntVoidCells(map);
+    const derivedVoidSet = new Set(derivedVoidCells);
 
     for (const id of HUNT_MECHANISM_IDS) {
       const label = `機關 ${id}`;
@@ -337,6 +390,11 @@
       if (treasureCells.has(cell)) errors.push(`${label}不能與寶藏重疊`);
       if (markerCells.has(cell)) errors.push(`${label}不能與${markerCells.get(cell)}重疊`);
       else markerCells.set(cell, label);
+    }
+    for (const treasure of map.treasures) {
+      if (derivedVoidSet.has(treasure.position)) {
+        errors.push(`寶藏 ${treasure.id} 不能位於獵殺模式衍生封閉格 ${treasure.position}`);
+      }
     }
 
     if (base.valid && errors.length === base.errors.length) {
@@ -372,6 +430,7 @@
       huntCompatible: errors.length === 0,
       errors: [...new Set(errors)],
       warnings: [...new Set(warnings)],
+      derivedVoidCells,
       map
     };
   }
@@ -529,6 +588,8 @@
     deriveZoneExits,
     refreshZoneExits,
     huntMarkerCells,
+    deriveHuntVoidCells,
+    applyHuntDerivedVoidCells,
     buildMovementGraph,
     graphDistances,
     analyzePurificationPools,

@@ -660,8 +660,10 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
 
   room.game.mummy.position = "dungeon";
   let view = HuntEngine.makeGameView(room, mummy);
-  assert.deepStrictEqual(view.legal.trapPlacements, [], "traps cannot be placed directly from the dungeon onto a dungeon exit");
-  assert(!view.legal.actions.includes("placeTrap"));
+  assert(view.legal.trapPlacements.length > 0, "the trap ghost may reach the second road layer from the dungeon");
+  assert(room.game.map.zones.dungeon.exits.every((cell) => !view.legal.trapPlacements.includes(cell)),
+    "traps cannot be placed directly on a dungeon exit");
+  assert(view.legal.actions.includes("placeTrap"));
 
   room.game.mummy.position = "6,5";
   view = HuntEngine.makeGameView(room, mummy);
@@ -677,6 +679,29 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   assert(view.legal.trapPlacements.includes("6,5"), "the next road layer beyond a dungeon exit must remain available");
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "placeTrap", { cell: "6,5" }), null);
   assert.deepStrictEqual(room.game.hunt.traps, ["6,5"]);
+}
+
+{
+  const { room, mummy } = setup({ professions: ["knight", "engineer"], mummyType: "trap" });
+  room.game.turnSerial += 1;
+  room.game.activeMonsterTurnId = room.game.turnSerial;
+  room.phase = HuntEngine.PHASES.monsterPrepare;
+  room.game.mummy.position = "6,3";
+  let view = HuntEngine.makeGameView(room, mummy);
+  assert(view.legal.trapPlacements.includes("7,4"), "trap placement must include cells two road steps away");
+  assert(!view.legal.trapPlacements.includes("5,3"), "permanent walls must block trap range");
+
+  room.game.hunt.traps = ["7,4"];
+  view = HuntEngine.makeGameView(room, mummy);
+  assert(view.legal.trapRecoveries.includes("7,4"), "trap recovery must include cells two road steps away");
+
+  room.game.hunt.temporaryWall = {
+    edge: MapFormat.canonicalEdge("6,3", "6,4"),
+    ownerPieceId: Object.values(room.game.pieces)[0].id
+  };
+  view = HuntEngine.makeGameView(room, mummy);
+  assert(!view.legal.trapPlacements.includes("7,4"), "temporary walls must block trap placement range");
+  assert(!view.legal.trapRecoveries.includes("7,4"), "temporary walls must block trap recovery range");
 }
 
 {
@@ -711,13 +736,13 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   assert.strictEqual(room.game.mummy.abilityTriggers, 1);
   assert.strictEqual(room.game.mummy.abilityCooldown, 2);
 
-  for (const expected of [1, 0]) {
+  for (const expected of [2, 2]) {
     room.game.turnSerial += 1;
     room.game.activeMonsterTurnId = room.game.turnSerial;
     room.game.mummy.moveKind = "normal";
     room.phase = HuntEngine.PHASES.monsterAction;
     assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "stopMummy"), null);
-    assert.strictEqual(room.game.mummy.abilityCooldown, expected);
+    assert.strictEqual(room.game.mummy.abilityCooldown, expected, "monster cooldown must not decrement at turn end");
   }
 }
 
@@ -855,6 +880,12 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   assert.strictEqual(HuntEngine.applyGameAction(room, first, "useKnightGuard", { pieceId: engineer.id }), null);
   assert.strictEqual(knight.abilityCooldown, 5, "the use turn must not decrement knight cooldown");
   assert.strictEqual(knight.cooldownCreatedTurnId, createdTurnId);
+  assert.strictEqual(HuntEngine.makeGameView(room, second).pieces
+    .find((piece) => piece.id === knight.id).abilityCooldown, 5,
+  "adventurers must see one another's profession cooldown");
+  assert(!Object.hasOwn(HuntEngine.makeGameView(room, mummy).pieces
+    .find((piece) => piece.id === knight.id), "abilityCooldown"),
+  "the mummy view must not receive adventurer profession cooldowns");
 
   makeCurrent(room, engineer, HuntEngine.PHASES.adventurerEnd);
   room.game.endState = { kind: "mechanism", operatorPlayerId: second.id };
@@ -866,14 +897,18 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   room.phase = HuntEngine.PHASES.monsterPrepare;
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "rollMummyDie"), null);
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "stopMummy"), null);
-  assert.strictEqual(knight.abilityCooldown, 5, "monster turns must not decrement knight cooldown");
+  assert.strictEqual(knight.abilityCooldown, 4, "cooldown must decrement when the knight's next normal prepare phase begins");
 
-  for (const expected of [4, 3, 2, 1, 0]) {
-    room.game.turnSerial += 1;
-    room.game.activeAdventurerTurnId = room.game.turnSerial;
+  for (const expected of [3, 2, 1, 0]) {
     makeCurrent(room, knight, HuntEngine.PHASES.adventurerEnd);
     room.game.endState = { kind: "mechanism", operatorPlayerId: first.id };
     assert.strictEqual(HuntEngine.applyGameAction(room, first, "finishAdventurerTurn"), null);
+    assert.strictEqual(knight.abilityCooldown, expected + 1, "cooldown must not decrement at the knight's turn end");
+    makeCurrent(room, engineer, HuntEngine.PHASES.adventurerEnd);
+    room.game.endState = { kind: "mechanism", operatorPlayerId: second.id };
+    assert.strictEqual(HuntEngine.applyGameAction(room, second, "finishAdventurerTurn"), null);
+    assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "rollMummyDie"), null);
+    assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "stopMummy"), null);
     assert.strictEqual(knight.abilityCooldown, expected);
   }
   assert.strictEqual(knight.cooldownCreatedTurnId, null);
@@ -935,16 +970,24 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   const { room, first, second, mummy } = setup({ professions: ["mason", "engineer"], mummyType: "trap" });
   const mason = pieceFor(room, first);
   pieceFor(room, second).eliminated = true;
-  let legalEdge = null;
-  for (const position of Object.keys(room.game.graph.passages)) {
-    mason.position = position;
-    makeCurrent(room, mason);
-    legalEdge = HuntEngine.makeGameView(room, first).legal.masonWallEdges?.[0] || null;
-    if (legalEdge) break;
-  }
-  assert(legalEdge, "fixture must provide a legal Mason wall");
+  const entranceView = HuntEngine.makeGameView(room, first);
+  assert(!entranceView.legal.actions.includes("useMasonWall"), "the entrance is not a legal wall origin");
+  assert.strictEqual(entranceView.legal.masonWallEdges, undefined);
+  mason.position = "3,6";
+  room.game.hunt.phantomWall = { edge: MapFormat.canonicalEdge("2,7", "3,7") };
+  makeCurrent(room, mason);
+  assert(!(HuntEngine.makeGameView(room, first).legal.masonWallEdges || [])
+    .includes(MapFormat.canonicalEdge("3,6", "3,7")),
+  "combined dynamic walls must not seal the last entrance route");
+  room.game.hunt.phantomWall = null;
+  mason.position = "6,3";
+  makeCurrent(room, mason);
+  const legalEdge = MapFormat.canonicalEdge("6,3", "6,4");
+  assert(HuntEngine.makeGameView(room, first).legal.masonWallEdges.includes(legalEdge),
+    "the Mason may close an ordinary road's only passage");
   assert.strictEqual(HuntEngine.applyGameAction(room, first, "useMasonWall", { edge: legalEdge }), null);
-  assert.strictEqual(mason.masonCharges, 1);
+  assert.strictEqual(mason.abilityCooldown, 3);
+  assert.strictEqual(mason.masonCharges, undefined, "Mason walls no longer use per-game charges");
   assert.deepStrictEqual(HuntEngine.makeGameView(room, mummy).hunt.temporaryWall, {
     edge: legalEdge,
     type: "temporary"
@@ -953,6 +996,18 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "rollMummyDie"), null);
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "stopMummy"), null);
   assert.strictEqual(room.game.hunt.temporaryWall, null, "the wall must expire when the Mason's next normal turn starts");
+  assert.strictEqual(mason.abilityCooldown, 2);
+
+  for (const expected of [1, 0]) {
+    makeCurrent(room, mason, HuntEngine.PHASES.adventurerEnd);
+    room.game.endState = { kind: "mechanism", operatorPlayerId: first.id };
+    assert.strictEqual(HuntEngine.applyGameAction(room, first, "finishAdventurerTurn"), null);
+    assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "rollMummyDie"), null);
+    assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "stopMummy"), null);
+    assert.strictEqual(mason.abilityCooldown, expected);
+  }
+  assert(HuntEngine.makeGameView(room, first).legal.actions.includes("useMasonWall"),
+    "the Mason may build again after the three-turn cooldown");
 }
 
 {
@@ -1010,7 +1065,7 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   HuntEngine.resolveMechanismFace(room, "A", 0);
   assert.strictEqual(HuntEngine.applyGameAction(room, first, "finishAdventurerTurn"), null);
   assert(room.game.hunt.phantomWall, "the wall must survive the first subsequent mummy turn");
-  assert.strictEqual(room.game.mummy.abilityCooldown, 2);
+  assert.strictEqual(room.game.mummy.abilityCooldown, 1);
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "rollMummyDie"), null);
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "stopMummy"), null);
   assert.strictEqual(room.game.mummy.abilityCooldown, 1);
@@ -1019,10 +1074,34 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   HuntEngine.resolveMechanismFace(room, "B", 0);
   assert.strictEqual(HuntEngine.applyGameAction(room, first, "finishAdventurerTurn"), null);
   assert.strictEqual(room.game.hunt.phantomWall, null, "the wall must disappear at the start of the second cooldown turn");
-  assert.strictEqual(room.game.mummy.abilityCooldown, 1);
+  assert.strictEqual(room.game.mummy.abilityCooldown, 0);
+  assert(!HuntEngine.makeGameView(room, mummy).legal.actions.includes("placePhantomWall"),
+    "the wall's expiration turn must preserve one full adventurer-round gap");
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "rollMummyDie"), null);
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "stopMummy"), null);
   assert.strictEqual(room.game.mummy.abilityCooldown, 0);
+  HuntEngine.resolveMechanismFace(room, "A", 0);
+  assert.strictEqual(HuntEngine.applyGameAction(room, first, "finishAdventurerTurn"), null);
+  assert(HuntEngine.makeGameView(room, mummy).legal.actions.includes("placePhantomWall"));
+}
+
+{
+  const { room, first, second, mummy } = setup({ professions: ["knight", "engineer"], mummyType: "phantom" });
+  const survivor = pieceFor(room, first);
+  pieceFor(room, second).eliminated = true;
+  room.phase = HuntEngine.PHASES.monsterPrepare;
+  room.game.mummy.abilityCooldown = 0;
+  room.game.mummy.abilityUsedThisTurn = false;
+  room.game.mummy.position = "6,3";
+  const ordinaryBridge = MapFormat.canonicalEdge("6,3", "6,4");
+  assert(HuntEngine.makeGameView(room, mummy).legal.phantomWallEdges.includes(ordinaryBridge),
+    "the Phantom may close an ordinary road's only passage");
+
+  room.game.mummy.position = "6,4";
+  survivor.position = "6,5";
+  room.game.hunt.hatch = { status: "open", position: "6,3" };
+  assert(!(HuntEngine.makeGameView(room, mummy).legal.phantomWallEdges || []).includes(ordinaryBridge),
+    "a Phantom wall must not seal the survivor's only route to the hatch");
 }
 
 for (const [wallField, shouldHit] of [["temporaryWall", false], ["phantomWall", true]]) {

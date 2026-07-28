@@ -43,6 +43,7 @@
   let suppressCellClick = false;
   let wallStroke = null;
   let suppressEdgeClick = false;
+  let derivedVoidCells = new Set();
 
   function setStatus(message, tone = "neutral") {
     editorStatus.textContent = message;
@@ -102,6 +103,10 @@
     return huntMarkers().find((marker) => marker.id === id) || null;
   }
 
+  function isDerivedVoid(cell) {
+    return derivedVoidCells.has(cell);
+  }
+
   function clearHuntMarkerAt(cell) {
     const marker = huntMarkerAt(cell);
     if (marker) map.hunt.mechanisms[marker.gateId] = null;
@@ -112,7 +117,7 @@
   }
 
   function placeTreasure(id, cell, { toggle = false } = {}) {
-    if (Classes.cellClassAt(map, cell) !== "floor") {
+    if (Classes.cellClassAt(map, cell) !== "floor" || isDerivedVoid(cell)) {
       setStatus("寶藏只能放在一般道路格", "error");
       return;
     }
@@ -140,7 +145,7 @@
   }
 
   function placeHuntMarker(id, cell, { toggle = false } = {}) {
-    if (Classes.cellClassAt(map, cell) !== "floor") {
+    if (Classes.cellClassAt(map, cell) !== "floor" || isDerivedVoid(cell)) {
       setStatus("機關只能放在一般道路格", "error");
       return;
     }
@@ -345,14 +350,15 @@
 
   function addCellButton(x, y, entranceExits, dungeonExits) {
     const cell = Format.cellKey(x, y);
-    const cellClass = Classes.cellClassAt(map, cell);
+    const derivedVoid = isDerivedVoid(cell);
+    const cellClass = derivedVoid ? "void" : Classes.cellClassAt(map, cell);
     const treasure = treasureAt(cell);
     const huntMarker = huntMarkerAt(cell);
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `map-cell is-${cellClass}`;
+    button.className = `map-cell is-${cellClass}${derivedVoid ? " is-derived-void" : ""}`;
     button.dataset.cell = cell;
-    button.title = `(${cell}) ${Classes.CELL_CLASSES[cellClass].label}${treasure ? ` ${treasure.id}` : ""}${huntMarker ? ` ${huntMarker.label}` : ""}`;
+    button.title = `(${cell}) ${derivedVoid ? "獵殺模式衍生封閉格" : Classes.CELL_CLASSES[cellClass].label}${treasure ? ` ${treasure.id}` : ""}${huntMarker ? ` ${huntMarker.label}` : ""}`;
     if (entranceExits.has(cell)) button.classList.add("is-entrance-exit");
     if (dungeonExits.has(cell)) button.classList.add("is-dungeon-exit");
 
@@ -364,7 +370,7 @@
     if (cellClass !== "floor") {
       const classLabel = document.createElement("span");
       classLabel.className = "cell-class-label";
-      classLabel.textContent = Classes.CELL_CLASSES[cellClass].label;
+      classLabel.textContent = derivedVoid ? "衍生封閉" : Classes.CELL_CLASSES[cellClass].label;
       button.append(classLabel);
     }
 
@@ -445,6 +451,7 @@
   }
 
   function renderBoard() {
+    derivedVoidCells = new Set(Format.deriveHuntVoidCells(map));
     mapBoard.style.setProperty("--cols", map.width);
     mapBoard.style.setProperty("--rows", map.height);
     cellLayer.replaceChildren();
@@ -563,6 +570,13 @@
     validationList.replaceChildren();
     validationBadge.className = "validation-badge";
     const messages = [];
+    const derived = Format.deriveHuntVoidCells(map);
+    if (derived.length) {
+      messages.push({
+        type: "warning",
+        text: `獵殺模式：${derived.length} 格因機關配置自動視為封閉格（${derived.join("、")}）`
+      });
+    }
     if (purification.available) {
       messages.push({
         type: purification.fallback ? "warning" : "success",
@@ -601,11 +615,13 @@
     mapWidth.value = map.width;
     mapHeight.value = map.height;
     const stats = Format.mapStats(map);
+    const derived = Format.deriveHuntVoidCells(map);
     const entries = [
       ["道路格", stats.floorCells],
       ["通道", stats.passages],
       ["牆壁", stats.walls],
-      ["寶藏", stats.treasures]
+      ["寶藏", stats.treasures],
+      ["衍生封閉格", derived.length]
     ];
     boardStats.replaceChildren();
     for (const [label, value] of entries) {
