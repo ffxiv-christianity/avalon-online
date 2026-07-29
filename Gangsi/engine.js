@@ -5,17 +5,21 @@ const MapCatalog = require("./map-catalog");
 const MapFormat = require("./map-format");
 const HuntEngine = require("./hunt-engine");
 
-const PHASES = Object.freeze({
-  turnStart: "adventurer_turn_start",
-  forcedSkip: "adventurer_forced_skip",
-  interlude: "mummy_interlude_move",
-  adventurerRoll: "adventurer_roll",
-  numericMove: "adventurer_numeric_move",
-  arrowMove: "adventurer_arrow_move",
-  treasure: "treasure_decision",
-  mummyRoll: "mummy_normal_roll",
-  mummyMove: "mummy_normal_move",
-  gameOver: "game_over"
+const PHASES = HuntEngine.PHASES;
+
+const PHASE_ACTIONS = Object.freeze({
+  [PHASES.adventurerPrepare]: Object.freeze(["rollAdventurerDice", "unlockDice"]),
+  [PHASES.adventurerRoll]: Object.freeze(["rollAdventurerDice", "selectDie"]),
+  [PHASES.adventurerAction]: Object.freeze(["moveNumeric", "moveArrow"]),
+  [PHASES.adventurerEnd]: Object.freeze(["revealTreasure", "declineTreasure", "finishAdventurerTurn"]),
+  [PHASES.monsterPrepare]: Object.freeze(["rollMummyDie"]),
+  [PHASES.monsterRoll]: Object.freeze([]),
+  [PHASES.monsterAction]: Object.freeze(["moveMummy", "stopMummy"]),
+  [PHASES.monsterEnd]: Object.freeze([]),
+  [PHASES.monsterInterruptPrepare]: Object.freeze([]),
+  [PHASES.monsterInterruptAction]: Object.freeze(["moveMummy", "stopMummy"]),
+  [PHASES.monsterInterruptEnd]: Object.freeze([]),
+  [PHASES.gameOver]: Object.freeze([])
 });
 
 const ADVENTURER_FACES = Object.freeze(["1", "2", "3", "4", "arrow", "mummy"]);
@@ -68,9 +72,12 @@ function setupGame(room) {
     dice: Array.from({ length: 5 }, (_, index) => ({ id: `die-${index + 1}`, locked: false, face: null })),
     selectedDieId: null,
     selectedFace: null,
+    actionState: null,
     forcedSkipReason: null,
     pendingTreasureIds: [],
+    endState: null,
     pendingUnlock: null,
+    resumeState: null,
     lastPublicDie: null,
     mummy: {
       playerId: mummyPlayer.id,
@@ -111,10 +118,10 @@ function applyGameAction(room, actor, action, payload = {}) {
   if (room.settings.mode === "hunt") return HuntEngine.applyGameAction(room, actor, action, payload);
   if (!room.game || room.phase === "lobby") return "遊戲尚未開始。";
   if (room.phase === PHASES.gameOver) return "遊戲已經結束。";
+  if (!PHASE_ACTIONS[room.phase]?.includes(action)) return `操作 ${action} 不能在 ${room.phase} 階段執行。`;
   switch (action) {
-    case "keepLockedDice": return keepLockedDice(room, actor);
     case "unlockDice": return unlockDice(room, actor);
-    case "skipAdventurerTurn": return skipAdventurerTurn(room, actor);
+    case "finishAdventurerTurn": return finishAdventurerTurn(room, actor);
     case "rollAdventurerDice": return rollAdventurerDice(room, actor);
     case "selectDie": return selectDie(room, actor, payload.dieId);
     case "moveNumeric": return moveNumeric(room, actor, payload.path);
@@ -128,15 +135,8 @@ function applyGameAction(room, actor, action, payload = {}) {
   }
 }
 
-function keepLockedDice(room, actor) {
-  if (room.phase !== PHASES.turnStart) return "現在不能保留鎖定骰。";
-  if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
-  room.phase = PHASES.adventurerRoll;
-  return null;
-}
-
 function unlockDice(room, actor) {
-  if (room.phase !== PHASES.turnStart) return "現在不能解鎖骰子。";
+  if (room.phase !== PHASES.adventurerPrepare) return "現在不能解鎖骰子。";
   if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
   const count = lockedDiceCount(room);
   if (!count) return "目前沒有鎖定骰。";
@@ -144,26 +144,30 @@ function unlockDice(room, actor) {
   return null;
 }
 
-function skipAdventurerTurn(room, actor) {
-  if (room.phase !== PHASES.forcedSkip) return "現在不能略過冒險者回合。";
+function finishAdventurerTurn(room, actor) {
+  if (room.phase !== PHASES.adventurerEnd || room.game.endState?.kind !== "no_movement") {
+    return "現在不能結束冒險者回合。";
+  }
   if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
-  if (!room.game.forcedSkipReason) return "目前沒有必須略過回合的原因。";
-  addLog(room, `${currentPieceName(room)} 略過回合。`);
+  if (room.game.endState.operatorPlayerId !== actor.id) return "現在不是你的回合。";
+  addLog(room, `${currentPieceName(room)} 確認結束無法移動的回合。`);
   advanceAfterAdventurer(room);
   return null;
 }
 
 function rollAdventurerDice(room, actor) {
-  if (room.phase !== PHASES.adventurerRoll) return "現在不能擲冒險者骰。";
+  if (![PHASES.adventurerPrepare, PHASES.adventurerRoll].includes(room.phase)) return "現在不能擲冒險者骰。";
   if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
   const unlocked = room.game.dice.filter((die) => !die.locked);
   if (!unlocked.length) return "目前沒有可擲的骰子。";
+  room.phase = PHASES.adventurerRoll;
   const faces = unlocked.map(() => ADVENTURER_FACES[randomIntInclusive(0, ADVENTURER_FACES.length - 1)]);
   resolveAdventurerFaces(room, faces);
   return null;
 }
 
 function resolveAdventurerFaces(room, faces) {
+  room.phase = PHASES.adventurerRoll;
   const unlocked = room.game.dice.filter((die) => !die.locked);
   if (!Array.isArray(faces) || faces.length !== unlocked.length) throw new Error("Gangsi dice face count mismatch");
   unlocked.forEach((die, index) => {
@@ -174,7 +178,7 @@ function resolveAdventurerFaces(room, faces) {
   });
   addLog(room, `${currentPieceName(room)} 擲了冒險者骰。`);
   if (lockedDiceCount(room) === room.game.dice.length) {
-    beginForcedAdventurerSkip(room, "all_dice_locked");
+    beginAdventurerNoMovementEnd(room, "all_dice_locked");
   }
 }
 
@@ -188,13 +192,14 @@ function selectDie(room, actor, dieId) {
   room.game.selectedDieId = die.id;
   room.game.selectedFace = die.face;
   room.game.lastPublicDie = die.face;
+  room.game.actionState = { kind: die.face === "arrow" ? "arrow" : "numeric" };
   addLog(room, `${currentPieceName(room)} 選用了${die.face === "arrow" ? "箭頭" : die.face}骰。`);
-  room.phase = die.face === "arrow" ? PHASES.arrowMove : PHASES.numericMove;
+  room.phase = PHASES.adventurerAction;
   return null;
 }
 
 function moveNumeric(room, actor, rawPath) {
-  if (room.phase !== PHASES.numericMove) return "現在不能提交數字路徑。";
+  if (room.phase !== PHASES.adventurerAction || room.game.actionState?.kind !== "numeric") return "現在不能提交數字路徑。";
   if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
   const distance = Number(room.game.selectedFace);
   const path = Array.isArray(rawPath) ? rawPath.map((cell) => MapFormat.cellKey(cell)) : [];
@@ -206,7 +211,7 @@ function moveNumeric(room, actor, rawPath) {
 }
 
 function moveArrow(room, actor, direction) {
-  if (room.phase !== PHASES.arrowMove) return "現在不能使用箭頭移動。";
+  if (room.phase !== PHASES.adventurerAction || room.game.actionState?.kind !== "arrow") return "現在不能使用箭頭移動。";
   if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
   const move = arrowMoves(room, currentPiece(room))[direction];
   if (!move) return "這個方向沒有合法的箭頭移動。";
@@ -218,22 +223,24 @@ function moveArrow(room, actor, direction) {
 function completeAdventurerMove(room) {
   const piece = currentPiece(room);
   clearUnlockedDice(room);
-  room.game.selectedDieId = null;
-  room.game.selectedFace = null;
+  clearSelectedMove(room);
   const hand = room.game.hands[piece.controllerId] || [];
   room.game.pendingTreasureIds = hand
     .filter((task) => !task.revealed && treasurePosition(room, task.id) === piece.position)
     .map((task) => task.id);
+  room.phase = PHASES.adventurerEnd;
   if (room.game.pendingTreasureIds.length) {
-    room.phase = PHASES.treasure;
+    room.game.endState = { kind: "treasure", operatorPlayerId: piece.controllerId };
     return;
   }
+  room.game.endState = { kind: "auto", operatorPlayerId: piece.controllerId };
   advanceAfterAdventurer(room);
 }
 
 function revealTreasure(room, actor) {
-  if (room.phase !== PHASES.treasure) return "現在沒有可揭露的寶藏。";
+  if (room.phase !== PHASES.adventurerEnd || room.game.endState?.kind !== "treasure") return "現在沒有可揭露的寶藏。";
   if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
+  if (room.game.endState.operatorPlayerId !== actor.id) return "現在不是你的回合。";
   const piece = currentPiece(room);
   const id = room.game.pendingTreasureIds[0];
   const task = (room.game.hands[piece.controllerId] || []).find((candidate) => candidate.id === id && !candidate.revealed);
@@ -261,16 +268,18 @@ function revealTreasure(room, actor) {
 }
 
 function declineTreasure(room, actor) {
-  if (room.phase !== PHASES.treasure) return "現在沒有可略過的寶藏。";
+  if (room.phase !== PHASES.adventurerEnd || room.game.endState?.kind !== "treasure") return "現在沒有可略過的寶藏。";
   if (!isCurrentAdventurer(room, actor)) return "現在不是你的回合。";
+  if (room.game.endState.operatorPlayerId !== actor.id) return "現在不是你的回合。";
   room.game.pendingTreasureIds = [];
   advanceAfterAdventurer(room);
   return null;
 }
 
 function rollMummyDie(room, actor) {
-  if (room.phase !== PHASES.mummyRoll) return "現在不能擲提燈怪骰。";
+  if (room.phase !== PHASES.monsterPrepare) return "現在不能擲提燈怪骰。";
   if (!isMummy(room, actor)) return "現在不是你的回合。";
+  room.phase = PHASES.monsterRoll;
   const value = MUMMY_FACES[randomIntInclusive(0, MUMMY_FACES.length - 1)];
   resolveMummyRoll(room, value);
   return null;
@@ -278,15 +287,16 @@ function rollMummyDie(room, actor) {
 
 function resolveMummyRoll(room, value) {
   if (![1, 2, 3].includes(Number(value))) throw new Error("Invalid Gangsi mummy roll");
+  room.phase = PHASES.monsterRoll;
   room.game.mummy.roll = Number(value);
   room.game.mummy.remaining = Number(value) + lockedDiceCount(room);
   room.game.mummy.moveKind = "normal";
-  room.phase = PHASES.mummyMove;
+  room.phase = PHASES.monsterAction;
   addLog(room, `提燈怪擲出 ${value}，最多可移動 ${room.game.mummy.remaining} 步。`);
 }
 
 function moveMummy(room, actor, rawCell) {
-  if (![PHASES.interlude, PHASES.mummyMove].includes(room.phase)) return "現在不能移動提燈怪。";
+  if (![PHASES.monsterAction, PHASES.monsterInterruptAction].includes(room.phase)) return "現在不能移動提燈怪。";
   if (!isMummy(room, actor)) return "現在不是你的回合。";
   if (room.game.mummy.remaining <= 0) return "提燈怪已沒有剩餘步數。";
   const cell = MapFormat.cellKey(rawCell);
@@ -306,7 +316,7 @@ function moveMummy(room, actor, rawCell) {
 }
 
 function stopMummy(room, actor) {
-  if (![PHASES.interlude, PHASES.mummyMove].includes(room.phase)) return "現在不能停止提燈怪移動。";
+  if (![PHASES.monsterAction, PHASES.monsterInterruptAction].includes(room.phase)) return "現在不能停止提燈怪移動。";
   if (!isMummy(room, actor)) return "現在不是你的回合。";
   finishMummyMove(room);
   return null;
@@ -346,23 +356,27 @@ function finishMummyMove(room) {
   room.game.mummy.roll = null;
   room.game.mummy.moveKind = null;
   if (kind === "interlude") {
-    const pieceId = room.game.pendingUnlock?.pieceId;
+    room.phase = PHASES.monsterInterruptEnd;
+    const pieceId = room.game.resumeState?.pieceId || room.game.pendingUnlock?.pieceId;
     clearAllDice(room);
     room.game.pendingUnlock = null;
     const piece = room.game.pieces[pieceId];
     if (!piece || piece.eliminated) {
+      room.game.resumeState = null;
       advanceAfterAdventurer(room);
       return;
     }
     room.game.turnIndex = room.game.adventurerOrder.indexOf(pieceId);
     room.game.currentPieceId = pieceId;
-    if (!hasAnyAdventurerMove(room, piece)) {
-      beginForcedAdventurerSkip(room, "no_legal_move");
-      return;
-    }
-    room.phase = PHASES.adventurerRoll;
+    room.game.resumeState = null;
+    prepareAdventurerTurn(room, piece);
     return;
   }
+  room.phase = PHASES.monsterEnd;
+  finishNormalMummyTurn(room);
+}
+
+function finishNormalMummyTurn(room) {
   room.game.round += 1;
   beginAdventurerAtIndex(room, 0);
 }
@@ -370,30 +384,42 @@ function finishMummyMove(room) {
 function beginInterlude(room, pieceId, count, automatic) {
   room.game.forcedSkipReason = null;
   room.game.pendingUnlock = { pieceId, count };
+  room.game.resumeState = {
+    playerId: room.game.pieces[pieceId]?.controllerId || null,
+    pieceId,
+    phase: PHASES.adventurerPrepare
+  };
   room.game.mummy.roll = null;
   room.game.mummy.remaining = count;
   room.game.mummy.moveKind = "interlude";
-  room.phase = PHASES.interlude;
+  room.phase = PHASES.monsterInterruptPrepare;
   addLog(room, automatic
     ? `${pieceName(room, room.game.pieces[pieceId])} 已無可用骰子，系統自動解鎖 ${count} 顆骰子，並進入提燈怪的插入回合。`
     : `${pieceName(room, room.game.pieces[pieceId])} 解鎖 ${count} 顆骰子，提燈怪取得插入回合。`);
+  room.phase = PHASES.monsterInterruptAction;
 }
 
-function beginForcedAdventurerSkip(room, reason) {
+function beginAdventurerNoMovementEnd(room, reason) {
   room.game.forcedSkipReason = reason;
-  room.phase = PHASES.forcedSkip;
+  clearSelectedMove(room);
+  room.game.endState = {
+    kind: "no_movement",
+    reason,
+    operatorPlayerId: currentPiece(room)?.controllerId || null
+  };
+  room.phase = PHASES.adventurerEnd;
   addLog(room, reason === "all_dice_locked"
-    ? `${currentPieceName(room)} 的五顆骰子全部鎖定，沒有可用骰子，只能略過回合。`
-    : `${currentPieceName(room)} 沒有任何合法移動，只能略過回合。`);
+    ? `${currentPieceName(room)} 的五顆骰子全部鎖定，沒有可用骰子，進入結束階段。`
+    : `${currentPieceName(room)} 沒有任何合法移動，略過擲骰與行動階段。`);
 }
 
 function advanceAfterAdventurer(room) {
   const currentIndex = room.game.adventurerOrder.indexOf(room.game.currentPieceId);
   clearUnlockedDice(room);
-  room.game.selectedDieId = null;
-  room.game.selectedFace = null;
+  clearSelectedMove(room);
   room.game.forcedSkipReason = null;
   room.game.pendingTreasureIds = [];
+  room.game.endState = null;
   beginAdventurerAtIndex(room, currentIndex >= 0 ? currentIndex + 1 : room.game.turnIndex + 1);
 }
 
@@ -404,18 +430,7 @@ function beginAdventurerAtIndex(room, startIndex) {
     if (!piece || piece.eliminated) continue;
     room.game.turnIndex = index;
     room.game.currentPieceId = piece.id;
-    if (!hasAnyAdventurerMove(room, piece)) {
-      beginForcedAdventurerSkip(room, "no_legal_move");
-      return;
-    }
-    const locked = lockedDiceCount(room);
-    if (locked === room.game.dice.length) {
-      beginInterlude(room, piece.id, locked, true);
-      return;
-    }
-    room.game.forcedSkipReason = null;
-    room.phase = locked > 0 ? PHASES.turnStart : PHASES.adventurerRoll;
-    addLog(room, `輪到 ${pieceName(room, piece)}。`);
+    prepareAdventurerTurn(room, piece);
     return;
   }
   room.game.currentPieceId = null;
@@ -424,8 +439,21 @@ function beginAdventurerAtIndex(room, startIndex) {
   room.game.mummy.roll = null;
   room.game.mummy.remaining = 0;
   room.game.mummy.moveKind = null;
-  room.phase = PHASES.mummyRoll;
+  room.phase = PHASES.monsterPrepare;
   addLog(room, "輪到提燈怪的正常回合。");
+}
+
+function prepareAdventurerTurn(room, piece) {
+  room.game.forcedSkipReason = null;
+  room.game.endState = null;
+  room.phase = PHASES.adventurerPrepare;
+  addLog(room, `輪到 ${pieceName(room, piece)}。`);
+  if (!hasAnyAdventurerMove(room, piece)) {
+    beginAdventurerNoMovementEnd(room, "no_legal_move");
+    return;
+  }
+  const locked = lockedDiceCount(room);
+  if (locked === room.game.dice.length) beginInterlude(room, piece.id, locked, true);
 }
 
 function finishGame(room, winner) {
@@ -535,7 +563,10 @@ function makeGameView(room, viewer) {
     .filter((player) => player.role === "adventurer")
     .map((player) => taskProgress(room, player.id));
   const view = {
+    mode: "classic",
     phase: room.phase,
+    turnStage: adventurerTurnStage(room),
+    endState: room.game.endState ? { ...room.game.endState } : null,
     round: room.game.round,
     currentPieceId: room.game.currentPieceId,
     currentPlayerId: isMummyPhase(room.phase)
@@ -544,6 +575,8 @@ function makeGameView(room, viewer) {
     pieces,
     progress,
     lockedDiceCount: lockedDiceCount(room),
+    lockedDice: room.game.dice.filter((die) => die.locked).map((die) => ({ id: die.id, kind: "normal" })),
+    dicePoolSize: room.game.dice.length,
     forcedSkipReason: room.game.forcedSkipReason,
     lastPublicDie: room.game.lastPublicDie,
     mummy: { ...room.game.mummy },
@@ -564,33 +597,44 @@ function addLegalView(room, viewer, view) {
   if (!viewer || room.phase === PHASES.gameOver) return;
   const current = currentPiece(room);
   const isCurrent = viewer.role === "adventurer" && current?.controllerId === viewer.id;
-  if (isCurrent && room.phase === PHASES.forcedSkip) {
-    view.legal.actions = ["skipAdventurerTurn"];
-  } else if (isCurrent && room.phase === PHASES.turnStart) {
-    view.legal.actions = ["keepLockedDice", "unlockDice"];
+  if (isCurrent && room.phase === PHASES.adventurerPrepare) {
+    view.legal.actions = [
+      "rollAdventurerDice",
+      ...(lockedDiceCount(room) > 0 ? ["unlockDice"] : [])
+    ];
   } else if (isCurrent && room.phase === PHASES.adventurerRoll) {
     view.legal.dieIds = legalDieIds(room);
     view.legal.actions = [
       "rollAdventurerDice",
       ...(view.legal.dieIds.length ? ["selectDie"] : [])
     ];
-  } else if (isCurrent && room.phase === PHASES.numericMove) {
+  } else if (isCurrent && room.phase === PHASES.adventurerAction && room.game.actionState?.kind === "numeric") {
     view.legal.actions = ["moveNumeric"];
     view.legal.paths = numericPaths(room, current, Number(room.game.selectedFace));
     view.legal.selectedFace = room.game.selectedFace;
-  } else if (isCurrent && room.phase === PHASES.arrowMove) {
+  } else if (isCurrent && room.phase === PHASES.adventurerAction && room.game.actionState?.kind === "arrow") {
     view.legal.actions = ["moveArrow"];
     view.legal.directions = arrowMoves(room, current);
     view.legal.selectedFace = "arrow";
-  } else if (isCurrent && room.phase === PHASES.treasure) {
+  } else if (isCurrent && room.phase === PHASES.adventurerEnd && room.game.endState?.kind === "treasure") {
     view.legal.actions = ["revealTreasure", "declineTreasure"];
     view.legal.treasures = room.game.pendingTreasureIds.map((id) => ({ id, position: treasurePosition(room, id) }));
-  } else if (viewer.role === "mummy" && room.phase === PHASES.mummyRoll) {
+  } else if (isCurrent && room.phase === PHASES.adventurerEnd && room.game.endState?.kind === "no_movement") {
+    view.legal.actions = ["finishAdventurerTurn"];
+  } else if (viewer.role === "mummy" && room.phase === PHASES.monsterPrepare) {
     view.legal.actions = ["rollMummyDie"];
-  } else if (viewer.role === "mummy" && [PHASES.interlude, PHASES.mummyMove].includes(room.phase)) {
+  } else if (viewer.role === "mummy" && [PHASES.monsterAction, PHASES.monsterInterruptAction].includes(room.phase)) {
     view.legal.actions = ["moveMummy", "stopMummy"];
     view.legal.moves = mummyMoves(room);
   }
+}
+
+function adventurerTurnStage(room) {
+  if (room.phase === PHASES.adventurerPrepare) return "prepare";
+  if (room.phase === PHASES.adventurerRoll) return "roll";
+  if (room.phase === PHASES.adventurerAction) return "action";
+  if (room.phase === PHASES.adventurerEnd) return "end";
+  return null;
 }
 
 function taskProgress(room, playerId) {
@@ -648,7 +692,15 @@ function isMummy(room, actor) {
 }
 
 function isMummyPhase(phase) {
-  return [PHASES.interlude, PHASES.mummyRoll, PHASES.mummyMove].includes(phase);
+  return [
+    PHASES.monsterPrepare,
+    PHASES.monsterRoll,
+    PHASES.monsterAction,
+    PHASES.monsterEnd,
+    PHASES.monsterInterruptPrepare,
+    PHASES.monsterInterruptAction,
+    PHASES.monsterInterruptEnd
+  ].includes(phase);
 }
 
 function lockedDiceCount(room) {
@@ -666,6 +718,12 @@ function clearAllDice(room) {
     die.locked = false;
     die.face = null;
   });
+}
+
+function clearSelectedMove(room) {
+  room.game.selectedDieId = null;
+  room.game.selectedFace = null;
+  room.game.actionState = null;
 }
 
 function occupiedAdventurerCells(room, excludedPieceId = null) {
@@ -700,6 +758,7 @@ function addLog(room, message) {
 
 module.exports = {
   PHASES,
+  PHASE_ACTIONS,
   ADVENTURER_FACES,
   MUMMY_TARGETS,
   setupGame,

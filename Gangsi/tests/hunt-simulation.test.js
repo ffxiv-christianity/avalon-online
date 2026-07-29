@@ -37,7 +37,7 @@ function setup(run) {
   const { room, player: first } = Game.makeRoom(`H${run}-1`, `HS${run}`);
   const second = Game.joinRoom(room, `H${run}-2`).player;
   const mummy = Game.joinRoom(room, `H${run}-M`).player;
-  const professions = ["knight", "engineer", "doctor", "wizard", "scout", "tombRaider", "mason", "archaeologist", "cultist"];
+  const professions = ["knight", "archaeologist", "doctor", "wizard", "scout", "tombRaider", "mason", "cultist"];
   first.role = second.role = "adventurer";
   mummy.role = "mummy";
   first.profession = professions[(run - 1) % professions.length];

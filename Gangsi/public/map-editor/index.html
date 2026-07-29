@@ -121,6 +121,18 @@
           <ul id="validationList" class="validation-list"></ul>
         </section>
 
+        <section class="inspector-section rating-section" aria-labelledby="mapRatingTitle">
+          <div class="section-heading-row">
+            <h2 id="mapRatingTitle">地圖評級</h2>
+            <strong id="mapRatingStars" class="map-rating-stars">尚未評分</strong>
+          </div>
+          <p id="mapRatingSummary" class="map-rating-summary">地圖通過驗證後顯示評級。</p>
+          <dl id="mapRatingIndicators" class="map-rating-indicators"></dl>
+          <div id="mapRatingTraits" class="map-rating-traits" aria-label="地圖特性"></div>
+          <p id="mapRatingRoles" class="map-rating-roles" hidden></p>
+          <p class="inspector-note">評級依目前地圖的靜態結構估算，僅供設計與調整參考。</p>
+        </section>
+
         <details class="inspector-section json-section">
           <summary>JSON 預覽</summary>
           <textarea id="jsonPreview" readonly spellcheck="false"></textarea>

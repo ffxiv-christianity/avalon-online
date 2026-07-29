@@ -24,6 +24,11 @@
   const huntProgress = document.querySelector("#huntProgress");
   const validationBadge = document.querySelector("#validationBadge");
   const validationList = document.querySelector("#validationList");
+  const mapRatingStars = document.querySelector("#mapRatingStars");
+  const mapRatingSummary = document.querySelector("#mapRatingSummary");
+  const mapRatingIndicators = document.querySelector("#mapRatingIndicators");
+  const mapRatingTraits = document.querySelector("#mapRatingTraits");
+  const mapRatingRoles = document.querySelector("#mapRatingRoles");
   const jsonPreview = document.querySelector("#jsonPreview");
   const builtInMap = document.querySelector("#builtInMap");
   const importInput = document.querySelector("#importInput");
@@ -607,6 +612,52 @@
     }
   }
 
+  function starText(stars) {
+    return `${"★".repeat(stars)}${"☆".repeat(5 - stars)}`;
+  }
+
+  function renderRating() {
+    const rating = Format.analyzeMapRating(map);
+    mapRatingIndicators.replaceChildren();
+    mapRatingTraits.replaceChildren();
+    mapRatingRoles.replaceChildren();
+    mapRatingRoles.hidden = true;
+    mapRatingStars.classList.toggle("is-unavailable", !rating.available);
+    mapRatingSummary.textContent = rating.summary;
+
+    if (!rating.available) {
+      mapRatingStars.textContent = "尚未評分";
+      mapRatingStars.removeAttribute("aria-label");
+      return;
+    }
+
+    mapRatingStars.textContent = starText(rating.stars);
+    mapRatingStars.setAttribute("aria-label", `地圖評級 ${rating.stars} 顆星`);
+    for (const indicator of rating.indicators) {
+      const wrapper = document.createElement("div");
+      const term = document.createElement("dt");
+      const detail = document.createElement("dd");
+      term.textContent = indicator.label;
+      detail.textContent = starText(indicator.stars);
+      detail.setAttribute("aria-label", `${indicator.label} ${indicator.stars} 顆星`);
+      wrapper.append(term, detail);
+      mapRatingIndicators.append(wrapper);
+    }
+    for (const trait of rating.traits) {
+      const badge = document.createElement("span");
+      badge.className = "map-rating-trait";
+      badge.dataset.level = trait.level;
+      badge.textContent = trait.text;
+      mapRatingTraits.append(badge);
+    }
+    if (rating.roleAdvantages.length) {
+      const label = document.createElement("strong");
+      label.textContent = "優勢角色";
+      mapRatingRoles.append(label, `：${rating.roleAdvantages.map((role) => role.label).join("、")}`);
+      mapRatingRoles.hidden = false;
+    }
+  }
+
   function renderMetadata() {
     mapTitle.textContent = map.name;
     mapName.value = map.name;
@@ -641,6 +692,7 @@
     renderPalette();
     renderHuntPalette();
     renderValidation();
+    renderRating();
     jsonPreview.value = JSON.stringify(Format.refreshZoneExits(map), null, 2);
     undoButton.disabled = undoStack.length === 0;
     redoButton.disabled = redoStack.length === 0;

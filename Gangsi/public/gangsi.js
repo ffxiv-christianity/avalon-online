@@ -530,7 +530,7 @@
       bodyClassName: "gangsi-action-info-body"
     });
     const actionRow = fragment.querySelector("[data-gangsi-action-row]");
-    actionRow.classList.toggle("is-two-column", ["adventurer_prepare", "adventurer_turn_start"].includes(snapshot.room.phase));
+    actionRow.classList.toggle("is-two-column", snapshot.room.phase === "adventurer_prepare");
     actionRow.classList.toggle("is-submenu", knightGuardOpen || mechanismSelectionOpen || knifeDirectionOpen
       || compassDieId || masonWallOpen || archaeologistOpen || phantomWallOpen);
     actionRow.classList.toggle("is-end-action", snapshot.room.phase === "adventurer_end");
@@ -615,8 +615,8 @@
           <small>怪物骰</small><strong>× ${publicLockedDice.length}</strong>
         </span>`
       : "";
-    if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end", "mummy_interlude_move"].includes(phase)) return lockedDice;
-    if (["monster_prepare", "monster_roll", "monster_action", "monster_end", "mummy_ability", "mummy_normal_roll", "mummy_normal_move"].includes(phase)) {
+    if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end"].includes(phase)) return lockedDice;
+    if (["monster_prepare", "monster_roll", "monster_action", "monster_end"].includes(phase)) {
       const face = Number.isInteger(game.mummy.roll) ? game.mummy.roll : "?";
       const title = Number.isInteger(game.mummy.roll) ? `提燈怪骰擲出 ${game.mummy.roll} 點` : "尚未擲提燈怪骰";
       return `${lockedDice}<span class="gangsi-die is-mummy-die" title="${title}">${face}</span>`;
@@ -654,21 +654,15 @@
 
   function displayedDiceCount(game) {
     const phase = snapshot.room.phase;
-    if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end", "mummy_interlude_move"].includes(phase)) return game.dicePoolSize || 5;
-    if (["monster_prepare", "monster_roll", "monster_action", "monster_end", "mummy_ability", "mummy_normal_roll", "mummy_normal_move"].includes(phase)) return game.dicePoolSize || 5;
+    if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end"].includes(phase)) return game.dicePoolSize || 5;
+    if (["monster_prepare", "monster_roll", "monster_action", "monster_end"].includes(phase)) return game.dicePoolSize || 5;
     const base = game.dice?.length || game.dicePoolSize || 5;
     return Math.min(7, base + (phase === "adventurer_end" && game.endState?.kind === "mechanism" ? 1 : 0));
   }
 
   function renderGameActions(game) {
     const actions = new Set(game.legal.actions || []);
-    if (actions.has("skipAdventurerTurn")) {
-      return '<button class="primary-button" data-gangsi-game-action="skipAdventurerTurn" type="button">略過回合</button>';
-    }
-    if (actions.has("keepLockedDice")) return `
-      <button class="secondary-button" data-gangsi-game-action="keepLockedDice" type="button">繼續回合</button>
-      <button class="primary-button" data-gangsi-game-action="unlockDice" type="button">解鎖全部骰子</button>`;
-    if (["adventurer_prepare", "adventurer_turn_start"].includes(snapshot.room.phase)) {
+    if (snapshot.room.phase === "adventurer_prepare") {
       const currentPiece = game.pieces.find((piece) => piece.id === game.currentPieceId);
       const isCurrentAdventurer = snapshot.you.role === "adventurer"
         && currentPiece?.controllerId === snapshot.you.id;
@@ -751,8 +745,11 @@
           .map(([direction, label]) => `<button class="ghost-button" data-gangsi-gaze="${direction}" type="button" title="${directionLabel(direction)}凝視" ${directions.has(direction) ? "" : "disabled"}>${label}</button>`).join("")}
       </div>`;
     }
-    if ((["monster_prepare", "mummy_ability"].includes(snapshot.room.phase) && actions.has("rollMummyDie")) || actions.has("hideMummy") || actions.has("revealMummy") || actions.has("throwKnife") || actions.has("placeTrap") || actions.has("recoverTrap")
-      || actions.has("setGrave") || actions.has("burrowToGrave") || actions.has("placePhantomWall") || actions.has("infectTreasure")) {
+    if (actions.has("infectTreasure")) {
+      return '<span class="gangsi-action-hint is-required">必須先點選地圖上亮起的寶藏進行感染</span>';
+    }
+    if ((snapshot.room.phase === "monster_prepare" && actions.has("rollMummyDie")) || actions.has("hideMummy") || actions.has("revealMummy") || actions.has("throwKnife") || actions.has("placeTrap") || actions.has("recoverTrap")
+      || actions.has("setGrave") || actions.has("burrowToGrave") || actions.has("placePhantomWall")) {
       if (actions.has("throwKnife") && knifeDirectionOpen) return `
         <span class="gangsi-action-hint">選擇方向</span>
         <div class="gangsi-direction-grid" role="group" aria-label="選擇飛刀方向">
@@ -773,8 +770,7 @@
         ${actions.has("placePhantomWall") ? '<button class="secondary-button" data-gangsi-open-phantom type="button">建立幻影牆</button>' : ""}
         ${actions.has("placeTrap") ? '<span class="gangsi-action-hint">點選沿道路 1～2 步內的亮起格放置陷阱</span>' : ""}
         ${actions.has("recoverTrap") ? '<span class="gangsi-action-hint">可點選沿道路 1～2 步內的陷阱回收</span>' : ""}
-        ${actions.has("infectTreasure") ? '<span class="gangsi-action-hint">點選地圖上亮起的寶藏進行感染</span>' : ""}
-        <button class="${actions.has("hideMummy") || actions.has("throwKnife") ? "secondary-button" : "primary-button"}" data-gangsi-game-action="rollMummyDie" type="button">擲提燈怪骰</button>`;
+        ${actions.has("rollMummyDie") ? `<button class="${actions.has("hideMummy") || actions.has("throwKnife") ? "secondary-button" : "primary-button"}" data-gangsi-game-action="rollMummyDie" type="button">擲提燈怪骰</button>` : ""}`;
     }
     if (actions.has("rollMummyDie")) return '<button class="primary-button" data-gangsi-game-action="rollMummyDie" type="button">擲提燈怪骰</button>';
     if (actions.has("stopMummy")) return '<button class="secondary-button" data-gangsi-game-action="stopMummy" type="button">結束移動</button>';
@@ -929,7 +925,7 @@
         .filter(Boolean);
     }
     if ((game.legal.actions || []).includes("moveMummy")) return game.legal.moves || [];
-    if (["monster_prepare", "mummy_ability"].includes(snapshot.room.phase)) return [
+    if (snapshot.room.phase === "monster_prepare") return [
       ...(game.legal.trapPlacements || []),
       ...(game.legal.trapRecoveries || []),
       ...(game.legal.infectionTreasures || []).map((treasure) => treasure.position)
@@ -1099,7 +1095,7 @@
       sendAction("moveMummy", { cell });
       return;
     }
-    if (["monster_prepare", "mummy_ability"].includes(snapshot.room.phase)) {
+    if (snapshot.room.phase === "monster_prepare") {
       const infection = (game.legal.infectionTreasures || []).find((treasure) => treasure.position === cell);
       if (infection) sendAction("infectTreasure", { treasureId: infection.id });
       else if ((game.legal.trapRecoveries || []).includes(cell)) sendAction("recoverTrap", { cell });
@@ -1236,13 +1232,12 @@
   function professionLabel(profession) {
     return {
       knight: "騎士",
-      engineer: "工程師",
+      archaeologist: "遺跡學家",
       doctor: "醫生",
       wizard: "魔法師",
       scout: "斥候",
       tombRaider: "盜墓者",
       mason: "石匠",
-      archaeologist: "考古學家",
       cultist: "邪教徒"
     }[profession] || "未選職業";
   }
@@ -1262,7 +1257,14 @@
   function piecePublicStatuses(piece, { includeCooldown = false } = {}) {
     const statuses = [];
     if (!piece) return statuses;
-    if (piece.guard) statuses.push({ label: "守護", description: "受守護", tone: "buff" });
+    if (piece.guard) {
+      const turns = Number.isInteger(piece.guardTurns) && piece.guardTurns > 0 ? piece.guardTurns : null;
+      statuses.push({
+        label: turns ? `守護 ${turns}` : "守護",
+        description: turns ? `守護剩餘 ${turns} 個提燈怪正常回合` : "受守護",
+        tone: "buff"
+      });
+    }
     if (piece.injured) statuses.push({ label: "受傷", description: "受傷", tone: "debuff" });
     if (piece.bleeding) statuses.push({ label: "流血", description: "流血", tone: "debuff" });
     if (piece.trackedByKnife) statuses.push({ label: "追蹤", description: "被飛刀追蹤", tone: "debuff" });
@@ -1321,34 +1323,25 @@
       monster_interrupt_prepare: "插入回合準備",
       monster_interrupt_action: "插入回合行動",
       monster_interrupt_end: "插入回合結束",
-      adventurer_turn_start: "回合開始",
-      adventurer_forced_skip: "略過回合",
-      mummy_interlude_move: "插入回合",
-      mummy_ability: "提燈怪能力",
       adventurer_roll: "冒險者擲骰",
-      adventurer_numeric_move: "數字移動",
-      adventurer_arrow_move: "箭頭移動",
-      treasure_decision: "寶藏揭露",
       adventurer_end: "結束階段",
-      mummy_normal_roll: "提燈怪擲骰",
-      mummy_normal_move: "提燈怪移動",
       game_over: "遊戲結束"
     }[phase] || phase;
   }
 
   function actionStage(game) {
     const phase = snapshot.room.phase;
-    if (["adventurer_prepare", "adventurer_turn_start"].includes(phase)) return { label: "準備行動", tone: "prepare" };
-    if (phase === "adventurer_forced_skip") return { label: "略過回合", tone: "skip" };
-    if (["adventurer_roll", "monster_roll", "mummy_normal_roll"].includes(phase)) return { label: "擲骰", tone: "roll" };
-    if (["adventurer_action", "adventurer_numeric_move", "adventurer_arrow_move", "monster_action", "mummy_normal_move"].includes(phase)) return { label: "移動", tone: "move" };
-    if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end", "mummy_interlude_move"].includes(phase)) return { label: "插入移動", tone: "mummy" };
-    if (["monster_prepare", "mummy_ability"].includes(phase)) return { label: "能力選擇", tone: "mummy" };
+    if (phase === "adventurer_prepare") return { label: "準備行動", tone: "prepare" };
+    if (["adventurer_roll", "monster_roll"].includes(phase)) return { label: "擲骰", tone: "roll" };
+    if (["adventurer_action", "monster_action"].includes(phase)) return { label: "移動", tone: "move" };
+    if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end"].includes(phase)) return { label: "插入移動", tone: "mummy" };
+    if (phase === "monster_prepare") return { label: "能力選擇", tone: "mummy" };
     if (phase === "monster_end") return { label: "回合結算", tone: "mummy" };
-    if (phase === "adventurer_end") return game.endState?.kind === "mechanism"
-      ? { label: "機關結果", tone: "mechanism" }
-      : { label: "任務判定", tone: "task" };
-    if (phase === "treasure_decision") return { label: "任務判定", tone: "task" };
+    if (phase === "adventurer_end") {
+      if (game.endState?.kind === "mechanism") return { label: "機關結果", tone: "mechanism" };
+      if (game.endState?.kind === "no_movement") return { label: "無路可走", tone: "skip" };
+      return { label: "任務判定", tone: "task" };
+    }
     if (phase === "game_over") return { label: "遊戲結束", tone: "complete" };
     return { label: phaseLabel(phase), tone: "prepare" };
   }
@@ -1358,11 +1351,7 @@
     if (game.turnStage === "roll") return "擲骰階段";
     if (game.turnStage === "action") return "行動階段";
     if (game.turnStage === "end") return "結束階段";
-    if (["adventurer_prepare", "adventurer_turn_start", "adventurer_forced_skip"].includes(snapshot.room.phase)) return "準備階段";
-    if (snapshot.room.phase === "adventurer_roll") return "擲骰階段";
-    if (["adventurer_action", "adventurer_numeric_move", "adventurer_arrow_move"].includes(snapshot.room.phase)) return "行動階段";
-    if (snapshot.room.phase === "treasure_decision") return "結束階段";
-    return ["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end", "mummy_interlude_move"].includes(snapshot.room.phase) ? "插入回合" : "提燈怪回合";
+    return ["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end"].includes(snapshot.room.phase) ? "插入回合" : "提燈怪回合";
   }
 
   function gamePhaseDescription(game) {
@@ -1376,17 +1365,15 @@
         ? `提燈怪 ${winner?.name || ""} 獲勝。`
         : `冒險者 ${winner?.name || ""} 完成全部任務。`;
     }
-    if (snapshot.room.phase === "adventurer_forced_skip") {
-      return game.forcedSkipReason === "all_dice_locked"
-        ? `${current?.name || "冒險者"} 的 ${game.dicePoolSize || 5} 顆骰子全部鎖定，只能略過回合。`
-        : `${current?.name || "冒險者"} 沒有任何合法移動，只能略過回合。`;
-    }
-    if (["adventurer_prepare", "adventurer_turn_start"].includes(snapshot.room.phase)) return game.mode === "hunt"
+    if (snapshot.room.phase === "adventurer_prepare") return game.mode === "hunt"
       ? `${current?.name || "冒險者"} 正在選擇能力、機關、止血、解鎖或直接擲骰。`
-      : `${current?.name || "冒險者"} 正在決定是否解鎖冒險者骰。`;
-    if (["monster_prepare", "mummy_ability"].includes(snapshot.room.phase)) {
-      if (game.mummy.type === "corrupt" && game.revealedTasks.length === 0) {
-        return "團隊完成第一個寶藏後，腐化鬼才能感染寶藏；目前可直接擲骰。";
+      : `${current?.name || "冒險者"} 可直接擲骰，或先解鎖全部怪物骰。`;
+    if (snapshot.room.phase === "monster_prepare") {
+      if (game.mode !== "hunt") return "請提燈怪擲一次提燈怪骰，決定本回合的最大移動步數。";
+      if (game.mummy.type === "corrupt") {
+        return game.hunt.infectionRequired
+          ? "腐化鬼必須先感染一個寶藏，完成後才能擲骰。"
+          : "腐化鬼本回合沒有可感染的寶藏，可直接擲骰。";
       }
       return game.mummy.type === "invisible" && game.mummy.invisible
         ? "隱形鬼可維持隱形並擲骰，或現形後立即結束回合。"
@@ -1396,19 +1383,20 @@
     if (snapshot.room.phase === "adventurer_action") return game.legal.selectedFace === "arrow"
       ? `${current?.name || "冒險者"} 已選擇箭頭骰，正在決定移動方向。`
       : `${current?.name || "冒險者"} 已選擇${game.legal.selectedFace === "compass" ? `羅盤 ${game.legal.movementBudget} 步` : `移動 ${game.legal.movementBudget || game.legal.selectedFace || game.lastPublicDie} 步`}。`;
-    if (snapshot.room.phase === "adventurer_numeric_move") return `${current?.name || "冒險者"} 已選擇移動 ${game.legal.selectedFace || game.lastPublicDie} 步。`;
-    if (snapshot.room.phase === "adventurer_arrow_move") return `${current?.name || "冒險者"} 已選擇箭頭骰，正在決定移動方向。`;
-    if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end", "mummy_interlude_move"].includes(snapshot.room.phase)) return `提燈怪正在進行插入回合，還可移動 ${game.mummy.remaining} 步，也可以立即結束。`;
-    if (snapshot.room.phase === "mummy_normal_roll") return "請提燈怪擲一次提燈怪骰，決定本回合的最大移動步數。";
-    if (["monster_action", "mummy_normal_move"].includes(snapshot.room.phase)) return `提燈怪骰擲出 ${game.mummy.roll} 點；還可移動 ${game.mummy.remaining} 步，也可以立即結束。`;
+    if (["monster_interrupt_prepare", "monster_interrupt_action", "monster_interrupt_end"].includes(snapshot.room.phase)) return `提燈怪正在進行插入回合，還可移動 ${game.mummy.remaining} 步，也可以立即結束。`;
+    if (snapshot.room.phase === "monster_action") return `提燈怪骰擲出 ${game.mummy.roll} 點；還可移動 ${game.mummy.remaining} 步，也可以立即結束。`;
     if (snapshot.room.phase === "monster_end" && (game.legal.actions || []).includes("chooseGazeDirection")) {
       return "凝視者正在選擇凝視方向。";
     }
-    if (snapshot.room.phase === "treasure_decision") return `${current?.name || "冒險者"} 正在決定是否揭露這項寶藏。`;
     if (snapshot.room.phase === "adventurer_end") {
       if (game.endState?.kind === "mechanism") {
         const result = game.endState;
         return `機關 ${result.mechanismId} 擲出 ${result.diceFace}，進度成為 ${result.finalProgress} / 3${result.sealed ? "，並封印 1 個冒險者回合" : ""}。`;
+      }
+      if (game.endState?.kind === "no_movement") {
+        return game.endState.reason === "all_dice_locked"
+          ? `${current?.name || "冒險者"} 沒有可用骰子，已進入結束階段。`
+          : `${current?.name || "冒險者"} 沒有可移動的道路，已略過擲骰與行動階段。`;
       }
       return `${current?.name || "冒險者"} 正在決定是否揭露這項寶藏。`;
     }

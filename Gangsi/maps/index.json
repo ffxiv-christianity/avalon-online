@@ -12,6 +12,12 @@
       "name": "蟹制地圖1",
       "file": "test-map.json",
       "builtIn": true
+    },
+    {
+      "id": "2",
+      "name": "蟹制地圖2",
+      "file": "crab2.json",
+      "builtIn": true
     }
   ]
 }

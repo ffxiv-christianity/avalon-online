@@ -4,6 +4,7 @@ const assert = require("assert");
 const http = require("http");
 const gangsi = require("../server");
 const MapFormat = require("../map-format");
+const Engine = require("../engine");
 const HuntEngine = require("../hunt-engine");
 
 async function run() {
@@ -23,9 +24,15 @@ async function run() {
     assert(page.includes('id="gangsiGameTemplate"'));
     assert(page.includes('data-shell-layout="game"'));
     assert(page.includes('class="start-button"') || page.includes("data-gangsi-lobby-start-control"));
-    assert(page.includes("只能在自己的回合開始、尚未擲骰前一次解鎖全部"));
+    assert(page.includes("只能在準備階段一次解鎖全部骰子"));
     assert(page.includes("黃金渡渡鳥聖像"));
+    assert(page.includes("<span>A・黃</span>"));
+    assert(page.includes("<span>B・紅</span>"));
+    assert(page.includes("<span>C・藍</span>"));
+    assert(page.includes("<span>D・粉</span>"));
+    assert(page.includes("<span>E・綠</span>"));
     assert(page.includes("gangsi-rules-overview"));
+    assert(page.includes('class="gangsi-rules-summary-section"'));
     assert(page.includes("gangsi-rules-dice-grid"));
     assert(page.includes("gangsi-rules-table"));
     assert(page.includes("gangsi-rules-movement-table"));
@@ -43,13 +50,14 @@ async function run() {
     assert(page.includes("合作完成寶藏，啟動任一機關並逃離古墓"));
     assert(page.includes("任一座完成並轉為出口後，就能從該出口逃脫，不必完成另一座"));
     assert(page.includes('class="gangsi-mechanism-faces"'));
-    assert(page.includes("無待確認內容時自動換人"));
-    assert(page.includes("最終進度額外 +1"));
+    assert(page.includes("需要確認時顯示對應操作"));
+    assert(page.includes("有待選內容時停留，否則自動結束"));
+    assert(page.includes("最終機關進度額外 +1"));
     assert(page.includes("插入回合只顯示鎖定怪物骰"));
     assert(page.includes("陷阱不能放在入口、地牢或離開地牢必須踏入的第一格"));
     assert(page.includes("再外一層道路仍可放置"));
     assert(page.includes("沿道路 1～2 步範圍內放置或回收陷阱"));
-    assert(page.includes("沒有使用次數上限；使用後冷卻 3 個自己的正常回合"));
+    assert(page.includes("沒有使用次數上限；使用後冷卻 3 回合"));
     assert(page.includes("顯示 1 時，下一次進入準備階段就會恢復可用"));
     assert(page.includes("提燈怪看不到這些冷卻資訊"));
     assert(page.includes("石匠臨時牆可以封鎖一般道路的唯一通路"));
@@ -61,11 +69,33 @@ async function run() {
     assert(page.includes('id="huntRulesPanel" role="tabpanel"'));
     assert(page.includes("gangsi-hunt-rules-hero"));
     assert(page.includes("gangsi-hunt-phase-grid"));
+    assert(page.includes("<h3>回合階段與機關</h3>"));
+    assert(page.includes("冒險者回合四階段"));
+    assert(page.includes("提燈怪正常回合四階段"));
+    assert(page.includes("解鎖全部骰子會觸發提燈怪插入回合"));
+    assert(page.includes("提燈怪能力的使用時機依各種類的能力說明為準"));
+    assert(!page.includes("<h3>冒險者回合與機關</h3>"));
     assert(page.includes("gangsi-hunt-card-grid professions"));
     assert(page.includes("gangsi-hunt-card-grid monsters"));
+    assert(page.includes("gangsi-hunt-card-summary"));
+    assert(page.includes("data-gangsi-card-detail-source"));
     for (const value of ["scout", "burrow", "cultist", "gazer", "corrupt"]) {
       assert(page.includes(`<option value="${value}">`));
     }
+    assert(page.includes('<option value="archaeologist">*遺跡學家</option>'));
+    assert(!page.includes('<option value="engineer">'));
+    assert(page.includes("守護若未觸發，會在第二個提燈怪正常回合結束時解除"));
+    assert(page.includes("隨即重新獲得 3 回合腐化"));
+    assert(page.includes("淨化池會解除所有增益或減益效果"));
+    assert(page.includes("<h3>增益與減益效果</h3>"));
+    assert(page.includes('class="gangsi-status-rule-grid"'));
+    for (const status of ["守護", "受傷", "流血", "追蹤", "凝視", "腐化"]) {
+      assert(page.includes(`<h4>${status}</h4>`));
+    }
+    assert(page.includes("<dt>1 層</dt><dd><small>無效果。</small></dd>"));
+    assert(page.includes("<dt>2 層</dt><dd><small>向凝視者顯示匿名座標"));
+    assert(page.includes("<dt>3 層</dt><dd><small>失去 1 點生命，層數歸零。"));
+    assert(page.includes("<dt>效果</dt><dd><small>"));
     assert(page.includes("牆壁與翻牆"));
     assert(page.includes("專屬骰組為 0、2、3、4、羅盤、怪物"));
     assert(page.includes("墓穴存在時可傳送至墓穴並結束回合"));
@@ -118,6 +148,11 @@ async function run() {
     assert(editorPage.includes("機關 A 與機關 B"));
     assert(editorPage.includes("機關／出口 A、B"));
     assert(editorPage.includes("衍生封閉格"));
+    assert(editorPage.includes('id="mapRatingStars"'));
+    assert(editorPage.includes('id="mapRatingIndicators"'));
+    assert(editorPage.includes('id="mapRatingTraits"'));
+    assert(editorPage.includes("評級依目前地圖的靜態結構估算"));
+    assert(!page.includes('id="mapRatingStars"'), "map rating must remain exclusive to the map editor");
     assert(editorPage.includes("請將 <code>.JSON</code> 檔案傳給網站作者"));
     assert(editorPage.includes('id="importInput"'));
     assert(editorPage.includes('id="mapDate"'));
@@ -156,6 +191,8 @@ async function run() {
     assert(script.includes("startHuntMarkerDrag"));
     assert(script.includes("Format.validateHuntMap"));
     assert(script.includes("Format.analyzePurificationPools"));
+    assert(script.includes("Format.analyzeMapRating"));
+    assert(script.includes("function renderRating()"));
     assert(script.includes("Format.deriveHuntVoidCells"));
     assert(script.includes("is-derived-void"));
     assert(script.includes("淨化池分析：池距"));
@@ -180,6 +217,11 @@ async function run() {
     const treasureColors = ["#0057b8", "#00875a", "#f2c300", "#a90f9b", "#d62828"];
     for (const color of treasureColors) assert(css.includes(color));
     assert.strictEqual(new Set(treasureColors).size, 5);
+    assert(css.includes("--treasure-a: #f2c300"));
+    assert(css.includes("--treasure-b: #d62828"));
+    assert(css.includes("--treasure-c: #0057b8"));
+    assert(css.includes("--treasure-d: #a90f9b"));
+    assert(css.includes("--treasure-e: #00875a"));
     assert(css.includes(".edge-layer.is-wall-stroke .edge-button"));
     assert(css.includes(".map-cell.is-derived-void"));
     assert(css.includes("touch-action: none"));
@@ -190,6 +232,12 @@ async function run() {
     assert(rules.includes("GangsiRules"));
     assert(rules.includes("hydrateFromGameIndex"));
     assert(rules.includes("activateTab"));
+    assert(rules.includes("syncCardDetailControls"));
+    assert(rules.includes("createCardDetailLayer"));
+    assert(rules.includes("openCardDetail"));
+    assert(rules.includes("data-gangsi-card-detail"));
+    assert(rules.includes('button.textContent = "查看"'));
+    assert(rules.includes('[data-gangsi-rule-card-detail-icon]").textContent = icon'));
     assert(rules.includes('event.key === "ArrowRight"'));
     assert(rules.includes('event.key === "ArrowLeft"'));
     assert(rules.includes("preferredMode"));
@@ -197,6 +245,7 @@ async function run() {
     const gameScriptResponse = await fetch(`${base}/Gangsi/gangsi.js`);
     assert.strictEqual(gameScriptResponse.status, 200);
     const gameScript = await gameScriptResponse.text();
+    assert(gameScript.includes("piece.guardTurns"));
     assert(gameScript.includes('/ws/gangsi'));
     assert(gameScript.includes('sendAction("toggleReady")'));
     assert(gameScript.includes('sendAction("chooseRole"'));
@@ -251,9 +300,9 @@ async function run() {
     assert(gameScript.includes("function actionStage(game)"));
     assert(gameScript.includes("function turnStageTitle(game)"));
     assert(gameScript.includes('adventurer_end: "結束階段"'));
-    assert(gameScript.includes('data-gangsi-game-action="skipAdventurerTurn"'));
-    assert(gameScript.includes("adventurer_forced_skip"));
-    assert(gameScript.includes("只能略過回合"));
+    assert(!gameScript.includes('data-gangsi-game-action="skipAdventurerTurn"'));
+    assert(!gameScript.includes("adventurer_forced_skip"));
+    assert(gameScript.includes("略過擲骰與行動階段"));
     assert(gameScript.includes("renderGameHand"));
     assert(gameScript.includes("syncGameOverLightbox"));
     assert(gameScript.includes("gangsi-game-over-result-row"));
@@ -261,13 +310,18 @@ async function run() {
     assert(gameScript.includes("機關貢獻"));
     assert(gameScript.includes("result.mechanismContribution"));
     assert(page.includes("全場最多共 6 點"));
-    assert(page.includes("團隊完成第一個寶藏後，準備階段可直接點擊未揭露寶藏進行感染"));
+    assert(page.includes("感染能力可用且存在合法目標時，必須先點擊地圖上亮起的未揭露寶藏進行感染"));
+    assert(page.includes("若本回合沒有合法感染目標，行動資訊會公開原因"));
     assert(gameScript.includes("能力觸發"));
     assert(gameScript.includes("dismissGameOverLightbox"));
     assert(gameScript.includes('sendAction("returnLobby")'));
     const huntActions = [...new Set(Object.values(HuntEngine.PHASE_ACTIONS).flat())];
     for (const action of huntActions) {
       assert(gameScript.includes(`"${action}"`), `Hunt client is missing Server action ${action}`);
+    }
+    const classicActions = [...new Set(Object.values(Engine.PHASE_ACTIONS).flat())];
+    for (const action of classicActions) {
+      assert(gameScript.includes(`"${action}"`), `Classic client is missing Server action ${action}`);
     }
     assert(gameScript.includes("boardLegalTargets"));
     assert(gameScript.includes('sendAction("infectTreasure"'));
@@ -277,6 +331,8 @@ async function run() {
     assert(gameScript.includes("dicePoolSize"));
     assert(gameScript.includes("piecePublicStatuses"));
     assert(gameScript.includes("renderPiecePublicStatuses"));
+    assert(gameScript.includes('game.endState?.kind === "no_movement"'));
+    assert(gameScript.includes("沒有可移動的道路"));
     assert(gameScript.includes("gangsi-player-seat-title"));
     assert(gameScript.includes("gangsi-player-status is-"));
     assert(gameScript.includes('snapshot.you.role === "adventurer"'));
@@ -286,7 +342,9 @@ async function run() {
     assert(gameScript.includes('const isCurrentAdventurer = snapshot.you.role === "adventurer"'));
     assert(gameScript.includes(': isCurrentAdventurer && currentPiece?.profession === "mason"'));
     assert(gameScript.includes("迷霧將於"));
-    assert(gameScript.includes("團隊完成第一個寶藏後，腐化鬼才能感染寶藏"));
+    assert(gameScript.includes("腐化鬼必須先感染一個寶藏"));
+    assert(gameScript.includes("gangsi-action-hint is-required"));
+    assert(gameScript.includes("必須先點選地圖上亮起的寶藏進行感染"));
     assert(gameScript.includes("trackingCountdown"));
     assert(!gameScript.includes("完成團隊寶藏後啟動"));
     assert(gameScript.includes("const trackingVisible"));
@@ -298,7 +356,7 @@ async function run() {
     assert(gameScript.includes("snapshot.room.log.slice(-5)"));
     assert(gameScript.includes('className: "gangsi-action-info-block"'));
     assert(gameScript.includes('bodyClassName: "gangsi-action-info-body"'));
-    const turnStartStart = gameScript.indexOf('if (["adventurer_prepare", "adventurer_turn_start"].includes(snapshot.room.phase)) {');
+    const turnStartStart = gameScript.indexOf('if (snapshot.room.phase === "adventurer_prepare") {');
     const rollActionStart = gameScript.indexOf('if (actions.has("rollAdventurerDice"))', turnStartStart);
     const turnStartReturn = gameScript.slice(gameScript.lastIndexOf("return `", rollActionStart), rollActionStart);
     const rollButtonIndex = turnStartReturn.indexOf('${actions.has("rollAdventurerDice")');
@@ -344,6 +402,8 @@ async function run() {
     assert(gameCss.includes(".gangsi-game-over-lightbox"));
     assert(gameCss.includes(".gangsi-game-over-results"));
     assert(gameCss.includes(".gangsi-game-over-result-row.is-mummy"));
+    assert(gameCss.includes(".gangsi-status-rule-grid"));
+    assert(gameCss.includes(".gangsi-action-hint.is-required"));
     assert(gameCss.includes("width: min(570px, 100%)"));
     assert(gameCss.includes("min-height: 150px"));
     assert(gameCss.includes("font-size: 1.5rem"));
@@ -382,6 +442,10 @@ async function run() {
     assert(gameCss.includes(".gangsi-rules-table-wrap"));
     assert(gameCss.includes(".gangsi-rules-movement-table th:first-child"));
     assert(gameCss.includes(".gangsi-rules-treasures"));
+    assert(gameCss.includes("--treasure-a: #f2c300"));
+    assert(gameCss.includes("--treasure-b: #d62828"));
+    assert(gameCss.includes("--treasure-c: #0057b8"));
+    assert(gameCss.includes("--treasure-e: #00875a"));
     assert(gameCss.includes(".gangsi-rules-tabs"));
     assert(gameCss.includes(".gangsi-rules-tab.is-active"));
     assert(gameCss.includes(".gangsi-rules-panel[hidden]"));
@@ -390,17 +454,48 @@ async function run() {
     assert(gameCss.includes(".gangsi-hunt-phase-grid"));
     assert(gameCss.includes(".gangsi-mechanism-faces"));
     assert(gameCss.includes(".gangsi-hunt-card-grid.monsters"));
+    assert(gameCss.includes("grid-template-columns: repeat(3, minmax(0, 1fr))"));
+    assert(!gameCss.includes(".gangsi-hunt-card-grid.monsters > article:last-child"));
+    assert(!gameCss.includes(".gangsi-hunt-card-grid.professions > article:last-child"));
+    assert(gameCss.includes(".gangsi-hunt-card-detail-button"));
+    assert(gameCss.includes(".gangsi-rule-card-detail-layer"));
+    assert(gameCss.includes(".gangsi-rule-card-detail-panel"));
+    assert(gameCss.includes(".gangsi-rule-card-detail-heading"));
+    assert(gameCss.includes(".gangsi-rule-card-detail-kicker"));
+    assert(!gameCss.includes(".gangsi-hunt-card-grid article.is-expanded"));
+    assert(gameCss.includes(".gangsi-rules-callout.neutral"));
     assert(gameCss.includes(".gangsi-die.is-locked-summary"));
     assert.match(
       gameCss,
-      /\.gangsi-hunt-card-grid\.professions article\s*\{\s*max-height:\s*140px;\s*overflow-y:\s*auto;/
+      /\.gangsi-hunt-card-grid\.professions article\s*\{\s*height:\s*150px;\s*max-height:\s*150px;\s*overflow:\s*hidden;/
     );
     assert.match(
       gameCss,
-      /\.gangsi-hunt-card-grid\.monsters article\s*\{\s*max-height:\s*350px;\s*overflow-y:\s*auto;/
+      /\.gangsi-hunt-card-grid\.monsters article\s*\{\s*height:\s*150px;\s*max-height:\s*150px;\s*overflow:\s*hidden;/
     );
     assert(gameCss.includes(".gangsi-hunt-detail-grid"));
     assert(!gameCss.includes(".gangsi-room-summary"));
+
+    const sharedCssResponse = await fetch(`${base}/shared/styles.css`);
+    assert.strictEqual(sharedCssResponse.status, 200);
+    const sharedCss = await sharedCssResponse.text();
+    assert.match(
+      sharedCss,
+      /\.rules-header \.eyebrow\s*\{\s*text-transform:\s*uppercase;\s*\}/
+    );
+    assert.match(
+      sharedCss,
+      /\.info-panel\s*\{[^}]*overscroll-behavior:\s*contain;[^}]*\}/
+    );
+    assert.match(
+      sharedCss,
+      /\.chat-list\s*\{[^}]*overscroll-behavior:\s*contain;[^}]*\}/
+    );
+    const sharedRoomUiResponse = await fetch(`${base}/shared/room-ui.js`);
+    assert.strictEqual(sharedRoomUiResponse.status, 200);
+    const sharedRoomUi = await sharedRoomUiResponse.text();
+    assert(!sharedRoomUi.includes("bindPageWheelHandoff"));
+    assert(sharedRoomUi.includes("bindChatReadState"));
 
     const mapIndexResponse = await fetch(`${base}/Gangsi/maps/index.json`);
     assert.strictEqual(mapIndexResponse.status, 200);
@@ -408,6 +503,8 @@ async function run() {
     const mapIndex = await mapIndexResponse.json();
     assert.strictEqual(mapIndex.schemaVersion, 1);
     assert.strictEqual(mapIndex.maps.find((entry) => entry.id === "test-map").name, "蟹制地圖1");
+    assert.strictEqual(mapIndex.maps.find((entry) => entry.id === "2").name, "蟹制地圖2");
+    assert.strictEqual(mapIndex.maps.find((entry) => entry.id === "2").file, "crab2.json");
     assert(!mapIndex.maps.some((entry) => entry.id === "test-map2"));
     for (const entry of mapIndex.maps) {
       const mapResponse = await fetch(`${base}/Gangsi/maps/${entry.file}`);

@@ -9,6 +9,15 @@ const {
 } = require("../game");
 const Engine = require("../engine");
 
+assert.deepStrictEqual(Object.keys(Engine.PHASE_ACTIONS).sort(), Object.values(Engine.PHASES).sort());
+assert.deepStrictEqual(Engine.PHASE_ACTIONS[Engine.PHASES.adventurerPrepare], ["rollAdventurerDice", "unlockDice"]);
+assert.deepStrictEqual(Engine.PHASE_ACTIONS[Engine.PHASES.adventurerRoll], ["rollAdventurerDice", "selectDie"]);
+assert.deepStrictEqual(Engine.PHASE_ACTIONS[Engine.PHASES.adventurerAction], ["moveNumeric", "moveArrow"]);
+assert.deepStrictEqual(
+  Engine.PHASE_ACTIONS[Engine.PHASES.adventurerEnd],
+  ["revealTreasure", "declineTreasure", "finishAdventurerTurn"]
+);
+
 function startedThreePlayerRoom() {
   const { room, player: first } = makeRoom("First", "GE01");
   assert.strictEqual(applyRoomAction(room, first, "updateSettings", {
@@ -92,7 +101,7 @@ function startedTwoPlayerRoom() {
 
 {
   const { room, first, second, mummy } = startedThreePlayerRoom();
-  assert.strictEqual(room.phase, Engine.PHASES.adventurerRoll);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
   assert.strictEqual(room.game.adventurerOrder.length, 2);
   assert.strictEqual(Object.keys(room.game.pieces).length, 2);
   assert.strictEqual(room.game.hands[first.id].length, 5);
@@ -115,11 +124,12 @@ function startedTwoPlayerRoom() {
   const waitingAdventurer = [first, second].find((player) => player.id !== current.controllerId);
   assert.deepStrictEqual(makeView(room, waitingAdventurer.id).room.game.legal.actions, []);
   assert(applyRoomAction(room, waitingAdventurer, "rollAdventurerDice").includes("不是你的回合"));
+  assert.deepStrictEqual(makeView(room, current.controllerId).room.game.legal.actions, ["rollAdventurerDice"]);
 
   assert.deepStrictEqual(Engine.numericPaths(room, current, 1), [["3,7"]]);
   Engine.resolveAdventurerFaces(room, ["1", "mummy", "mummy", "mummy", "mummy"]);
   assert.strictEqual(applyRoomAction(room, room.players.find((player) => player.id === current.controllerId), "selectDie", { dieId: "die-1" }), null);
-  assert.strictEqual(room.phase, Engine.PHASES.numericMove);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerAction);
   const hiddenMovementView = makeView(room, mummy.id);
   assert.strictEqual(hiddenMovementView.room.game.lastPublicDie, "1");
   assert.deepStrictEqual(hiddenMovementView.room.game.legal.actions, []);
@@ -128,14 +138,14 @@ function startedTwoPlayerRoom() {
   assert(applyRoomAction(room, room.players.find((player) => player.id === current.controllerId), "moveNumeric", { path: ["4,7"] }).includes("不合法"));
   assert.strictEqual(applyRoomAction(room, room.players.find((player) => player.id === current.controllerId), "moveNumeric", { path: ["3,7"] }), null);
   assert.strictEqual(current.position, "3,7");
-  assert.strictEqual(room.phase, Engine.PHASES.turnStart);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
   const nextController = room.players.find((player) => player.id === room.game.pieces[room.game.currentPieceId].controllerId);
   assert.strictEqual(applyRoomAction(room, nextController, "unlockDice"), null);
-  assert.strictEqual(room.phase, Engine.PHASES.interlude);
+  assert.strictEqual(room.phase, Engine.PHASES.monsterInterruptAction);
   assert.strictEqual(room.game.mummy.remaining, 4);
   assert.strictEqual(makeView(room, mummy.id).room.game.currentPlayerId, mummy.id);
   assert.strictEqual(applyRoomAction(room, mummy, "stopMummy"), null);
-  assert.strictEqual(room.phase, Engine.PHASES.adventurerRoll);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
   assert.strictEqual(room.game.dice.filter((die) => die.locked).length, 0);
 }
 
@@ -149,7 +159,8 @@ function startedTwoPlayerRoom() {
   const direction = Object.keys(directions)[0];
   assert(direction);
   room.game.selectedFace = "arrow";
-  room.phase = Engine.PHASES.arrowMove;
+  room.game.actionState = { kind: "arrow" };
+  room.phase = Engine.PHASES.adventurerAction;
   assert.strictEqual(applyRoomAction(room, controller, "moveArrow", { direction }), null);
   assert.strictEqual(piece.position, directions[direction].end);
 }
@@ -181,21 +192,22 @@ function startedTwoPlayerRoom() {
   room.game.mummy.position = "5,1";
   room.game.mummy.remaining = 3;
   room.game.mummy.moveKind = "normal";
-  room.phase = Engine.PHASES.mummyMove;
+  room.phase = Engine.PHASES.monsterAction;
   assert.strictEqual(applyRoomAction(room, mummy, "stopMummy"), null);
   const blockedController = room.players.find((player) => player.id === blockedPiece.controllerId);
   const nextController = room.players.find((player) => player.id === nextPiece.controllerId);
   assert.strictEqual(room.game.currentPieceId, blockedPiece.id);
-  assert.strictEqual(room.phase, Engine.PHASES.forcedSkip);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerEnd);
   assert.strictEqual(room.game.forcedSkipReason, "no_legal_move");
-  assert.deepStrictEqual(makeView(room, blockedController.id).room.game.legal.actions, ["skipAdventurerTurn"]);
+  assert.deepStrictEqual(makeView(room, blockedController.id).room.game.legal.actions, ["finishAdventurerTurn"]);
+  assert.strictEqual(makeView(room, blockedController.id).room.game.endState.kind, "no_movement");
   assert.strictEqual(makeView(room, mummy.id).room.game.forcedSkipReason, "no_legal_move");
-  assert(makeView(room, mummy.id).room.log.at(-1).includes("沒有任何合法移動，只能略過回合"));
-  assert(applyRoomAction(room, blockedController, "rollAdventurerDice").includes("現在不能擲"));
-  assert(applyRoomAction(room, nextController, "skipAdventurerTurn").includes("不是你的回合"));
-  assert.strictEqual(applyRoomAction(room, blockedController, "skipAdventurerTurn"), null);
+  assert(makeView(room, mummy.id).room.log.at(-1).includes("略過擲骰與行動階段"));
+  assert(applyRoomAction(room, blockedController, "rollAdventurerDice").includes("不能在 adventurer_end"));
+  assert(applyRoomAction(room, nextController, "finishAdventurerTurn").includes("不是你的回合"));
+  assert.strictEqual(applyRoomAction(room, blockedController, "finishAdventurerTurn"), null);
   assert.strictEqual(room.game.currentPieceId, nextPiece.id);
-  assert.strictEqual(room.phase, Engine.PHASES.adventurerRoll);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
 }
 
 {
@@ -219,7 +231,7 @@ function startedTwoPlayerRoom() {
   room.game.mummy.score = room.game.mummy.target - 1;
   room.game.mummy.remaining = 1;
   room.game.mummy.moveKind = "normal";
-  room.phase = Engine.PHASES.mummyMove;
+  room.phase = Engine.PHASES.monsterAction;
   assert.strictEqual(applyRoomAction(room, mummy, "moveMummy", { cell: target }), null);
   assert.strictEqual(room.phase, Engine.PHASES.gameOver);
   assert.strictEqual(room.game.winner.role, "mummy");
@@ -228,7 +240,7 @@ function startedTwoPlayerRoom() {
 
 {
   const { room, mummy } = startedThreePlayerRoom();
-  room.phase = Engine.PHASES.mummyRoll;
+  room.phase = Engine.PHASES.monsterPrepare;
   assert.strictEqual(applyRoomAction(room, mummy, "rollMummyDie"), null);
   const result = room.game.mummy.roll;
   assert([1, 2, 3].includes(result));
@@ -243,7 +255,7 @@ function startedTwoPlayerRoom() {
   room.game.mummy.position = "dungeon";
   room.game.mummy.remaining = 2;
   room.game.mummy.moveKind = "normal";
-  room.phase = Engine.PHASES.mummyMove;
+  room.phase = Engine.PHASES.monsterAction;
   assert(applyRoomAction(room, mummy, "moveMummy", { cell: "99,99" }).includes("不能移動"));
   assert.strictEqual(room.game.mummy.position, "dungeon");
   assert.strictEqual(room.game.mummy.remaining, 2);
@@ -254,17 +266,17 @@ function startedTwoPlayerRoom() {
   const lockingPiece = room.game.pieces[room.game.currentPieceId];
   const lockingActor = room.players.find((player) => player.id === lockingPiece.controllerId);
   Engine.resolveAdventurerFaces(room, ["mummy", "mummy", "mummy", "mummy", "mummy"]);
-  assert.strictEqual(room.phase, Engine.PHASES.forcedSkip);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerEnd);
   assert.strictEqual(room.game.forcedSkipReason, "all_dice_locked");
-  assert.deepStrictEqual(makeView(room, lockingActor.id).room.game.legal.actions, ["skipAdventurerTurn"]);
+  assert.deepStrictEqual(makeView(room, lockingActor.id).room.game.legal.actions, ["finishAdventurerTurn"]);
   assert.deepStrictEqual(makeView(room, mummy.id).room.game.legal.actions, []);
   assert(makeView(room, mummy.id).room.log.at(-1).includes("五顆骰子全部鎖定"));
-  assert.strictEqual(applyRoomAction(room, lockingActor, "skipAdventurerTurn"), null);
-  assert.strictEqual(room.phase, Engine.PHASES.interlude);
+  assert.strictEqual(applyRoomAction(room, lockingActor, "finishAdventurerTurn"), null);
+  assert.strictEqual(room.phase, Engine.PHASES.monsterInterruptAction);
   assert.strictEqual(room.game.mummy.remaining, 5);
   assert(room.log.at(-1).includes("已無可用骰子，系統自動解鎖 5 顆骰子"));
   assert.strictEqual(applyRoomAction(room, mummy, "stopMummy"), null);
-  assert.strictEqual(room.phase, Engine.PHASES.adventurerRoll);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
 }
 
 {
@@ -272,8 +284,8 @@ function startedTwoPlayerRoom() {
   const lockingPiece = room.game.pieces[room.game.currentPieceId];
   const lockingActor = room.players.find((player) => player.id === lockingPiece.controllerId);
   Engine.resolveAdventurerFaces(room, ["mummy", "mummy", "mummy", "mummy", "mummy"]);
-  assert.strictEqual(applyRoomAction(room, lockingActor, "skipAdventurerTurn"), null);
-  assert.strictEqual(room.phase, Engine.PHASES.interlude);
+  assert.strictEqual(applyRoomAction(room, lockingActor, "finishAdventurerTurn"), null);
+  assert.strictEqual(room.phase, Engine.PHASES.monsterInterruptAction);
   const blockedPiece = room.game.pieces[room.game.currentPieceId];
   const blockedActor = room.players.find((player) => player.id === blockedPiece.controllerId);
   for (const cell of ["6,6", "5,6", "4,6", "3,6", "3,7"]) {
@@ -281,14 +293,14 @@ function startedTwoPlayerRoom() {
   }
   assert.strictEqual(room.game.mummy.position, "3,7");
   assert.strictEqual(room.game.currentPieceId, blockedPiece.id);
-  assert.strictEqual(room.phase, Engine.PHASES.forcedSkip);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerEnd);
   assert.strictEqual(room.game.forcedSkipReason, "no_legal_move");
   assert(room.game.dice.every((die) => !die.locked && die.face === null));
-  assert.deepStrictEqual(makeView(room, blockedActor.id).room.game.legal.actions, ["skipAdventurerTurn"]);
-  assert(makeView(room, mummy.id).room.log.at(-1).includes("沒有任何合法移動，只能略過回合"));
-  assert(applyRoomAction(room, blockedActor, "rollAdventurerDice").includes("現在不能擲"));
-  assert.strictEqual(applyRoomAction(room, blockedActor, "skipAdventurerTurn"), null);
-  assert.strictEqual(room.phase, Engine.PHASES.mummyRoll);
+  assert.deepStrictEqual(makeView(room, blockedActor.id).room.game.legal.actions, ["finishAdventurerTurn"]);
+  assert(makeView(room, mummy.id).room.log.at(-1).includes("略過擲骰與行動階段"));
+  assert(applyRoomAction(room, blockedActor, "rollAdventurerDice").includes("不能在 adventurer_end"));
+  assert.strictEqual(applyRoomAction(room, blockedActor, "finishAdventurerTurn"), null);
+  assert.strictEqual(room.phase, Engine.PHASES.monsterPrepare);
 }
 
 {
@@ -298,17 +310,17 @@ function startedTwoPlayerRoom() {
   lockingPiece.position = captureCell;
   Engine.resolveAdventurerFaces(room, ["mummy", "mummy", "mummy", "mummy", "mummy"]);
   const lockingActor = room.players.find((player) => player.id === lockingPiece.controllerId);
-  assert.strictEqual(room.phase, Engine.PHASES.forcedSkip);
-  assert.strictEqual(applyRoomAction(room, lockingActor, "skipAdventurerTurn"), null);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerEnd);
+  assert.strictEqual(applyRoomAction(room, lockingActor, "finishAdventurerTurn"), null);
   const resumingPieceId = room.game.currentPieceId;
   assert.notStrictEqual(resumingPieceId, lockingPiece.id);
-  assert.strictEqual(room.phase, Engine.PHASES.interlude);
+  assert.strictEqual(room.phase, Engine.PHASES.monsterInterruptAction);
   assert.strictEqual(room.game.pendingUnlock.pieceId, resumingPieceId);
   assert.strictEqual(room.game.mummy.remaining, 5);
 
   assert.strictEqual(applyRoomAction(room, mummy, "moveMummy", { cell: captureCell }), null);
   assert.strictEqual(lockingPiece.position, "dungeon");
-  assert.strictEqual(room.phase, Engine.PHASES.adventurerRoll);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
   assert.strictEqual(room.game.currentPieceId, resumingPieceId);
   assert.strictEqual(room.game.mummy.remaining, 0);
   assert.strictEqual(room.game.pendingUnlock, null);
@@ -325,13 +337,13 @@ function startedTwoPlayerRoom() {
   room.phase = Engine.PHASES.adventurerRoll;
   Engine.resolveAdventurerFaces(room, ["mummy", "mummy", "mummy", "mummy", "mummy"]);
   const lockingActor = room.players.find((player) => player.id === room.game.pieces[room.game.currentPieceId].controllerId);
-  assert.strictEqual(room.phase, Engine.PHASES.forcedSkip);
-  assert.strictEqual(applyRoomAction(room, lockingActor, "skipAdventurerTurn"), null);
-  assert.strictEqual(room.phase, Engine.PHASES.mummyRoll);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerEnd);
+  assert.strictEqual(applyRoomAction(room, lockingActor, "finishAdventurerTurn"), null);
+  assert.strictEqual(room.phase, Engine.PHASES.monsterPrepare);
   Engine.resolveMummyRoll(room, 1);
   assert.strictEqual(room.game.mummy.remaining, 6);
   assert.strictEqual(applyRoomAction(room, mummy, "stopMummy"), null);
-  assert.strictEqual(room.phase, Engine.PHASES.interlude);
+  assert.strictEqual(room.phase, Engine.PHASES.monsterInterruptAction);
   assert.strictEqual(room.game.mummy.remaining, 5);
 }
 
@@ -347,9 +359,9 @@ function startedTwoPlayerRoom() {
 
   Engine.resolveAdventurerFaces(room, ["mummy", "mummy", "mummy", "mummy", "mummy"]);
   const lockingActor = room.players.find((player) => player.id === room.game.pieces[room.game.currentPieceId].controllerId);
-  assert.strictEqual(room.phase, Engine.PHASES.forcedSkip);
-  assert.strictEqual(applyRoomAction(room, lockingActor, "skipAdventurerTurn"), null);
-  assert.strictEqual(room.phase, Engine.PHASES.mummyRoll);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerEnd);
+  assert.strictEqual(applyRoomAction(room, lockingActor, "finishAdventurerTurn"), null);
+  assert.strictEqual(room.phase, Engine.PHASES.monsterPrepare);
   assert.strictEqual(room.game.currentPieceId, null);
   assert.strictEqual(room.game.pendingUnlock, null);
   assert(room.log.at(-1).includes("正常回合"));
@@ -362,7 +374,8 @@ function startedTwoPlayerRoom() {
   piece.position = room.game.map.treasures.find((treasure) => treasure.id === task.id).position;
   room.game.currentPieceId = piece.id;
   room.game.pendingTreasureIds = [task.id];
-  room.phase = Engine.PHASES.treasure;
+  room.game.endState = { kind: "treasure", operatorPlayerId: first.id };
+  room.phase = Engine.PHASES.adventurerEnd;
   assert(applyRoomAction(room, second, "revealTreasure").includes("不是你的回合"));
   assert.strictEqual(task.revealed, false);
   assert.strictEqual(applyRoomAction(room, first, "revealTreasure"), null);
@@ -375,14 +388,14 @@ function startedTwoPlayerRoom() {
   room.game.mummy.score = 0;
   room.game.mummy.remaining = 3;
   room.game.mummy.moveKind = "normal";
-  room.phase = Engine.PHASES.mummyMove;
+  room.phase = Engine.PHASES.monsterAction;
   assert.strictEqual(applyRoomAction(room, mummy, "moveMummy", { cell: target }), null);
   assert.strictEqual(piece.life, 2);
   assert.strictEqual(piece.position, "dungeon");
   assert.strictEqual(room.game.mummy.score, 1);
   assert.strictEqual(room.game.captureEvent.pieceId, piece.id);
   assert.strictEqual(room.game.mummy.remaining, 0);
-  assert.notStrictEqual(room.phase, Engine.PHASES.mummyMove);
+  assert.notStrictEqual(room.phase, Engine.PHASES.monsterAction);
   assert(applyRoomAction(room, mummy, "moveMummy", { cell: Engine.mummyMoves(room)[0] }).includes("不能"));
 }
 
@@ -394,20 +407,22 @@ function startedTwoPlayerRoom() {
   room.game.currentPieceId = piece.id;
   room.game.turnIndex = room.game.adventurerOrder.indexOf(piece.id);
   room.game.pendingTreasureIds = [task.id];
-  room.phase = Engine.PHASES.treasure;
+  room.game.endState = { kind: "treasure", operatorPlayerId: first.id };
+  room.phase = Engine.PHASES.adventurerEnd;
   assert.strictEqual(applyRoomAction(room, first, "declineTreasure"), null);
   assert.strictEqual(task.revealed, false);
   assert.deepStrictEqual(room.game.pendingTreasureIds, []);
-  assert(applyRoomAction(room, first, "revealTreasure").includes("沒有可揭露"));
+  assert(applyRoomAction(room, first, "revealTreasure").includes("不能在"));
 
   room.game.currentPieceId = piece.id;
   room.game.turnIndex = room.game.adventurerOrder.indexOf(piece.id);
   room.game.selectedFace = "2";
-  room.phase = Engine.PHASES.numericMove;
+  room.game.actionState = { kind: "numeric" };
+  room.phase = Engine.PHASES.adventurerAction;
   const returnPath = Engine.numericPaths(room, piece, 2).find((path) => path.at(-1) === piece.position);
   assert(returnPath, "treasure cell must have a two-step return path");
   assert.strictEqual(applyRoomAction(room, first, "moveNumeric", { path: returnPath }), null);
-  assert.strictEqual(room.phase, Engine.PHASES.treasure);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerEnd);
   assert.deepStrictEqual(room.game.pendingTreasureIds, [task.id]);
 }
 
@@ -422,7 +437,7 @@ function startedTwoPlayerRoom() {
   room.game.mummy.score = 0;
   room.game.mummy.remaining = 1;
   room.game.mummy.moveKind = "normal";
-  room.phase = Engine.PHASES.mummyMove;
+  room.phase = Engine.PHASES.monsterAction;
   assert.strictEqual(applyRoomAction(room, mummy, "moveMummy", { cell: target }), null);
   assert(pieces.every((piece) => piece.life === 2 && piece.position === "dungeon"));
   assert.strictEqual(room.game.mummy.score, 2);
@@ -438,12 +453,12 @@ function startedTwoPlayerRoom() {
   room.game.mummy.score = 0;
   room.game.mummy.remaining = 1;
   room.game.mummy.moveKind = "normal";
-  room.phase = Engine.PHASES.mummyMove;
+  room.phase = Engine.PHASES.monsterAction;
   assert.strictEqual(applyRoomAction(room, mummy, "moveMummy", { cell: target }), null);
   assert.strictEqual(firstPiece.eliminated, true);
   assert.strictEqual(firstPiece.position, null);
   assert.strictEqual(room.game.currentPieceId, secondPiece.id);
-  assert.strictEqual(room.phase, Engine.PHASES.adventurerRoll);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
 }
 
 {
@@ -454,11 +469,11 @@ function startedTwoPlayerRoom() {
   room.game.pendingUnlock = { pieceId: piece.id, count: 3 };
   room.game.mummy.remaining = 3;
   room.game.mummy.moveKind = "interlude";
-  room.phase = Engine.PHASES.interlude;
+  room.phase = Engine.PHASES.monsterInterruptAction;
   assert.strictEqual(applyRoomAction(room, mummy, "moveMummy", { cell: target }), null);
   assert.strictEqual(room.game.mummy.remaining, 0);
   assert.strictEqual(room.game.pendingUnlock, null);
-  assert.strictEqual(room.phase, Engine.PHASES.adventurerRoll);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
   assert.strictEqual(room.game.currentPieceId, piece.id);
   assert.deepStrictEqual(makeView(room, mummy.id).room.game.legal.actions, []);
   assert.deepStrictEqual(makeView(room, mummy.id).room.game.legal.moves, undefined);
@@ -474,7 +489,8 @@ function startedTwoPlayerRoom() {
   piece.position = room.game.map.treasures.find((treasure) => treasure.id === finalTask.id).position;
   room.game.currentPieceId = piece.id;
   room.game.pendingTreasureIds = [finalTask.id];
-  room.phase = Engine.PHASES.treasure;
+  room.game.endState = { kind: "treasure", operatorPlayerId: first.id };
+  room.phase = Engine.PHASES.adventurerEnd;
   assert.strictEqual(applyRoomAction(room, first, "revealTreasure"), null);
   assert.strictEqual(room.phase, Engine.PHASES.gameOver);
   assert.strictEqual(room.game.winner.playerId, first.id);

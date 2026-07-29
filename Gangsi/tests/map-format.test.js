@@ -36,6 +36,16 @@ assert.deepStrictEqual(
   Object.values(MapFormat.GROUPS).map((group) => group.name),
   ["黃金渡渡鳥聖像", "龍眼", "釣場之皇", "幻想藥", "L房地契"]
 );
+assert.deepStrictEqual(
+  Object.fromEntries(Object.entries(MapFormat.GROUPS).map(([id, group]) => [id, [group.label, group.color]])),
+  {
+    A: ["黃", "yellow"],
+    B: ["紅", "red"],
+    C: ["藍", "blue"],
+    D: ["粉", "pink"],
+    E: ["綠", "green"]
+  }
+);
 assert.strictEqual(MapClasses.OBJECT_CLASSES.treasure.onAdventurerStop, "offer-reveal");
 assert.strictEqual(MapClasses.OBJECT_CLASSES.mechanism.obstacle, true);
 assert.strictEqual(MapClasses.OBJECT_CLASSES.escapeExit.classicIgnored, true);
@@ -124,21 +134,58 @@ assert.strictEqual(
   undefined,
   "hunt movement graph should exclude every cell in the disconnected road segment"
 );
+const wallEnclosedCellMap = MapFormat.clone(classic);
+const wallEnclosedCell = "10,1";
+for (const adjacent of MapFormat.neighbors(wallEnclosedCell, wallEnclosedCellMap.width, wallEnclosedCellMap.height)) {
+  wallEnclosedCellMap.walls.push(MapFormat.canonicalEdge(wallEnclosedCell, adjacent));
+}
+assert(
+  !MapFormat.deriveHuntVoidCells(wallEnclosedCellMap).includes(wallEnclosedCell),
+  "a cell enclosed by walls alone must not become a derived Hunt void"
+);
 const purification = MapFormat.analyzePurificationPools(huntMap);
 assert.strictEqual(purification.available, true);
 assert.strictEqual(purification.fallback, false);
 assert.strictEqual(purification.bestPairs.length > 0, true);
 assert(purification.bestPairs.every((pair) => pair.poolDistance >= 6 && pair.maxTreasureDistance <= 9));
-const forbiddenPoolCells = new Set([
-  ...huntMap.treasures.map((treasure) => treasure.position),
-  ...Object.values(huntMap.hunt.mechanisms)
-]);
+const forbiddenPoolCells = new Set(Object.values(huntMap.hunt.mechanisms));
 assert(purification.candidates.every((cell) => !forbiddenPoolCells.has(cell)));
-assert(purification.candidates.every((cell) => MapFormat.buildMovementGraph(huntMap, { hunt: true }).passages[cell].length > 1));
+const huntGraph = MapFormat.buildMovementGraph(huntMap, { hunt: true });
+assert.strictEqual(huntGraph.passages["9,2"].length, 1, "classic 9,2 must remain a terminal road cell");
+assert(
+  purification.candidates.includes("9,2"),
+  "passable terminal road cells must remain eligible purification-pool candidates"
+);
+const treasureCells = new Set(huntMap.treasures.map((treasure) => treasure.position));
+assert(
+  purification.candidates.some((cell) => treasureCells.has(cell)),
+  "passable treasure cells must remain eligible purification-pool candidates"
+);
+const treasureOnlyPoolMap = MapFormat.clone(huntMap);
+const treasureOnlyPoolGraph = MapFormat.buildMovementGraph(treasureOnlyPoolMap, { hunt: true });
+treasureOnlyPoolMap.treasures = Object.keys(treasureOnlyPoolGraph.passages).map((position, index) => ({
+  id: MapFormat.TREASURE_IDS[index % MapFormat.TREASURE_IDS.length],
+  position
+}));
+const treasureOnlyPools = MapFormat.analyzePurificationPools(treasureOnlyPoolMap);
+const treasureOnlyCells = new Set(treasureOnlyPoolMap.treasures.map((treasure) => treasure.position));
+assert.strictEqual(treasureOnlyPools.available, true);
+assert(
+  treasureOnlyPools.bestPairs.every((pair) => pair.cells.every((cell) => treasureOnlyCells.has(cell))),
+  "purification-pool generation must be able to select treasure cells"
+);
 const noPoolMap = MapFormat.createBlankMap(6, 5);
 noPoolMap.zones.entrance.anchor = "1,1";
 noPoolMap.zones.dungeon.anchor = "6,5";
 noPoolMap.hunt.mechanisms = { A: "3,3", B: "4,3" };
+const noPoolRoads = new Set(["1,2", "6,4"]);
+noPoolMap.voidCells = Array.from({ length: noPoolMap.height }, (_, row) => (
+  Array.from({ length: noPoolMap.width }, (_, column) => `${column + 1},${row + 1}`)
+)).flat().filter((cell) => (
+  cell !== noPoolMap.zones.entrance.anchor
+  && cell !== noPoolMap.zones.dungeon.anchor
+  && !noPoolRoads.has(cell)
+));
 const noPoolFloors = Object.keys(MapFormat.buildMovementGraph(noPoolMap, { hunt: true }).passages);
 noPoolMap.treasures = noPoolFloors.map((position, index) => ({
   id: MapFormat.TREASURE_IDS[index % MapFormat.TREASURE_IDS.length],
@@ -149,9 +196,30 @@ assert.strictEqual(unavailablePools.available, false);
 assert.strictEqual(unavailablePools.fallback, true);
 assert(MapFormat.buildMovementGraph(huntMap).passages["4,1"]);
 assert.strictEqual(MapFormat.buildMovementGraph(huntMap, { hunt: true }).passages["4,1"], undefined);
+const mapRating = MapFormat.analyzeMapRating(huntMap);
+assert.strictEqual(mapRating.available, true);
+assert(Number.isInteger(mapRating.stars) && mapRating.stars >= 1 && mapRating.stars <= 5);
+assert.strictEqual(mapRating.indicators.length, 5);
+assert.deepStrictEqual(
+  mapRating.indicators.map((indicator) => indicator.id),
+  ["topology", "objectives", "treasures", "routes", "roles"]
+);
+assert(mapRating.indicators.every((indicator) => indicator.stars >= 1 && indicator.stars <= 5));
+if (mapRating.stars === 5) {
+  assert(
+    mapRating.indicators.every((indicator) => indicator.stars === 5),
+    "a five-star overall rating requires five stars in every visible indicator"
+  );
+}
+assert.deepStrictEqual(
+  mapRating.traits.map((trait) => trait.id),
+  ["sightlines", "turns", "branches", "bottlenecks", "span", "deadEnds"]
+);
+assert(mapRating.traits.every((trait) => ["low", "medium", "high"].includes(trait.level)));
 const duplicateMechanism = MapFormat.clone(huntMap);
 duplicateMechanism.hunt.mechanisms.B = duplicateMechanism.hunt.mechanisms.A;
 assert(MapFormat.validateHuntMap(duplicateMechanism).errors.some((error) => error.includes("重疊")));
+assert.strictEqual(MapFormat.analyzeMapRating(duplicateMechanism).available, false);
 const overlappingTreasure = MapFormat.clone(huntMap);
 overlappingTreasure.hunt.mechanisms.A = overlappingTreasure.treasures[0].position;
 assert(MapFormat.validateHuntMap(overlappingTreasure).errors.some((error) => error.includes("寶藏重疊")));
@@ -178,6 +246,21 @@ const customMapEntry = catalogIndex.maps.find((entry) => entry.id === "test-map"
 assert(customMapEntry);
 assert.strictEqual(customMapEntry.name, "蟹制地圖1");
 assert.strictEqual(MapCatalog.getBuiltInMap("test-map").name, "蟹制地圖1");
+const crabMapTwoEntry = catalogIndex.maps.find((entry) => entry.id === "2");
+assert(crabMapTwoEntry);
+assert.strictEqual(crabMapTwoEntry.file, "crab2.json");
+assert.strictEqual(MapCatalog.getBuiltInMap("2").name, "蟹制地圖2");
+const classicRating = MapFormat.analyzeMapRating(classic);
+assert.strictEqual(classicRating.stars, 4);
+assert.deepStrictEqual(
+  Object.fromEntries(classicRating.indicators.map((indicator) => [indicator.id, indicator.stars])),
+  { topology: 4, objectives: 4, treasures: 4, routes: 4, roles: 5 }
+);
+const crabMapTwoRating = MapFormat.analyzeMapRating(MapCatalog.getBuiltInMap("2"));
+assert.strictEqual(crabMapTwoRating.available, true);
+assert.strictEqual(crabMapTwoRating.stars, 4);
+assert(crabMapTwoRating.roleAdvantages.some((role) => role.id === "gazer"));
+assert(crabMapTwoRating.roleAdvantages.some((role) => role.id === "knife"));
 const randomMap = MapCatalog.randomBuiltInMap();
 assert(catalogIndex.maps.some((entry) => entry.id === randomMap.id));
 assert.strictEqual(MapCatalog.getBuiltInMap("missing"), null);

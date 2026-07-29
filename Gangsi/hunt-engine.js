@@ -55,6 +55,7 @@ const TRACKING_INTERVAL = 3;
 const INFECTION_INTERVAL = 5;
 const CORRUPTION_DURATION = 3;
 const CORRUPT_COOLDOWN = 3;
+const GUARD_DURATION = 2;
 
 function setupGame(room) {
   const sourceMap = MapCatalog.getBuiltInMap(room.settings.mapId);
@@ -81,6 +82,7 @@ function setupGame(room) {
       escaped: false,
       outcome: null,
       guard: false,
+      guardTurns: 0,
       injuredTurns: 0,
       injuryActive: false,
       injuryCreatedTurnId: null,
@@ -290,12 +292,12 @@ function useKnightGuard(room, actor, targetPieceId) {
   const target = room.game.pieces[targetPieceId];
   if (!knightTargets(room, piece).some((candidate) => candidate.id === target?.id)) return "這名冒險者不能成為守護目標。";
   target.guard = true;
-  piece.abilityCooldown = 5;
+  target.guardTurns = GUARD_DURATION;
+  piece.abilityCooldown = 3;
   piece.cooldownCreatedTurnId = room.game.activeAdventurerTurnId;
   addRedactedLog(room, "騎士使用了守護。", {
     adventurer: `${pieceName(room, piece)} 守護了 ${pieceName(room, target)}。`
   });
-  finishAdventurerFullTurnAction(room);
   return null;
 }
 
@@ -369,7 +371,7 @@ function resolveMechanismFace(room, gateId, rawFace) {
   if (face !== "X" && ![0, 1, 2].includes(face)) throw new Error(`Invalid mechanism die face: ${rawFace}`);
   const previousProgress = room.game.hunt.mechanisms[id];
   const baseProgress = face === "X" ? 1 : face;
-  const classBonus = piece.profession === "engineer" ? 1 : 0;
+  const classBonus = piece.profession === "archaeologist" ? 1 : 0;
   const calculatedProgress = baseProgress + classBonus;
   const finalProgress = Math.min(3, previousProgress + calculatedProgress);
   const appliedProgress = finalProgress - previousProgress;
@@ -391,7 +393,7 @@ function resolveMechanismFace(room, gateId, rawFace) {
   };
   room.game.endState = result;
   room.phase = PHASES.adventurerEnd;
-  const detail = `擲出 ${face}：骰面進度 +${baseProgress}，工程師加成 +${classBonus}，理論增加 +${calculatedProgress}，實際增加 +${appliedProgress}，最終進度 ${finalProgress} / 3${sealed ? "；機關封印 1 個冒險者回合" : ""}。`;
+  const detail = `擲出 ${face}：骰面進度 +${baseProgress}，遺跡學家加成 +${classBonus}，理論增加 +${calculatedProgress}，實際增加 +${appliedProgress}，最終進度 ${finalProgress} / 3${sealed ? "；機關封印 1 個冒險者回合" : ""}。`;
   addRedactedLog(room, `機關 ${id} ${detail}`, {
     adventurer: `${pieceName(room, piece)} 操作機關 ${id}，${detail}`
   });
@@ -400,7 +402,10 @@ function resolveMechanismFace(room, gateId, rawFace) {
 }
 
 function finishAdventurerTurn(room, actor) {
-  if (room.phase !== PHASES.adventurerEnd || room.game.endState?.kind !== "mechanism") return "現在不能結束冒險者回合。";
+  if (room.phase !== PHASES.adventurerEnd
+    || !["mechanism", "no_movement"].includes(room.game.endState?.kind)) {
+    return "現在不能結束冒險者回合。";
+  }
   if (!isCurrentAdventurer(room, actor) || room.game.endState.operatorPlayerId !== actor.id) return "現在不是你的回合。";
   advanceAfterAdventurer(room);
   return null;
@@ -433,7 +438,7 @@ function resolveAdventurerFaces(room, faces) {
     if (face === "mummy") die.locked = true;
   });
   addLog(room, `${currentPieceName(room)} 擲了冒險者骰。`);
-  if (lockedDiceCount(room) === room.game.dice.length) beginForcedAdventurerSkip(room, "all_dice_locked");
+  if (lockedDiceCount(room) === room.game.dice.length) beginAdventurerNoMovementEnd(room, "all_dice_locked");
 }
 
 function selectDie(room, actor, dieId, rawDistance) {
@@ -533,11 +538,29 @@ function resolveAdventurerPath(room, path) {
 }
 
 function purifyPieceAt(room, piece, cell) {
-  if (piece.corruptionTurns <= 0 || !room.game.hunt.purification.pools.includes(cell)) return false;
+  if (!room.game.hunt.purification.pools.includes(cell) || !hasPurifiableStatus(piece)) return false;
+  clearGuard(piece);
+  piece.injuredTurns = 0;
+  piece.injuryActive = false;
+  piece.injuryCreatedTurnId = null;
+  piece.bleeding = false;
+  piece.knifeTracked = false;
+  piece.gazeStacks = 0;
+  piece.gazeTracked = false;
   piece.corruptionTurns = 0;
   piece.corruptionCreatedTurnId = null;
-  addLog(room, `${pieceName(room, piece)} 經過淨化池，腐化已解除。`);
+  addLog(room, `${pieceName(room, piece)} 經過淨化池，身上的可淨化狀態已全部解除。`);
   return true;
+}
+
+function hasPurifiableStatus(piece) {
+  return Boolean(piece?.guard
+    || piece?.injuredTurns > 0
+    || piece?.bleeding
+    || piece?.knifeTracked
+    || piece?.gazeStacks > 0
+    || piece?.gazeTracked
+    || piece?.corruptionTurns > 0);
 }
 
 function applyGazeAt(room, piece, cell) {
@@ -685,7 +708,7 @@ function throwKnife(room, actor, direction) {
     const wasBleeding = piece.bleeding;
     recordMummyAbilityTrigger(room);
     if (piece.guard) {
-      piece.guard = false;
+      clearGuard(piece);
       addRedactedLog(room, `飛刀命中 (${hit})，但守護抵擋了這次飛刀效果。`, {
         adventurer: `飛刀命中 (${hit})，${pieceName(room, piece)} 的守護抵擋了這次飛刀效果${wasBleeding ? "；既有流血仍然保留" : ""}。`
       });
@@ -787,6 +810,7 @@ function infectTreasure(room, actor, rawTreasureId) {
 function rollMummyDie(room, actor) {
   if (!isMummy(room, actor)) return "現在不是你的回合。";
   if (room.phase !== PHASES.monsterPrepare) return "現在不能擲提燈怪骰。";
+  if (corruptInfectionState(room).required) return "必須先感染一個寶藏，才能擲提燈怪骰。";
   room.phase = PHASES.monsterRoll;
   resolveMummyRoll(room, MUMMY_FACES[randomIntInclusive(0, MUMMY_FACES.length - 1)]);
   return null;
@@ -860,7 +884,7 @@ function capturePieces(room, pieces) {
   room.game.captureSerial += 1;
   const captures = pieces.map((piece) => {
     const guarded = piece.guard;
-    if (guarded) piece.guard = false;
+    if (guarded) clearGuard(piece);
     else piece.life -= 1;
     room.game.mummy.score += guarded ? 0 : 1;
     piece.eliminated = piece.life <= 0;
@@ -891,7 +915,7 @@ function capturePieces(room, pieces) {
 
 function applyInjury(room, piece, source) {
   if (piece.guard) {
-    piece.guard = false;
+    clearGuard(piece);
     addRedactedLog(room, `${source}，但守護抵銷了受傷。`, { adventurer: `${source}，${pieceName(room, piece)} 的守護抵銷了受傷。` });
     return;
   }
@@ -970,6 +994,7 @@ function chooseGazeDirection(room, actor, direction) {
 function finishNormalMummyTurn(room) {
   room.game.monsterEndState = null;
   if (room.game.mummy.type === "corrupt") finishInfectionTimers(room);
+  advanceGuardDurations(room);
   const tracking = room.game.hunt.tracking;
   if (tracking.revealThisTurn) {
     tracking.revealThisTurn = false;
@@ -980,7 +1005,18 @@ function finishNormalMummyTurn(room) {
   beginAdventurerAtIndex(room, 0);
 }
 
-function beginInterlude(room, pieceId, count, automatic) {
+function advanceGuardDurations(room) {
+  for (const piece of activePieces(room)) {
+    if (!piece.guard) continue;
+    const remaining = Number.isInteger(piece.guardTurns) && piece.guardTurns > 0
+      ? piece.guardTurns
+      : 1;
+    piece.guardTurns = Math.max(0, remaining - 1);
+    if (piece.guardTurns === 0) clearGuard(piece);
+  }
+}
+
+function beginInterlude(room, pieceId, count, automatic, newTurn = automatic) {
   room.game.forcedSkipReason = null;
   room.game.pendingUnlock = { pieceId, count };
   const piece = room.game.pieces[pieceId];
@@ -989,7 +1025,7 @@ function beginInterlude(room, pieceId, count, automatic) {
     pieceId,
     phase: PHASES.adventurerPrepare,
     disabledDieId: room.game.disabledDieId,
-    newTurn: Boolean(automatic)
+    newTurn: Boolean(newTurn)
   };
   room.game.mummy.roll = null;
   room.game.mummy.remaining = count;
@@ -1001,12 +1037,18 @@ function beginInterlude(room, pieceId, count, automatic) {
   room.phase = PHASES.monsterInterruptAction;
 }
 
-function beginForcedAdventurerSkip(room, reason) {
+function beginAdventurerNoMovementEnd(room, reason) {
   room.game.forcedSkipReason = reason;
   addLog(room, reason === "all_dice_locked"
-    ? `${currentPieceName(room)} 的 ${room.game.dice.length} 顆骰子全部鎖定，沒有可用骰子，系統自動略過回合。`
-    : `${currentPieceName(room)} 沒有任何合法移動或可用能力，系統自動略過回合。`);
-  finishAdventurerWithoutInteraction(room);
+    ? `${currentPieceName(room)} 的 ${room.game.dice.length} 顆骰子全部鎖定，沒有可用骰子，進入結束階段。`
+    : `${currentPieceName(room)} 沒有可移動的道路，略過擲骰與移動階段。`);
+  clearSelectedMove(room);
+  room.game.endState = {
+    kind: "no_movement",
+    reason,
+    operatorPlayerId: currentPiece(room)?.controllerId || null
+  };
+  room.phase = PHASES.adventurerEnd;
 }
 
 function finishAdventurerFullTurnAction(room) {
@@ -1056,10 +1098,6 @@ function beginAdventurerAtIndex(room, startIndex) {
     room.game.turnIndex = index;
     room.game.currentPieceId = piece.id;
     removeOwnedTemporaryWall(room, piece.id);
-    if (lockedDiceCount(room) === room.game.dice.length) {
-      beginInterlude(room, piece.id, room.game.dice.length, true);
-      return;
-    }
     prepareAdventurerTurn(room, piece);
     return;
   }
@@ -1078,8 +1116,12 @@ function prepareAdventurerTurn(room, piece) {
     ? injuryCandidates[randomIntInclusive(0, injuryCandidates.length - 1)].id
     : null;
   piece.injuryActive = Boolean(room.game.disabledDieId);
-  if (!hasAnyAdventurerMove(room, piece) && !hasFullTurnAbility(room, piece)) {
-    beginForcedAdventurerSkip(room, "no_legal_move");
+  if (!canReachAdventurerMovementPhase(room, piece, { includeLocked: true })) {
+    beginAdventurerNoMovementEnd(room, "no_legal_move");
+    return;
+  }
+  if (lockedDiceCount(room) === room.game.dice.length) {
+    beginInterlude(room, piece.id, room.game.dice.length, true, false);
     return;
   }
   room.game.forcedSkipReason = null;
@@ -1088,8 +1130,8 @@ function prepareAdventurerTurn(room, piece) {
 }
 
 function resumeAdventurerPrepare(room, piece) {
-  if (!hasAnyAdventurerMove(room, piece) && !hasFullTurnAbility(room, piece)) {
-    beginForcedAdventurerSkip(room, "no_legal_move");
+  if (!canReachAdventurerMovementPhase(room, piece)) {
+    beginAdventurerNoMovementEnd(room, "no_legal_move");
     return;
   }
   room.game.forcedSkipReason = null;
@@ -1265,6 +1307,9 @@ function makeGameView(room, viewer) {
   if (!room.game) return null;
   const isMummyViewer = viewer?.role === "mummy";
   const revealsHumans = isMummyViewer && room.game.hunt.tracking.revealThisTurn;
+  const infectionState = corruptInfectionState(room);
+  const actionInfo = actionInfoFor(room, viewer);
+  if (room.phase === PHASES.monsterPrepare && infectionState.notice) actionInfo.push(infectionState.notice);
   const pieces = Object.values(room.game.pieces).map((piece) => {
     const result = {
       id: piece.id,
@@ -1281,6 +1326,7 @@ function makeGameView(room, viewer) {
       wizardCharges: piece.wizardCharges,
       archaeologistCharges: piece.archaeologistCharges,
       guard: piece.guard,
+      guardTurns: piece.guard ? piece.guardTurns : 0,
       injured: piece.injuredTurns > 0,
       bleeding: Boolean(piece.bleeding),
       trackedByKnife: Boolean(piece.knifeTracked),
@@ -1343,6 +1389,7 @@ function makeGameView(room, viewer) {
         : [],
       purificationPools: room.game.hunt.purification.pools.slice(),
       purificationFallback: room.game.hunt.purification.fallback,
+      infectionRequired: room.phase === PHASES.monsterPrepare && infectionState.required,
       infectedTreasures: Object.entries(room.game.hunt.infections).map(([id, infection]) => ({
         id,
         position: treasurePosition(room, id),
@@ -1363,7 +1410,7 @@ function makeGameView(room, viewer) {
     } : null,
     dice: isMummyViewer ? null : room.game.dice.map((die) => ({ ...die, disabled: die.id === room.game.disabledDieId })),
     hand: viewer?.role === "adventurer" ? (room.game.hands[viewer.id] || []).map((task) => ({ ...task })) : [],
-    actionInfo: actionInfoFor(room, viewer),
+    actionInfo: actionInfo.slice(-5),
     legal: { actions: [] }
   };
   addLegalView(room, viewer, view);
@@ -1377,7 +1424,7 @@ function addLegalView(room, viewer, view) {
   if (isCurrent && room.phase === PHASES.adventurerPrepare) {
     const actions = [];
     const locked = lockedDiceCount(room);
-    if (usableDice(room).length && hasAnyAdventurerMove(room, piece)) actions.push("rollAdventurerDice");
+    if (usableDice(room).length && canReachAdventurerMovementPhase(room, piece)) actions.push("rollAdventurerDice");
     if (locked) actions.push("unlockDice");
     if (piece.bleeding) actions.push("stopBleeding");
     const mechanisms = mechanismIdsForPiece(room, piece);
@@ -1426,6 +1473,9 @@ function addLegalView(room, viewer, view) {
   } else if (isCurrent && room.phase === PHASES.adventurerEnd && room.game.endState?.kind === "mechanism"
     && room.game.endState.operatorPlayerId === viewer.id) {
     view.legal.actions = ["finishAdventurerTurn"];
+  } else if (isCurrent && room.phase === PHASES.adventurerEnd && room.game.endState?.kind === "no_movement"
+    && room.game.endState.operatorPlayerId === viewer.id) {
+    view.legal.actions = ["finishAdventurerTurn"];
   } else if (viewer.role === "mummy" && room.phase === PHASES.monsterPrepare) {
     view.legal.actions = ["rollMummyDie"];
     if (room.game.mummy.type === "trap" && !room.game.mummy.abilityUsedThisTurn) {
@@ -1456,7 +1506,7 @@ function addLegalView(room, viewer, view) {
       && room.game.mummy.abilityCooldown === 0) {
       const treasureIds = infectionTargetIds(room);
       if (treasureIds.length) {
-        view.legal.actions.push("infectTreasure");
+        view.legal.actions = ["infectTreasure"];
         view.legal.infectionTreasures = treasureIds.map((id) => ({
           id,
           position: treasurePosition(room, id)
@@ -1503,14 +1553,6 @@ function isWithinKnightGuardRange(origin, target) {
   return Math.max(Math.abs(originX - targetX), Math.abs(originY - targetY)) === 1;
 }
 
-function hasFullTurnAbility(room, piece) {
-  return mechanismIdsForPiece(room, piece).length > 0
-    || knightTargets(room, piece).length > 0
-    || masonWallEdges(room, piece).length > 0
-    || archaeologistTasks(room, piece).length > 0
-    || Boolean(piece?.bleeding);
-}
-
 function archaeologistTasks(room, piece) {
   if (piece?.profession !== "archaeologist" || piece.archaeologistCharges <= 0 || piece.life < 2) return [];
   return (room.game.hands[piece.controllerId] || []).filter((task) => !task.revealed);
@@ -1551,6 +1593,7 @@ function escapePiece(room, piece, source) {
   piece.escaped = true;
   piece.outcome = "escaped";
   piece.position = null;
+  clearGuard(piece);
   piece.bleeding = false;
   piece.knifeTracked = false;
   piece.gazeTracked = false;
@@ -1613,7 +1656,7 @@ function finishGame(room) {
 
 function applyHostileLifeLoss(room, piece, source) {
   if (piece.guard) {
-    piece.guard = false;
+    clearGuard(piece);
     addLog(room, `${pieceName(room, piece)} 因${source}將失去生命，但守護抵銷了這次損失。`);
     return false;
   }
@@ -1633,6 +1676,12 @@ function applyHostileLifeLoss(room, piece, source) {
     evaluateHuntResolution(room);
   }
   return true;
+}
+
+function clearGuard(piece) {
+  if (!piece) return;
+  piece.guard = false;
+  piece.guardTurns = 0;
 }
 
 function gazeRay(room, direction = room.game.hunt.gaze?.direction, origin = room.game.hunt.gaze?.origin) {
@@ -1672,13 +1721,33 @@ function infectionUnlocked(room) {
   return room.game.revealedTasks.length > 0;
 }
 
-function infectionTargetIds(room) {
-  if (room.game.mummy.type !== "corrupt" || !infectionUnlocked(room)
-    || room.game.mummy.abilityCooldown > 0
-    || room.game.mummy.abilityUsedThisTurn
-    || Object.keys(room.game.hunt.infections).length >= infectionLimit(room)) return [];
+function corruptInfectionState(room) {
+  const result = { required: false, targetIds: [], notice: null };
+  if (room.game.mummy.type !== "corrupt" || room.game.mummy.abilityUsedThisTurn) return result;
+  if (!infectionUnlocked(room)) {
+    result.notice = "團隊尚未完成第一個寶藏，本回合沒有可感染的寶藏；腐化鬼只能擲骰。";
+    return result;
+  }
+  if (room.game.mummy.abilityCooldown > 0) {
+    result.notice = "感染能力仍在冷卻，本回合沒有可感染的寶藏；腐化鬼只能擲骰。";
+    return result;
+  }
+  if (Object.keys(room.game.hunt.infections).length >= infectionLimit(room)) {
+    result.notice = "感染數已達目前上限，本回合沒有可感染的寶藏；腐化鬼只能擲骰。";
+    return result;
+  }
   const infected = new Set(Object.keys(room.game.hunt.infections));
-  return unrevealedTreasureIds(room).filter((id) => !infected.has(id)).sort();
+  result.targetIds = unrevealedTreasureIds(room).filter((id) => !infected.has(id)).sort();
+  if (!result.targetIds.length) {
+    result.notice = "目前沒有未揭露且未感染的寶藏；腐化鬼只能擲骰。";
+    return result;
+  }
+  result.required = true;
+  return result;
+}
+
+function infectionTargetIds(room) {
+  return corruptInfectionState(room).targetIds;
 }
 
 function nearestInfectionTarget(room, sourceId) {
@@ -1930,8 +1999,14 @@ function finishPieceTurn(room, piece) {
   if (piece.corruptionTurns > 0 && piece.corruptionCreatedTurnId !== room.game.activeAdventurerTurnId) {
     piece.corruptionTurns = Math.max(0, piece.corruptionTurns - 1);
     if (piece.corruptionTurns === 0) {
-      piece.corruptionCreatedTurnId = null;
       applyHostileLifeLoss(room, piece, "腐化發作");
+      if (isActivePiece(piece)) {
+        piece.corruptionTurns = CORRUPTION_DURATION;
+        piece.corruptionCreatedTurnId = room.game.activeAdventurerTurnId;
+        addLog(room, `${pieceName(room, piece)} 的腐化重新累積為 ${CORRUPTION_DURATION} 回合。`);
+      } else {
+        piece.corruptionCreatedTurnId = null;
+      }
     }
   }
   piece.knifeTracked = false;
@@ -1953,12 +2028,24 @@ function advanceMummyCooldown(room) {
   }
 }
 
-function hasAnyAdventurerMove(room, piece) {
-  const dice = usableDice(room);
-  return (piece?.profession === "scout" && dice.some((die) => die.kind !== "forbidden"))
-    || dice.some((die) => die.kind === "forbidden")
-    || [1, 2, 3, 4].some((distance) => numericPaths(room, piece, distance).length)
-    || Object.keys(arrowMoves(room, piece)).length > 0;
+function canReachAdventurerMovementPhase(room, piece, { includeLocked = false } = {}) {
+  const dice = room.game.dice.filter((die) => (
+    die.id !== room.game.disabledDieId
+    && (includeLocked || !die.locked)
+  ));
+  const possibleFaces = new Set(dice.flatMap((die) => dieFacesFor(room, die)));
+  return [...possibleFaces].some((face) => {
+    if (face === "arrow") return Object.keys(arrowMoves(room, piece)).length > 0;
+    if (face === "compass") return compassDistances(room, piece).length > 0;
+    const distance = Number(face);
+    return Number.isInteger(distance) && distance > 0 && numericPaths(room, piece, distance).length > 0;
+  }) || hasPrepareMobilityAbility(room, piece);
+}
+
+function hasPrepareMobilityAbility(room, piece) {
+  // Future wall-breaking or teleport actions should report availability here.
+  // Tomb Raider wall crossing is already included in numericPaths above.
+  return false;
 }
 
 function dieFacesFor(room, die) {

@@ -18,8 +18,8 @@ const PLAYER_COUNTS = Object.freeze([2, 3, 4, 5]);
 const PLAYER_ROLES = Object.freeze({ adventurer: "adventurer", mummy: "mummy" });
 const GAME_MODES = Object.freeze({ classic: "classic", hunt: "hunt" });
 const PROFESSIONS = Object.freeze([
-  "knight", "engineer", "doctor", "wizard",
-  "scout", "tombRaider", "mason", "archaeologist", "cultist"
+  "knight", "archaeologist", "doctor", "wizard",
+  "scout", "tombRaider", "mason", "cultist"
 ]);
 const MUMMY_TYPES = Object.freeze(["trap", "invisible", "knife", "burrow", "phantom", "gazer", "corrupt"]);
 

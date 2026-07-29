@@ -90,7 +90,7 @@ function assertStateInvariants(room) {
 }
 
 function currentActor(room) {
-  if ([Engine.PHASES.interlude, Engine.PHASES.mummyRoll, Engine.PHASES.mummyMove].includes(room.phase)) {
+  if (String(room.phase).startsWith("monster_")) {
     return room.players.find((player) => player.id === room.game.mummy.playerId);
   }
   const piece = room.game.pieces[room.game.currentPieceId];
@@ -145,23 +145,19 @@ function runGame(run, playerCount, mapId, coverage) {
     let action;
     let payload = {};
 
-    if (room.phase === Engine.PHASES.forcedSkip) {
-      action = "skipAdventurerTurn";
-    } else if (room.phase === Engine.PHASES.turnStart) {
-      action = !coverage.actions.has("unlockDice")
+    if (room.phase === Engine.PHASES.adventurerPrepare) {
+      action = legal.actions.includes("unlockDice") && (!coverage.actions.has("unlockDice") || random() < 0.25)
         ? "unlockDice"
-        : !coverage.actions.has("keepLockedDice")
-          ? "keepLockedDice"
-          : random() < 0.5 ? "unlockDice" : "keepLockedDice";
+        : "rollAdventurerDice";
     } else if (room.phase === Engine.PHASES.adventurerRoll) {
       const key = `${game.round}:${game.currentPieceId}`;
       const attempts = rerolls.get(key) || 0;
       const selectable = legal.dieIds || [];
       if (selectable.length && (attempts >= 2 || random() < 0.7)) {
         const dice = actorView.room.game.dice.filter((die) => selectable.includes(die.id));
-        const preferred = !coverage.phases.has(Engine.PHASES.arrowMove)
+        const preferred = !coverage.actions.has("moveArrow")
           ? dice.filter((die) => die.face === "arrow")
-          : !coverage.phases.has(Engine.PHASES.numericMove)
+          : !coverage.actions.has("moveNumeric")
             ? dice.filter((die) => die.face !== "arrow")
             : [];
         const die = choose(preferred.length ? preferred : dice, random);
@@ -172,22 +168,25 @@ function runGame(run, playerCount, mapId, coverage) {
         action = "rollAdventurerDice";
         rerolls.set(key, attempts + 1);
       }
-    } else if (room.phase === Engine.PHASES.numericMove) {
+    } else if (room.phase === Engine.PHASES.adventurerAction) {
       const targets = targetCells(actorView.room);
-      const path = bestByDestination(legal.paths, (candidate) => candidate.at(-1), targets, random);
-      action = "moveNumeric";
-      payload = { path };
-    } else if (room.phase === Engine.PHASES.arrowMove) {
-      const targets = targetCells(actorView.room);
-      const moves = Object.values(legal.directions);
-      const move = bestByDestination(moves, (candidate) => candidate.end, targets, random);
-      action = "moveArrow";
-      payload = { direction: move.direction };
-    } else if (room.phase === Engine.PHASES.treasure) {
-      action = coverage.actions.has("declineTreasure") ? "revealTreasure" : "declineTreasure";
-    } else if (room.phase === Engine.PHASES.mummyRoll) {
+      if (legal.actions.includes("moveNumeric")) {
+        const path = bestByDestination(legal.paths, (candidate) => candidate.at(-1), targets, random);
+        action = "moveNumeric";
+        payload = { path };
+      } else {
+        const moves = Object.values(legal.directions);
+        const move = bestByDestination(moves, (candidate) => candidate.end, targets, random);
+        action = "moveArrow";
+        payload = { direction: move.direction };
+      }
+    } else if (room.phase === Engine.PHASES.adventurerEnd) {
+      action = legal.actions.includes("finishAdventurerTurn")
+        ? "finishAdventurerTurn"
+        : coverage.actions.has("declineTreasure") ? "revealTreasure" : "declineTreasure";
+    } else if (room.phase === Engine.PHASES.monsterPrepare) {
       action = "rollMummyDie";
-    } else if ([Engine.PHASES.interlude, Engine.PHASES.mummyMove].includes(room.phase)) {
+    } else if ([Engine.PHASES.monsterInterruptAction, Engine.PHASES.monsterAction].includes(room.phase)) {
       const moves = legal.moves || [];
       if (!moves.length || !coverage.actions.has("stopMummy") || random() < 0.08) {
         action = "stopMummy";
@@ -220,13 +219,21 @@ for (let run = 1; run <= RUNS; run += 1) {
   completedActions.push(runGame(run, playerCount, map.id, coverage));
 }
 
-for (const phase of Object.values(Engine.PHASES)) {
+for (const phase of [
+  Engine.PHASES.adventurerPrepare,
+  Engine.PHASES.adventurerRoll,
+  Engine.PHASES.adventurerAction,
+  Engine.PHASES.adventurerEnd,
+  Engine.PHASES.monsterPrepare,
+  Engine.PHASES.monsterAction,
+  Engine.PHASES.monsterInterruptAction,
+  Engine.PHASES.gameOver
+]) {
   assert(coverage.phases.has(phase), `random simulations did not cover phase ${phase}`);
 }
 for (const action of [
   "unlockDice",
-  "keepLockedDice",
-  "skipAdventurerTurn",
+  "finishAdventurerTurn",
   "rollAdventurerDice",
   "selectDie",
   "moveNumeric",

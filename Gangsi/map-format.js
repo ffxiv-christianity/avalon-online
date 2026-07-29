@@ -9,11 +9,11 @@
   const SCHEMA_VERSION = 1;
   const LIMITS = Object.freeze({ minWidth: 6, maxWidth: 14, minHeight: 5, maxHeight: 12 });
   const GROUPS = Object.freeze({
-    A: Object.freeze({ label: "藍", name: "黃金渡渡鳥聖像", size: 5, color: "blue" }),
-    B: Object.freeze({ label: "綠", name: "龍眼", size: 4, color: "green" }),
-    C: Object.freeze({ label: "黃", name: "釣場之皇", size: 4, color: "yellow" }),
+    A: Object.freeze({ label: "黃", name: "黃金渡渡鳥聖像", size: 5, color: "yellow" }),
+    B: Object.freeze({ label: "紅", name: "龍眼", size: 4, color: "red" }),
+    C: Object.freeze({ label: "藍", name: "釣場之皇", size: 4, color: "blue" }),
     D: Object.freeze({ label: "粉", name: "幻想藥", size: 5, color: "pink" }),
-    E: Object.freeze({ label: "紅", name: "L房地契", size: 5, color: "red" })
+    E: Object.freeze({ label: "綠", name: "L房地契", size: 5, color: "green" })
   });
   const TREASURE_IDS = Object.freeze(Object.entries(GROUPS).flatMap(([group, definition]) => (
     Array.from({ length: definition.size }, (_, index) => `${group}${index + 1}`)
@@ -292,6 +292,412 @@
     return distances;
   }
 
+  function clamp(value, minimum = 0, maximum = 1) {
+    return Math.min(maximum, Math.max(minimum, value));
+  }
+
+  function average(values) {
+    const finite = values.filter(Number.isFinite);
+    return finite.length ? finite.reduce((total, value) => total + value, 0) / finite.length : 0;
+  }
+
+  function multiSourceDistances(graph, starts) {
+    const distances = {};
+    const queue = [];
+    for (const start of starts) {
+      if (!graph?.passages?.[start] || Object.prototype.hasOwnProperty.call(distances, start)) continue;
+      distances[start] = 0;
+      queue.push(start);
+    }
+    while (queue.length) {
+      const current = queue.shift();
+      for (const next of graph.passages[current] || []) {
+        if (Object.prototype.hasOwnProperty.call(distances, next)) continue;
+        distances[next] = distances[current] + 1;
+        queue.push(next);
+      }
+    }
+    return distances;
+  }
+
+  function graphDiagnostics(graph) {
+    const cells = Object.keys(graph?.passages || {});
+    const edgeCount = Object.values(graph?.passages || {})
+      .reduce((total, adjacent) => total + adjacent.length, 0) / 2;
+    const discovery = {};
+    const low = {};
+    const parents = {};
+    const articulationCells = new Set();
+    const bridgeEdges = new Set();
+    let time = 0;
+
+    const visit = (cell) => {
+      discovery[cell] = ++time;
+      low[cell] = discovery[cell];
+      let children = 0;
+      for (const next of graph.passages[cell] || []) {
+        if (!discovery[next]) {
+          parents[next] = cell;
+          children += 1;
+          visit(next);
+          low[cell] = Math.min(low[cell], low[next]);
+          if (!parents[cell] && children > 1) articulationCells.add(cell);
+          if (parents[cell] && low[next] >= discovery[cell]) articulationCells.add(cell);
+          if (low[next] > discovery[cell]) bridgeEdges.add(canonicalEdge(cell, next));
+        } else if (next !== parents[cell]) {
+          low[cell] = Math.min(low[cell], discovery[next]);
+        }
+      }
+    };
+    for (const cell of cells) if (!discovery[cell]) visit(cell);
+
+    let diameter = 0;
+    for (const cell of cells) {
+      const distances = graphDistances(graph, cell);
+      for (const distance of Object.values(distances)) diameter = Math.max(diameter, distance);
+    }
+
+    const deadEnds = [];
+    const straightCells = [];
+    const turnCells = [];
+    const branchCells = [];
+    for (const cell of cells) {
+      const adjacent = graph.passages[cell] || [];
+      if (adjacent.length === 1) deadEnds.push(cell);
+      if (adjacent.length >= 3) branchCells.push(cell);
+      if (adjacent.length !== 2) continue;
+      const [x, y] = parseCell(cell);
+      const vectors = adjacent.map((next) => {
+        const [nextX, nextY] = parseCell(next);
+        return [nextX - x, nextY - y];
+      });
+      if (vectors[0][0] === -vectors[1][0] && vectors[0][1] === -vectors[1][1]) {
+        straightCells.push(cell);
+      } else {
+        turnCells.push(cell);
+      }
+    }
+
+    return {
+      cells,
+      edgeCount,
+      diameter,
+      deadEnds,
+      straightCells,
+      turnCells,
+      branchCells,
+      articulationCells: [...articulationCells].sort(compareCells),
+      bridgeEdges: [...bridgeEdges].filter(Boolean).sort()
+    };
+  }
+
+  function analyzeSightlines(graph) {
+    const directions = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+    const rays = [];
+    for (const cell of Object.keys(graph?.passages || {})) {
+      for (const [stepX, stepY] of directions) {
+        let current = cell;
+        let length = 0;
+        while (true) {
+          const [x, y] = parseCell(current);
+          const next = cellKey(x + stepX, y + stepY);
+          if (!next || !(graph.passages[current] || []).includes(next)) break;
+          length += 1;
+          current = next;
+        }
+        rays.push(length);
+      }
+    }
+    return {
+      maximum: rays.length ? Math.max(...rays) : 0,
+      average: average(rays),
+      longRatio: rays.length ? rays.filter((length) => length >= 5).length / rays.length : 0
+    };
+  }
+
+  function ratingStars(score) {
+    if (score >= 88) return 5;
+    if (score >= 74) return 4;
+    if (score >= 60) return 3;
+    if (score >= 42) return 2;
+    return 1;
+  }
+
+  function traitLevel(value, medium, high) {
+    if (value >= high) return "high";
+    if (value >= medium) return "medium";
+    return "low";
+  }
+
+  function analyzeMapRating(mapInput) {
+    const baseValidation = validateMap(mapInput);
+    const huntValidation = validateHuntMap(mapInput);
+    if (!baseValidation.valid || !huntValidation.valid) {
+      return {
+        available: false,
+        stars: null,
+        score: null,
+        summary: "地圖須先通過經典與獵殺模式驗證",
+        indicators: [],
+        traits: [],
+        roleAdvantages: []
+      };
+    }
+
+    const map = huntValidation.map;
+    const graph = buildMovementGraph(map, { hunt: true });
+    const diagnostics = graphDiagnostics(graph);
+    const sightlines = analyzeSightlines(graph);
+    const cells = diagnostics.cells;
+    const floorCount = Math.max(1, cells.length);
+    const edgeCount = Math.max(1, diagnostics.edgeCount);
+    const diameter = Math.max(1, diagnostics.diameter);
+    const deadEndRatio = diagnostics.deadEnds.length / floorCount;
+    const branchRatio = diagnostics.branchCells.length / floorCount;
+    const bridgeRatio = diagnostics.bridgeEdges.length / edgeCount;
+    const articulationRatio = diagnostics.articulationCells.length / floorCount;
+    const turnBase = diagnostics.turnCells.length + diagnostics.straightCells.length;
+    const turnRatio = turnBase ? diagnostics.turnCells.length / turnBase : 0;
+    const cycleDensity = Math.max(0, diagnostics.edgeCount - cells.length + 1) / floorCount;
+    const derivedVoidRatio = huntValidation.derivedVoidCells.length / floorCount;
+    const entranceDistances = multiSourceDistances(graph, map.zones.entrance.exits);
+    const dungeonDistances = multiSourceDistances(graph, map.zones.dungeon.exits);
+    const walls = new Set(map.walls);
+    const entranceExitCount = map.zones.entrance.exits.filter((cell) => graph.passages[cell]).length;
+    const dungeonExitCount = map.zones.dungeon.exits.filter((cell) => graph.passages[cell]).length;
+    const entranceTerritory = cells.filter((cell) => entranceDistances[cell] < dungeonDistances[cell]).length;
+    const dungeonTerritory = cells.filter((cell) => dungeonDistances[cell] < entranceDistances[cell]).length;
+    const territoryBias = Math.abs(entranceTerritory - dungeonTerritory) / floorCount;
+    let spawnSeparation = diameter;
+    for (const entranceExit of map.zones.entrance.exits) {
+      const distances = graphDistances(graph, entranceExit);
+      for (const dungeonExit of map.zones.dungeon.exits) {
+        spawnSeparation = Math.min(spawnSeparation, distances[dungeonExit] ?? Number.POSITIVE_INFINITY);
+      }
+    }
+
+    const mechanismAnalyses = HUNT_MECHANISM_IDS.map((id) => {
+      const position = map.hunt.mechanisms[id];
+      const approaches = neighbors(position, map.width, map.height)
+        .filter((cell) => graph.passages[cell])
+        .filter((cell) => !walls.has(canonicalEdge(position, cell)));
+      return {
+        id,
+        position,
+        approaches,
+        entranceDistance: Math.min(...approaches.map((cell) => entranceDistances[cell] ?? Number.POSITIVE_INFINITY)) + 1,
+        dungeonDistance: Math.min(...approaches.map((cell) => dungeonDistances[cell] ?? Number.POSITIVE_INFINITY)) + 1
+      };
+    });
+    let mechanismSeparation = diameter;
+    if (mechanismAnalyses.length === 2) {
+      mechanismSeparation = Math.min(...mechanismAnalyses[0].approaches.flatMap((left) => {
+        const distances = graphDistances(graph, left);
+        return mechanismAnalyses[1].approaches.map((right) => distances[right] ?? Number.POSITIVE_INFINITY);
+      }));
+    }
+    const mechanismDifferentials = mechanismAnalyses.map((entry) => entry.entranceDistance - entry.dungeonDistance);
+    const objectiveSideBias = Math.abs(
+      average(mechanismAnalyses.map((entry) => entry.entranceDistance))
+      - average(mechanismAnalyses.map((entry) => entry.dungeonDistance))
+    ) / diameter;
+    const sameSideMechanisms = mechanismDifferentials.every((value) => value > 0)
+      || mechanismDifferentials.every((value) => value < 0);
+
+    const treasureCells = new Set(map.treasures.map((treasure) => treasure.position));
+    const deadEndTreasureRatio = map.treasures.length
+      ? diagnostics.deadEnds.filter((cell) => treasureCells.has(cell)).length / map.treasures.length
+      : 0;
+    const treasureEntranceDistances = map.treasures.map((treasure) => entranceDistances[treasure.position]);
+    const treasureDungeonDistances = map.treasures.map((treasure) => dungeonDistances[treasure.position]);
+    const treasureSideBias = Math.abs(
+      average(treasureEntranceDistances) - average(treasureDungeonDistances)
+    ) / diameter;
+    const entranceFavoredTreasures = map.treasures
+      .filter((treasure) => entranceDistances[treasure.position] < dungeonDistances[treasure.position]).length;
+    const dungeonFavoredTreasures = map.treasures
+      .filter((treasure) => dungeonDistances[treasure.position] < entranceDistances[treasure.position]).length;
+    const treasureRiskBias = map.treasures.length
+      ? Math.abs(entranceFavoredTreasures - dungeonFavoredTreasures) / map.treasures.length
+      : 0;
+    const groupSpreadRatios = Object.keys(GROUPS).map((group) => {
+      const positions = map.treasures
+        .filter((treasure) => treasure.id.startsWith(group))
+        .map((treasure) => treasure.position);
+      const pairDistances = [];
+      for (let leftIndex = 0; leftIndex < positions.length; leftIndex += 1) {
+        const distances = graphDistances(graph, positions[leftIndex]);
+        for (let rightIndex = leftIndex + 1; rightIndex < positions.length; rightIndex += 1) {
+          const distance = distances[positions[rightIndex]];
+          if (Number.isFinite(distance)) pairDistances.push(distance);
+        }
+      }
+      return average(pairDistances) / diameter;
+    });
+    const groupSpread = average(groupSpreadRatios);
+
+    const topologyScore = clamp(
+      100
+      - clamp((deadEndRatio - 0.06) * 150, 0, 22)
+      - clamp(derivedVoidRatio * 100, 0, 20)
+      - (entranceExitCount === 1 ? 12 : 0)
+      - (dungeonExitCount === 1 ? 8 : 0),
+      0,
+      100
+    );
+    const objectiveScore = clamp(
+      100
+      - mechanismAnalyses.reduce((penalty, entry) => penalty + (entry.approaches.length === 1 ? 9 : 0), 0)
+      - clamp((0.35 - mechanismSeparation / diameter) * 70, 0, 24)
+      - clamp(objectiveSideBias * 30, 0, 20)
+      - clamp((0.34 - spawnSeparation / diameter) * 50, 0, 12)
+      - (sameSideMechanisms ? 10 : 0),
+      0,
+      100
+    );
+    const treasureScore = clamp(
+      100
+      - clamp(treasureSideBias * 30, 0, 20)
+      - clamp(treasureRiskBias * 22, 0, 12)
+      - clamp((0.3 - groupSpread) * 80, 0, 24)
+      - clamp((deadEndTreasureRatio - 0.3) * 45, 0, 14),
+      0,
+      100
+    );
+    const routeScore = clamp(
+      100
+      - clamp(bridgeRatio * 34, 0, 30)
+      - clamp(articulationRatio * 55, 0, 28)
+      - clamp((0.08 - cycleDensity) * 150, 0, 12)
+      - clamp((0.1 - branchRatio) * 80, 0, 8)
+      - (entranceExitCount === 1 ? 8 : 0)
+      - clamp((territoryBias - 0.18) * 40, 0, 10),
+      0,
+      100
+    );
+
+    const sightlineAffinity = clamp(
+      clamp((sightlines.average - 1.15) / 1.25) * 0.55
+      + clamp(sightlines.longRatio / 0.12) * 0.45
+    );
+    const turnAffinity = clamp((turnRatio - 0.3) / 0.45);
+    const branchAffinity = clamp((branchRatio - 0.25) / 0.45);
+    const bottleneckAffinity = clamp((bridgeRatio / 0.42 + articulationRatio / 0.28) / 2);
+    const spanAffinity = clamp((diameter - 9) / 10);
+    const wallAffinity = clamp(map.walls.length / floorCount / 0.55);
+    const treasureSpreadAffinity = clamp(groupSpread / 0.38);
+    const purification = analyzePurificationPools(map);
+    const purificationAffinity = purification.available && !purification.fallback ? 1 : 0.45;
+    const roleAffinities = [
+      { id: "gazer", label: "凝視者", value: 20 + sightlineAffinity * 85 },
+      { id: "knife", label: "飛刀手", value: 25 + sightlineAffinity * 78 },
+      { id: "trap", label: "陷阱鬼", value: 20 + turnAffinity * 35 + bottleneckAffinity * 25 + clamp(deadEndRatio / 0.16) * 12 },
+      { id: "scout", label: "斥候", value: 25 + turnAffinity * 35 + branchAffinity * 30 },
+      { id: "tombRaider", label: "盜墓者", value: 25 + wallAffinity * 65 },
+      { id: "mason", label: "石匠", value: 25 + bottleneckAffinity * 40 + branchAffinity * 22 },
+      { id: "burrow", label: "遁地鬼", value: 25 + spanAffinity * 65 },
+      { id: "phantom", label: "幻影鬼", value: 25 + bottleneckAffinity * 45 + branchAffinity * 18 },
+      { id: "corrupt", label: "腐化鬼", value: 25 + treasureSpreadAffinity * 45 + purificationAffinity * 18 }
+    ].map((entry) => ({ ...entry, value: clamp(entry.value, 0, 100) }));
+    const roleValues = roleAffinities.map((entry) => entry.value);
+    const roleAverage = average(roleValues);
+    const roleDeviation = Math.sqrt(average(roleValues.map((value) => (value - roleAverage) ** 2)));
+    const roleRange = Math.max(...roleValues) - Math.min(...roleValues);
+    const roleScore = clamp(
+      100
+      - clamp((roleRange - 28) * 1.05, 0, 30)
+      - clamp((roleDeviation - 12) * 1.4, 0, 18),
+      0,
+      100
+    );
+
+    const indicatorScores = [
+      ["topology", "拓樸結構", topologyScore, 25],
+      ["objectives", "目標配置", objectiveScore, 25],
+      ["treasures", "寶藏分布", treasureScore, 20],
+      ["routes", "路線選擇", routeScore, 15],
+      ["roles", "角色平衡", roleScore, 15]
+    ];
+    const indicators = indicatorScores.map(([id, label, score]) => {
+      const stars = ratingStars(score);
+      return {
+        id,
+        label,
+        score: Math.round(score),
+        stars: id === "roles" && score < 95 ? Math.min(stars, 4) : stars
+      };
+    });
+    const weightedScore = indicatorScores.reduce((total, [, , score, weight]) => total + score * weight, 0) / 100;
+    const weakestStars = Math.min(...indicators.map((indicator) => indicator.stars));
+    let stars = ratingStars(weightedScore);
+    if (indicators.some((indicator) => indicator.stars < 5)) stars = Math.min(stars, 4);
+    if (weakestStars <= 1) stars = Math.min(stars, 2);
+    else if (weakestStars === 2) stars = Math.min(stars, 3);
+
+    const sightlineLevel = traitLevel(sightlineAffinity, 0.45, 0.63);
+    const turnLevel = traitLevel(turnRatio, 0.45, 0.6);
+    const branchLevel = traitLevel(branchRatio, 0.4, 0.58);
+    const bottleneckLevel = traitLevel(bottleneckAffinity, 0.42, 0.7);
+    const spanLevel = traitLevel(diameter / Math.max(1, map.width + map.height - 2), 0.72, 0.98);
+    const deadEndLevel = traitLevel(deadEndRatio, 0.07, 0.14);
+    const levelText = { low: "少", medium: "中等", high: "多" };
+    const traits = [
+      { id: "sightlines", label: "長直線", level: sightlineLevel, text: `長直線${levelText[sightlineLevel]}` },
+      { id: "turns", label: "彎道", level: turnLevel, text: `彎道${levelText[turnLevel]}` },
+      { id: "branches", label: "分岔", level: branchLevel, text: `分岔${levelText[branchLevel]}` },
+      { id: "bottlenecks", label: "瓶頸", level: bottleneckLevel, text: `瓶頸${levelText[bottleneckLevel]}` },
+      {
+        id: "span",
+        label: "跨度",
+        level: spanLevel,
+        text: `跨度${spanLevel === "high" ? "大" : spanLevel === "medium" ? "中等" : "小"}`
+      },
+      { id: "deadEnds", label: "死路", level: deadEndLevel, text: `死路${levelText[deadEndLevel]}` }
+    ];
+    const highestAffinity = Math.max(...roleValues);
+    const roleAdvantages = roleAffinities
+      .filter((entry) => entry.value >= 68 && entry.value >= highestAffinity - 20)
+      .sort((left, right) => right.value - left.value || left.label.localeCompare(right.label, "zh-Hant"))
+      .slice(0, 5)
+      .map((entry) => ({ id: entry.id, label: entry.label }));
+    const summaries = {
+      5: "整體設計優秀，各項配置均衡",
+      4: roleAdvantages.length
+        ? "整體設計合理，部分角色較能發揮"
+        : "整體設計合理，僅有少量配置差異",
+      3: "地圖可以遊玩，但存在明顯的路線或角色偏向",
+      2: "平衡問題較大，部分目標或角色較難應對",
+      1: "地圖存在嚴重失衡，建議重新調整"
+    };
+
+    return {
+      available: true,
+      stars,
+      score: Math.round(weightedScore),
+      summary: summaries[stars],
+      indicators,
+      traits,
+      roleAdvantages,
+      metrics: {
+        deadEndRatio,
+        branchRatio,
+        bridgeRatio,
+        articulationRatio,
+        turnRatio,
+        cycleDensity,
+        diameter,
+        entranceExitCount,
+        dungeonExitCount,
+        territoryBias,
+        spawnSeparation,
+        treasureRiskBias,
+        sightlines,
+        mechanismSeparation,
+        groupSpread
+      }
+    };
+  }
+
   function analyzePurificationPools(mapInput) {
     const map = refreshZoneExits(mapInput);
     const graph = buildMovementGraph(map, { hunt: true });
@@ -301,12 +707,10 @@
     const specialCells = new Set([
       map.zones.entrance.anchor,
       map.zones.dungeon.anchor,
-      ...huntMarkerCells(map),
-      ...treasureCells
+      ...huntMarkerCells(map)
     ].filter(Boolean));
     const candidates = Object.keys(graph.passages)
       .filter((cell) => !specialCells.has(cell))
-      .filter((cell) => (graph.passages[cell] || []).length > 1)
       .sort(compareCells);
     const distances = Object.fromEntries(candidates.map((cell) => [cell, graphDistances(graph, cell)]));
     const pairs = [];
@@ -592,6 +996,7 @@
     applyHuntDerivedVoidCells,
     buildMovementGraph,
     graphDistances,
+    analyzeMapRating,
     analyzePurificationPools,
     validateMap,
     validateHuntMap,

@@ -1646,6 +1646,10 @@ body.modal-open {
   margin-bottom: 0;
 }
 
+.rules-header .eyebrow {
+  text-transform: uppercase;
+}
+
 .rules-content {
   display: grid;
   gap: 18px;
