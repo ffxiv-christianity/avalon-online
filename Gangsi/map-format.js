@@ -391,6 +391,237 @@
     };
   }
 
+  function graphEdges(graph) {
+    const edges = new Set();
+    for (const [cell, adjacent] of Object.entries(graph?.passages || {})) {
+      for (const next of adjacent) {
+        const edge = canonicalEdge(cell, next);
+        if (edge) edges.add(edge);
+      }
+    }
+    return [...edges].sort();
+  }
+
+  function graphDistancesWithoutEdge(graph, start, blockedEdge) {
+    if (!graph?.passages?.[start]) return {};
+    const [blockedLeft, blockedRight] = blockedEdge.split("|");
+    const distances = { [start]: 0 };
+    const queue = [start];
+    while (queue.length) {
+      const current = queue.shift();
+      for (const next of graph.passages[current] || []) {
+        if ((current === blockedLeft && next === blockedRight)
+          || (current === blockedRight && next === blockedLeft)) continue;
+        if (Object.prototype.hasOwnProperty.call(distances, next)) continue;
+        distances[next] = distances[current] + 1;
+        queue.push(next);
+      }
+    }
+    return distances;
+  }
+
+  function zoneHasGraphAccess(map, graph, type, blockedEdge = null) {
+    return map.zones[type].exits
+      .filter((cell) => graph.passages[cell])
+      .some((cell) => (graph.passages[cell] || [])
+        .some((next) => canonicalEdge(cell, next) !== blockedEdge));
+  }
+
+  function masonEdgePreservesZoneAccess(map, graph, edge) {
+    return ["entrance", "dungeon"].every((type) => (
+      !zoneHasGraphAccess(map, graph, type)
+      || zoneHasGraphAccess(map, graph, type, edge)
+    ));
+  }
+
+  function summarizeWallControl(cells, edgeDetails, options = {}) {
+    const cellBest = Object.fromEntries(cells.map((cell) => [cell, 0]));
+    for (const entry of edgeDetails) {
+      const [left, right] = entry.edge.split("|");
+      cellBest[left] = Math.max(cellBest[left] || 0, entry.control);
+      cellBest[right] = Math.max(cellBest[right] || 0, entry.control);
+    }
+    const cellValues = Object.values(cellBest).sort((left, right) => right - left);
+    const peakCount = Math.max(1, Math.ceil(cellValues.length * 0.15));
+    const peak = average(cellValues.slice(0, peakCount));
+    const consistency = average(cellValues);
+    const strongEdgeCount = edgeDetails.filter((entry) => entry.control >= 0.45).length;
+    const coverage = cellValues.filter((value) => value >= 0.45).length / Math.max(1, cellValues.length);
+    const peakWeight = options.peakWeight ?? 0.45;
+    const consistencyWeight = options.consistencyWeight ?? 0.35;
+    const coverageWeight = options.coverageWeight ?? 0.2;
+    const multiplier = options.multiplier ?? 1;
+    const affinity = clamp((
+      peak * peakWeight
+      + consistency * consistencyWeight
+      + clamp(coverage / 0.45) * coverageWeight
+    ) * multiplier);
+    return {
+      affinity,
+      strongEdgeCount,
+      coverage,
+      consistency,
+      peak
+    };
+  }
+
+  function analyzeMasonControl(mapInput, graphInput = null) {
+    const map = refreshZoneExits(mapInput);
+    const graph = graphInput || buildMovementGraph(map, { hunt: true });
+    const cells = Object.keys(graph.passages);
+    if (!cells.length) {
+      return {
+        affinity: 0,
+        legalEdges: [],
+        strongEdgeCount: 0,
+        coverage: 0,
+        consistency: 0,
+        peak: 0
+      };
+    }
+
+    const walls = new Set(map.walls);
+    const legalEdges = graphEdges(graph)
+      .filter((edge) => masonEdgePreservesZoneAccess(map, graph, edge));
+    const strategicCells = new Set([
+      ...map.zones.entrance.exits,
+      ...map.zones.dungeon.exits,
+      ...map.treasures.map((treasure) => treasure.position)
+    ].filter((cell) => graph.passages[cell]));
+    for (const mechanism of Object.values(map.hunt.mechanisms)) {
+      for (const cell of neighbors(mechanism, map.width, map.height)) {
+        if (!graph.passages[cell] || walls.has(canonicalEdge(mechanism, cell))) continue;
+        strategicCells.add(cell);
+      }
+    }
+
+    const strategic = [...strategicCells];
+    const baseDistances = Object.fromEntries(strategic.map((cell) => [cell, graphDistances(graph, cell)]));
+    const strategicPairs = [];
+    for (let leftIndex = 0; leftIndex < strategic.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < strategic.length; rightIndex += 1) {
+        const left = strategic[leftIndex];
+        const right = strategic[rightIndex];
+        const distance = baseDistances[left]?.[right];
+        if (Number.isFinite(distance)) strategicPairs.push({ left, right, distance });
+      }
+    }
+
+    const edgeDetails = legalEdges.map((edge) => {
+      const [left, right] = edge.split("|");
+      const leftDistances = graphDistancesWithoutEdge(graph, left, edge);
+      const disconnected = !Number.isFinite(leftDistances[right]);
+      const separatedSize = disconnected
+        ? Math.min(Object.keys(leftDistances).length, cells.length - Object.keys(leftDistances).length)
+        : 0;
+      const separatedRatio = separatedSize / cells.length;
+      const bridgeImpact = disconnected
+        ? 0.65 + 0.35 * clamp(separatedRatio / 0.3)
+        : 0;
+      const detourImpact = disconnected
+        ? 1
+        : clamp((leftDistances[right] - 1) / 6);
+
+      const changedRoutes = strategicPairs.filter((pair) => {
+        const startDistances = baseDistances[pair.left];
+        const targetDistances = baseDistances[pair.right];
+        const forward = startDistances[left] + 1 + targetDistances[right] === pair.distance;
+        const reverse = startDistances[right] + 1 + targetDistances[left] === pair.distance;
+        return forward || reverse;
+      });
+      const routeCoverage = strategicPairs.length
+        ? clamp((changedRoutes.length / strategicPairs.length) / 0.22)
+        : 0;
+      const routeImpact = routeCoverage * (0.45 + detourImpact * 0.55);
+      const control = clamp(
+        bridgeImpact * 0.45
+        + detourImpact * 0.25
+        + routeImpact * 0.3
+      );
+      return {
+        edge,
+        control,
+        disconnected,
+        separatedRatio,
+        detourImpact,
+        routeImpact
+      };
+    });
+
+    const summary = summarizeWallControl(cells, edgeDetails);
+    return {
+      ...summary,
+      legalEdges,
+      edgeDetails
+    };
+  }
+
+  function analyzePhantomControl(mapInput, graphInput = null, baseWallAnalysis = null) {
+    const map = refreshZoneExits(mapInput);
+    const graph = graphInput || buildMovementGraph(map, { hunt: true });
+    const cells = Object.keys(graph.passages);
+    if (!cells.length) {
+      return {
+        affinity: 0,
+        legalEdges: [],
+        strongEdgeCount: 0,
+        coverage: 0,
+        consistency: 0,
+        peak: 0
+      };
+    }
+
+    const base = baseWallAnalysis || analyzeMasonControl(map, graph);
+    const walls = new Set(map.walls);
+    const escapeApproaches = HUNT_MECHANISM_IDS.map((id) => {
+      const mechanism = map.hunt.mechanisms[id];
+      return neighbors(mechanism, map.width, map.height)
+        .filter((cell) => graph.passages[cell])
+        .filter((cell) => !walls.has(canonicalEdge(mechanism, cell)));
+    }).filter((approaches) => approaches.length);
+
+    const edgeDetails = base.edgeDetails.map((entry) => {
+      let escapeReliability = 1;
+      if (entry.disconnected && escapeApproaches.length) {
+        const [left] = entry.edge.split("|");
+        const leftComponent = new Set(Object.keys(graphDistancesWithoutEdge(graph, left, entry.edge)));
+        const leftRatio = leftComponent.size / cells.length;
+        escapeReliability = average(escapeApproaches.map((approaches) => {
+          const reachesLeft = approaches.some((cell) => leftComponent.has(cell));
+          const reachesRight = approaches.some((cell) => !leftComponent.has(cell));
+          if (reachesLeft && reachesRight) return 1;
+          if (reachesLeft) return leftRatio;
+          if (reachesRight) return 1 - leftRatio;
+          return 0;
+        }));
+      }
+
+      const persistentControl = clamp(
+        entry.control * 0.7
+        + entry.detourImpact * 0.15
+        + entry.routeImpact * 0.15
+      );
+      const phaseReliability = 0.65 + escapeReliability * 0.35;
+      const control = clamp(persistentControl * phaseReliability * 1.08);
+      return {
+        ...entry,
+        control,
+        escapeReliability
+      };
+    });
+    const summary = summarizeWallControl(cells, edgeDetails, {
+      peakWeight: 0.48,
+      consistencyWeight: 0.32,
+      coverageWeight: 0.2,
+      multiplier: 1.02
+    });
+    return {
+      ...summary,
+      legalEdges: base.legalEdges.slice(),
+      edgeDetails
+    };
+  }
+
   function analyzeSightlines(graph) {
     const directions = [[0, -1], [1, 0], [0, 1], [-1, 0]];
     const rays = [];
@@ -588,15 +819,17 @@
     const treasureSpreadAffinity = clamp(groupSpread / 0.38);
     const purification = analyzePurificationPools(map);
     const purificationAffinity = purification.available && !purification.fallback ? 1 : 0.45;
+    const masonControl = analyzeMasonControl(map, graph);
+    const phantomControl = analyzePhantomControl(map, graph, masonControl);
     const roleAffinities = [
       { id: "gazer", label: "凝視者", value: 20 + sightlineAffinity * 85 },
       { id: "knife", label: "飛刀手", value: 25 + sightlineAffinity * 78 },
       { id: "trap", label: "陷阱鬼", value: 20 + turnAffinity * 35 + bottleneckAffinity * 25 + clamp(deadEndRatio / 0.16) * 12 },
       { id: "scout", label: "斥候", value: 25 + turnAffinity * 35 + branchAffinity * 30 },
       { id: "tombRaider", label: "盜墓者", value: 25 + wallAffinity * 65 },
-      { id: "mason", label: "石匠", value: 25 + bottleneckAffinity * 40 + branchAffinity * 22 },
+      { id: "mason", label: "石匠", value: 25 + masonControl.affinity * 65 },
       { id: "burrow", label: "遁地鬼", value: 25 + spanAffinity * 65 },
-      { id: "phantom", label: "幻影鬼", value: 25 + bottleneckAffinity * 45 + branchAffinity * 18 },
+      { id: "phantom", label: "幻影鬼", value: 25 + phantomControl.affinity * 65 },
       { id: "corrupt", label: "腐化鬼", value: 25 + treasureSpreadAffinity * 45 + purificationAffinity * 18 }
     ].map((entry) => ({ ...entry, value: clamp(entry.value, 0, 100) }));
     const roleValues = roleAffinities.map((entry) => entry.value);
@@ -610,6 +843,7 @@
       0,
       100
     );
+    const rolePerfectlyBalanced = roleRange <= 28 && roleDeviation <= 10;
 
     const indicatorScores = [
       ["topology", "拓樸結構", topologyScore, 25],
@@ -624,7 +858,7 @@
         id,
         label,
         score: Math.round(score),
-        stars: id === "roles" && score < 95 ? Math.min(stars, 4) : stars
+        stars: id === "roles" && !rolePerfectlyBalanced ? Math.min(stars, 4) : stars
       };
     });
     const weightedScore = indicatorScores.reduce((total, [, , score, weight]) => total + score * weight, 0) / 100;
@@ -638,6 +872,8 @@
     const turnLevel = traitLevel(turnRatio, 0.45, 0.6);
     const branchLevel = traitLevel(branchRatio, 0.4, 0.58);
     const bottleneckLevel = traitLevel(bottleneckAffinity, 0.42, 0.7);
+    const masonControlLevel = traitLevel(masonControl.affinity, 0.4, 0.64);
+    const phantomControlLevel = traitLevel(phantomControl.affinity, 0.4, 0.64);
     const spanLevel = traitLevel(diameter / Math.max(1, map.width + map.height - 2), 0.72, 0.98);
     const deadEndLevel = traitLevel(deadEndRatio, 0.07, 0.14);
     const levelText = { low: "少", medium: "中等", high: "多" };
@@ -646,6 +882,8 @@
       { id: "turns", label: "彎道", level: turnLevel, text: `彎道${levelText[turnLevel]}` },
       { id: "branches", label: "分岔", level: branchLevel, text: `分岔${levelText[branchLevel]}` },
       { id: "bottlenecks", label: "瓶頸", level: bottleneckLevel, text: `瓶頸${levelText[bottleneckLevel]}` },
+      { id: "masonControl", label: "築牆空間", level: masonControlLevel, text: `築牆空間${levelText[masonControlLevel]}` },
+      { id: "phantomControl", label: "幻影空間", level: phantomControlLevel, text: `幻影空間${levelText[phantomControlLevel]}` },
       {
         id: "span",
         label: "跨度",
@@ -693,6 +931,23 @@
         treasureRiskBias,
         sightlines,
         mechanismSeparation,
+        masonControl: {
+          affinity: masonControl.affinity,
+          legalEdgeCount: masonControl.legalEdges.length,
+          strongEdgeCount: masonControl.strongEdgeCount,
+          coverage: masonControl.coverage,
+          consistency: masonControl.consistency,
+          peak: masonControl.peak
+        },
+        phantomControl: {
+          affinity: phantomControl.affinity,
+          legalEdgeCount: phantomControl.legalEdges.length,
+          strongEdgeCount: phantomControl.strongEdgeCount,
+          coverage: phantomControl.coverage,
+          consistency: phantomControl.consistency,
+          peak: phantomControl.peak,
+          averageEscapeReliability: average(phantomControl.edgeDetails.map((entry) => entry.escapeReliability))
+        },
         groupSpread
       }
     };
@@ -721,6 +976,8 @@
         const poolDistance = distances[left][right];
         if (!Number.isInteger(poolDistance)) continue;
         let maxTreasureDistance = 0;
+        let overThresholdCount = 0;
+        let totalTreasureDistance = 0;
         let treasuresReachable = true;
         for (const treasureCell of treasureCells) {
           const nearest = Math.min(
@@ -730,42 +987,64 @@
           if (!Number.isFinite(nearest)) {
             treasuresReachable = false;
             maxTreasureDistance = Number.POSITIVE_INFINITY;
+            overThresholdCount = treasureCells.length;
+            totalTreasureDistance = Number.POSITIVE_INFINITY;
             break;
           }
           maxTreasureDistance = Math.max(maxTreasureDistance, nearest);
+          if (nearest > 9) overThresholdCount += 1;
+          totalTreasureDistance += nearest;
         }
         pairs.push({
           cells: [left, right],
           poolDistance,
           maxTreasureDistance,
+          overThresholdCount,
+          totalTreasureDistance,
           standard: treasuresReachable && poolDistance >= 6 && maxTreasureDistance <= 9
         });
       }
     }
     const standardPairs = pairs.filter((pair) => pair.standard);
-    const ranked = (standardPairs.length ? standardPairs : pairs).slice().sort((left, right) => (
-      left.maxTreasureDistance - right.maxTreasureDistance
-      || right.poolDistance - left.poolDistance
-      || compareCells(left.cells[0], right.cells[0])
-      || compareCells(left.cells[1], right.cells[1])
-    ));
+    const fallback = standardPairs.length === 0;
+    const ranked = (fallback ? pairs : standardPairs).slice().sort((left, right) => {
+      const primary = left.maxTreasureDistance - right.maxTreasureDistance;
+      if (primary) return primary;
+      if (fallback) {
+        const coverage = left.overThresholdCount - right.overThresholdCount;
+        if (coverage) return coverage;
+        const totalDistance = left.totalTreasureDistance - right.totalTreasureDistance;
+        if (totalDistance) return totalDistance;
+      }
+      return (
+        right.poolDistance - left.poolDistance
+        || compareCells(left.cells[0], right.cells[0])
+        || compareCells(left.cells[1], right.cells[1])
+      );
+    });
     const best = ranked[0] || null;
     const bestPairs = best
       ? ranked.filter((pair) => pair.maxTreasureDistance === best.maxTreasureDistance
+        && (!fallback || pair.overThresholdCount === best.overThresholdCount)
+        && (!fallback || pair.totalTreasureDistance === best.totalTreasureDistance)
         && pair.poolDistance === best.poolDistance)
       : [];
     return {
       available: candidates.length >= 2 && bestPairs.length > 0,
-      fallback: standardPairs.length === 0,
+      fallback,
       candidates,
       pairs,
       bestPairs,
       metrics: best ? {
         poolDistance: best.poolDistance,
-        maxTreasureDistance: best.maxTreasureDistance
+        maxTreasureDistance: best.maxTreasureDistance,
+        overThresholdCount: best.overThresholdCount,
+        totalTreasureDistance: best.totalTreasureDistance
       } : {
         poolDistance: null,
-        maxTreasureDistance: null
+        maxTreasureDistance: null,
+        overThresholdCount: null,
+        totalTreasureDistance: null
       }
     };
   }
@@ -996,6 +1275,8 @@
     applyHuntDerivedVoidCells,
     buildMovementGraph,
     graphDistances,
+    analyzeMasonControl,
+    analyzePhantomControl,
     analyzeMapRating,
     analyzePurificationPools,
     validateMap,

@@ -583,12 +583,18 @@
       });
     }
     if (purification.available) {
+      const placementSummary = purification.fallback
+        ? `最佳位置 0 組，備援位置 ${purification.bestPairs.length} 組`
+        : `最佳位置 ${purification.bestPairs.length} 組`;
       messages.push({
         type: purification.fallback ? "warning" : "success",
-        text: `淨化池分析：池距 ${purification.metrics.poolDistance}，最遠寶藏距離 ${purification.metrics.maxTreasureDistance}${purification.fallback ? "（備援配置）" : ""}`
+        text: `淨化池分析：${placementSummary}；池距 ${purification.metrics.poolDistance}，最遠寶藏距離 ${purification.metrics.maxTreasureDistance}${purification.fallback ? `，超過 9 步的寶藏 ${purification.metrics.overThresholdCount} 個` : ""}`
       });
     } else {
-      messages.push({ type: "warning", text: "淨化池分析：找不到兩個符合禁放條件的候選格" });
+      messages.push({
+        type: "warning",
+        text: "淨化池分析：最佳位置 0 組，備援位置 0 組；找不到兩個符合禁放條件的候選格"
+      });
     }
     if (result.valid) {
       validationBadge.textContent = huntResult.valid ? "經典／獵殺可用" : "經典可用";
@@ -764,10 +770,10 @@
     if (!entry) return;
     try {
       const response = await fetch(`/Gangsi/maps/${encodeURIComponent(entry.file)}`, { cache: "no-store" });
-      if (!response.ok) throw new Error("無法載入內建地圖");
+      if (!response.ok) throw new Error("無法載入所選地圖");
       const payload = await response.json();
       const result = Format.validateMap(payload);
-      if (!result.valid) throw new Error(`內建地圖無效：${result.errors[0]}`);
+      if (!result.valid) throw new Error(`所選地圖無效：${result.errors[0]}`);
       replaceMap(result.map, `已載入 ${entry.name}`);
     } catch (error) {
       setStatus(error.message, "error");

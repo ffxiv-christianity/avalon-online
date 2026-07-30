@@ -1106,13 +1106,29 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   const legalEdge = MapFormat.canonicalEdge("6,3", "6,4");
   assert(HuntEngine.makeGameView(room, first).legal.masonWallEdges.includes(legalEdge),
     "the Mason may close an ordinary road's only passage");
-  assert.strictEqual(HuntEngine.applyGameAction(room, first, "useMasonWall", { edge: legalEdge }), null);
+  mason.position = "1,1";
+  makeCurrent(room, mason);
+  const movementEdge = MapFormat.canonicalEdge("1,1", "2,1");
+  assert(HuntEngine.makeGameView(room, first).legal.masonWallEdges.includes(movementEdge));
+  assert.strictEqual(HuntEngine.applyGameAction(room, first, "useMasonWall", { edge: movementEdge }), null);
   assert.strictEqual(mason.abilityCooldown, 3);
   assert.strictEqual(mason.masonCharges, undefined, "Mason walls no longer use per-game charges");
   assert.deepStrictEqual(HuntEngine.makeGameView(room, mummy).hunt.temporaryWall, {
-    edge: legalEdge,
+    edge: movementEdge,
     type: "temporary"
   });
+  assert.strictEqual(room.phase, HuntEngine.PHASES.adventurerPrepare,
+    "building must return the Mason to the prepare phase");
+  const afterWallView = HuntEngine.makeGameView(room, first);
+  assert(afterWallView.legal.actions.includes("rollAdventurerDice"),
+    "the Mason may still roll and move after building");
+  assert(!afterWallView.legal.actions.includes("useMasonWall"),
+    "the new cooldown must prevent a second wall in the same turn");
+  makeCurrent(room, mason, HuntEngine.PHASES.adventurerEnd);
+  room.game.endState = { kind: "no_movement", reason: "test", operatorPlayerId: first.id };
+  assert(HuntEngine.applyGameAction(room, first, "useMasonWall", { edge: movementEdge }).includes("不能在 adventurer_end"),
+    "the Mason must not build after moving");
+  assert.strictEqual(HuntEngine.applyGameAction(room, first, "finishAdventurerTurn"), null);
   assert.strictEqual(room.phase, HuntEngine.PHASES.monsterPrepare);
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "rollMummyDie"), null);
   assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "stopMummy"), null);

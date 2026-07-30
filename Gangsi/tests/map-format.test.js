@@ -10,6 +10,7 @@ const Rules = require("../public/rules");
 
 const classic = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "maps", "classic.json"), "utf8"));
 const testMap = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "maps", "test-map.json"), "utf8"));
+const crab2 = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "maps", "crab2.json"), "utf8"));
 const result = MapFormat.validateMap(classic);
 
 assert.strictEqual(result.valid, true, result.errors.join("; "));
@@ -148,6 +149,9 @@ assert.strictEqual(purification.available, true);
 assert.strictEqual(purification.fallback, false);
 assert.strictEqual(purification.bestPairs.length > 0, true);
 assert(purification.bestPairs.every((pair) => pair.poolDistance >= 6 && pair.maxTreasureDistance <= 9));
+const crab2Purification = MapFormat.analyzePurificationPools(crab2);
+assert.strictEqual(crab2Purification.fallback, false);
+assert.strictEqual(crab2Purification.bestPairs.length, 2, "standard ranking must preserve Crab2's two best pool pairs");
 const forbiddenPoolCells = new Set(Object.values(huntMap.hunt.mechanisms));
 assert(purification.candidates.every((cell) => !forbiddenPoolCells.has(cell)));
 const huntGraph = MapFormat.buildMovementGraph(huntMap, { hunt: true });
@@ -194,6 +198,51 @@ noPoolMap.treasures = noPoolFloors.map((position, index) => ({
 const unavailablePools = MapFormat.analyzePurificationPools(noPoolMap);
 assert.strictEqual(unavailablePools.available, false);
 assert.strictEqual(unavailablePools.fallback, true);
+
+const fallbackRankingMap = MapFormat.createBlankMap(10, 5);
+const snakeCells = [];
+for (let y = 1; y <= fallbackRankingMap.height; y += 1) {
+  const row = Array.from({ length: fallbackRankingMap.width }, (_, index) => index + 1);
+  if (y % 2 === 0) row.reverse();
+  for (const x of row) snakeCells.push(MapFormat.cellKey(x, y));
+}
+const snakePassages = new Set();
+for (let index = 1; index < snakeCells.length; index += 1) {
+  snakePassages.add(MapFormat.canonicalEdge(snakeCells[index - 1], snakeCells[index]));
+}
+const snakeEdges = new Set();
+for (const cell of snakeCells) {
+  for (const adjacent of MapFormat.neighbors(cell, fallbackRankingMap.width, fallbackRankingMap.height)) {
+    snakeEdges.add(MapFormat.canonicalEdge(cell, adjacent));
+  }
+}
+fallbackRankingMap.walls = [...snakeEdges].filter((edge) => !snakePassages.has(edge));
+const fallbackTreasureCells = [
+  "2,2", "4,3", "10,2", "9,5", "5,1", "1,2", "3,1", "6,4", "4,5", "6,1", "7,4", "9,1",
+  "6,2", "8,2", "6,5", "4,2", "7,3", "7,2", "3,5", "2,4", "3,4", "9,4", "10,5"
+];
+fallbackRankingMap.treasures = MapFormat.TREASURE_IDS.map((id, index) => ({
+  id,
+  position: fallbackTreasureCells[index]
+}));
+const fallbackRanking = MapFormat.analyzePurificationPools(fallbackRankingMap);
+assert.strictEqual(fallbackRanking.available, true);
+assert.strictEqual(fallbackRanking.fallback, true);
+assert.deepStrictEqual(fallbackRanking.metrics, {
+  poolDistance: 26,
+  maxTreasureDistance: 12,
+  overThresholdCount: 3,
+  totalTreasureDistance: 130
+});
+const sameWorstDistancePairs = fallbackRanking.pairs.filter((pair) => (
+  pair.maxTreasureDistance === fallbackRanking.metrics.maxTreasureDistance
+));
+const oldRankingPoolDistance = Math.max(...sameWorstDistancePairs.map((pair) => pair.poolDistance));
+const oldRankingPairs = sameWorstDistancePairs.filter((pair) => pair.poolDistance === oldRankingPoolDistance);
+assert(
+  oldRankingPairs.every((pair) => pair.overThresholdCount > fallbackRanking.metrics.overThresholdCount),
+  "fallback ranking must reduce treasures beyond nine steps before maximizing pool separation"
+);
 assert(MapFormat.buildMovementGraph(huntMap).passages["4,1"]);
 assert.strictEqual(MapFormat.buildMovementGraph(huntMap, { hunt: true }).passages["4,1"], undefined);
 const mapRating = MapFormat.analyzeMapRating(huntMap);
@@ -213,7 +262,7 @@ if (mapRating.stars === 5) {
 }
 assert.deepStrictEqual(
   mapRating.traits.map((trait) => trait.id),
-  ["sightlines", "turns", "branches", "bottlenecks", "span", "deadEnds"]
+  ["sightlines", "turns", "branches", "bottlenecks", "masonControl", "phantomControl", "span", "deadEnds"]
 );
 assert(mapRating.traits.every((trait) => ["low", "medium", "high"].includes(trait.level)));
 const duplicateMechanism = MapFormat.clone(huntMap);
@@ -250,11 +299,83 @@ const crabMapTwoEntry = catalogIndex.maps.find((entry) => entry.id === "2");
 assert(crabMapTwoEntry);
 assert.strictEqual(crabMapTwoEntry.file, "crab2.json");
 assert.strictEqual(MapCatalog.getBuiltInMap("2").name, "蟹制地圖2");
+
+const masonAnalysisMap = MapFormat.createBlankMap(6, 5);
+masonAnalysisMap.zones.entrance.anchor = "1,1";
+masonAnalysisMap.zones.dungeon.anchor = "6,1";
+const corridorMasonControl = MapFormat.analyzeMasonControl(masonAnalysisMap, {
+  passages: {
+    "2,1": ["3,1"],
+    "3,1": ["2,1", "4,1"],
+    "4,1": ["3,1", "5,1"],
+    "5,1": ["4,1"]
+  }
+});
+assert.deepStrictEqual(corridorMasonControl.legalEdges, ["3,1|4,1"],
+  "zone exit protection must exclude walls directly sealing the entrance or dungeon");
+assert.strictEqual(corridorMasonControl.strongEdgeCount, 1);
+assert(corridorMasonControl.affinity > 0.8,
+  "a legal wall that divides the only corridor must strongly favor the Mason");
+const openMasonControl = MapFormat.analyzeMasonControl(masonAnalysisMap, {
+  passages: {
+    "2,1": ["3,1", "2,2"],
+    "3,1": ["2,1", "4,1", "3,2"],
+    "4,1": ["3,1", "5,1", "4,2"],
+    "5,1": ["4,1", "5,2"],
+    "2,2": ["2,1", "3,2"],
+    "3,2": ["2,2", "3,1", "4,2"],
+    "4,2": ["3,2", "4,1", "5,2"],
+    "5,2": ["4,2", "5,1"]
+  }
+});
+assert(openMasonControl.affinity < corridorMasonControl.affinity,
+  "extra branches must not automatically outweigh the weaker control of a redundant route network");
+
+const phantomCorridorMap = MapFormat.clone(masonAnalysisMap);
+phantomCorridorMap.hunt.mechanisms = { A: "3,2", B: "4,2" };
+const corridorPhantomControl = MapFormat.analyzePhantomControl(phantomCorridorMap, {
+  passages: {
+    "2,1": ["3,1"],
+    "3,1": ["2,1", "4,1"],
+    "4,1": ["3,1", "5,1"],
+    "5,1": ["4,1"]
+  }
+});
+assert(corridorPhantomControl.affinity > 0.7,
+  "a Phantom wall that creates a pursuit shortcut across the only corridor must be valuable");
+assert(corridorPhantomControl.edgeDetails[0].escapeReliability < 1,
+  "a separating Phantom wall must be discounted when an opened exit could make it conditionally illegal");
+const phantomOpenMap = MapFormat.clone(masonAnalysisMap);
+phantomOpenMap.hunt.mechanisms = { A: "3,3", B: "4,3" };
+const openPhantomControl = MapFormat.analyzePhantomControl(phantomOpenMap, {
+  passages: {
+    "2,1": ["3,1", "2,2"],
+    "3,1": ["2,1", "4,1", "3,2"],
+    "4,1": ["3,1", "5,1", "4,2"],
+    "5,1": ["4,1", "5,2"],
+    "2,2": ["2,1", "3,2"],
+    "3,2": ["2,2", "3,1", "4,2"],
+    "4,2": ["3,2", "4,1", "5,2"],
+    "5,2": ["4,2", "5,1"]
+  }
+});
+assert(openPhantomControl.affinity < corridorPhantomControl.affinity,
+  "short redundant routes must provide less Phantom control than a decisive corridor wall");
+
 const classicRating = MapFormat.analyzeMapRating(classic);
 assert.strictEqual(classicRating.stars, 4);
 assert.deepStrictEqual(
   Object.fromEntries(classicRating.indicators.map((indicator) => [indicator.id, indicator.stars])),
   { topology: 4, objectives: 4, treasures: 4, routes: 4, roles: 5 }
+);
+assert(classicRating.traits.some((trait) => trait.id === "masonControl"));
+assert.strictEqual(
+  classicRating.metrics.masonControl.legalEdgeCount,
+  MapFormat.analyzeMasonControl(classic).legalEdges.length
+);
+assert.strictEqual(
+  classicRating.metrics.phantomControl.legalEdgeCount,
+  MapFormat.analyzePhantomControl(classic).legalEdges.length
 );
 const crabMapTwoRating = MapFormat.analyzeMapRating(MapCatalog.getBuiltInMap("2"));
 assert.strictEqual(crabMapTwoRating.available, true);

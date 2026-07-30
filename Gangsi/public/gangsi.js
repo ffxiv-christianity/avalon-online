@@ -32,6 +32,9 @@
   let masonWallOpen = false;
   let archaeologistOpen = false;
   let phantomWallOpen = false;
+  let composingTokenLabelInput = null;
+  let committedTokenLabelInput = null;
+  let committedTokenLabelValue = "";
   let observedCaptureSerial = null;
   let captureTimer = null;
   let observedGameOverKey = "";
@@ -232,6 +235,8 @@
     });
     page.copyButtons.forEach((button) => button.addEventListener("click", copyInvite));
     page.mainPanel.addEventListener("click", handleMainClick);
+    page.mainPanel.addEventListener("compositionstart", handleTokenLabelCompositionStart);
+    page.mainPanel.addEventListener("compositionend", handleTokenLabelCompositionEnd);
     page.mainPanel.addEventListener("input", handleMainInput);
     page.mainPanel.addEventListener("change", handleMainChange);
     page.mainPanel.addEventListener("mouseover", handleTaskHintEnter);
@@ -310,6 +315,10 @@
   }
 
   function renderMain() {
+    // Replacing the lobby DOM during IME composition cancels Zhuyin/Pinyin input.
+    // Keep the active field intact; the latest snapshot is rendered after composition ends.
+    if (composingTokenLabelInput?.isConnected) return;
+    composingTokenLabelInput = null;
     if (snapshot.room.phase === "lobby") renderLobby();
     else renderGameRoom();
   }
@@ -1103,8 +1112,35 @@
     }
   }
 
+  function handleTokenLabelCompositionStart(event) {
+    if (!event.target.matches("[data-gangsi-token-label]")) return;
+    composingTokenLabelInput = event.target;
+    committedTokenLabelInput = null;
+    committedTokenLabelValue = "";
+  }
+
+  function handleTokenLabelCompositionEnd(event) {
+    if (!event.target.matches("[data-gangsi-token-label]")) return;
+    composingTokenLabelInput = null;
+    committedTokenLabelInput = event.target;
+    committedTokenLabelValue = event.target.value;
+    if (snapshot.room.phase !== "lobby") {
+      renderMain();
+      return;
+    }
+    sendAction("updateTokenLabel", { tokenLabel: event.target.value });
+  }
+
   function handleMainInput(event) {
     if (!event.target.matches("[data-gangsi-token-label]")) return;
+    if (event.isComposing || event.target === composingTokenLabelInput) return;
+    if (event.target === committedTokenLabelInput && event.target.value === committedTokenLabelValue) {
+      committedTokenLabelInput = null;
+      committedTokenLabelValue = "";
+      return;
+    }
+    committedTokenLabelInput = null;
+    committedTokenLabelValue = "";
     sendAction("updateTokenLabel", { tokenLabel: event.target.value });
   }
 

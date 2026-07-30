@@ -155,16 +155,18 @@ function runSimulation(run) {
     else if (actions.includes("moveArrow")) error = Hunt.applyGameAction(room, actor, "moveArrow", { direction: choose(Object.keys(view.legal.directions), random) });
     else if (actions.includes("revealTreasure")) error = Hunt.applyGameAction(room, actor, random() < 0.75 ? "revealTreasure" : "declineTreasure");
     else if (room.phase === Hunt.PHASES.monsterPrepare) {
-      if (actions.includes("burrowToGrave") && random() < 0.2) {
+      if (view.hunt.infectionRequired) {
+        assert.deepStrictEqual(actions, ["infectTreasure"]);
+        assert(view.legal.infectionTreasures?.length, "mandatory infection must provide at least one legal treasure");
+        error = Hunt.applyGameAction(room, actor, "infectTreasure", {
+          treasureId: choose(view.legal.infectionTreasures, random).id
+        });
+      } else if (actions.includes("burrowToGrave") && random() < 0.2) {
         error = Hunt.applyGameAction(room, actor, "burrowToGrave");
       } else if (actions.includes("setGrave") && random() < 0.2) {
         error = Hunt.applyGameAction(room, actor, "setGrave");
       } else if (actions.includes("placePhantomWall") && random() < 0.2) {
         error = Hunt.applyGameAction(room, actor, "placePhantomWall", { edge: choose(view.legal.phantomWallEdges, random) });
-      } else if (actions.includes("infectTreasure") && random() < 0.25) {
-        error = Hunt.applyGameAction(room, actor, "infectTreasure", {
-          treasureId: choose(view.legal.infectionTreasures, random).id
-        });
       } else {
         error = Hunt.applyGameAction(room, actor, "rollMummyDie");
       }

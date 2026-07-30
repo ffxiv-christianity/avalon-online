@@ -317,7 +317,6 @@ function useMasonWall(room, actor, rawEdge) {
   addRedactedLog(room, `一面臨時牆出現在 ${edge}。`, {
     adventurer: `${pieceName(room, piece)} 在 ${edge} 築起臨時牆。`
   });
-  finishAdventurerFullTurnAction(room);
   return null;
 }
 
