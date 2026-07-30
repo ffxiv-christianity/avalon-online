@@ -96,7 +96,8 @@ function assertBoundaries(room, players, mummy) {
   assert(mummyView.hunt.knifeTrackedPositions.every((position) => typeof position === "string"));
   assert(mummyView.hunt.gazeTrackedPositions.every((position) => typeof position === "string"));
   assert.strictEqual(mummyView.dice, null);
-  assert.deepStrictEqual(mummyView.progress, []);
+  assert.strictEqual(mummyView.progress.length, players.filter((candidate) => candidate.role === "adventurer").length);
+  assert(mummyView.progress.every((progress) => Object.keys(progress.remainingByGroup).join("") === "ABCDE"));
   for (const player of players.filter((candidate) => candidate.role === "adventurer")) {
     const view = Game.makeView(room, player.id).room.game;
     assert(view.pieces.every((piece) => Object.hasOwn(piece, "position")));

@@ -18,6 +18,7 @@ const {
   playerMatrix,
   seatNumber,
   actionInfoBlock,
+  orderedTurnMessages,
   handPanel,
   cardStateClasses,
   captureScroll,
@@ -120,6 +121,19 @@ assert(actionInfoHtml.includes('class="game-action-info template-game-action-inf
 assert(actionInfoHtml.includes('class="game-private"'));
 assert(actionInfoHtml.includes("<p><b>#1</b> Alice</p>"));
 assert(actionInfoBlock().includes("目前沒有行動資訊。"));
+const isTurnMessage = (message) => message.startsWith("輪到");
+assert.deepStrictEqual(orderedTurnMessages({
+  messages: ["輪到 蟹人A。", "蟹人A 擲了冒險者骰。", "蟹人A 揭露寶藏 A3。", "輪到 蟹人D。"],
+  currentTurnMessage: "輪到 蟹人D。",
+  limit: 7,
+  isTurnMessage
+}), ["蟹人A 擲了冒險者骰。", "蟹人A 揭露寶藏 A3。", "輪到 蟹人D。"]);
+assert.deepStrictEqual(orderedTurnMessages({
+  messages: ["輪到 蟹人D。", "D1", "D2", "D3", "D4", "D5", "D6", "D7"],
+  currentTurnMessage: "輪到 蟹人D。",
+  limit: 7,
+  isTurnMessage
+}), ["輪到 蟹人D。", "D2", "D3", "D4", "D5", "D6", "D7"]);
 const handPanelHtml = handPanel({
   titleHtml: "<b>你的手牌</b>",
   className: "game-hand-panel",

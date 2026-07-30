@@ -146,7 +146,9 @@ function runGame(run, playerCount, mapId, coverage) {
     let payload = {};
 
     if (room.phase === Engine.PHASES.adventurerPrepare) {
-      action = legal.actions.includes("unlockDice") && (!coverage.actions.has("unlockDice") || random() < 0.25)
+      action = legal.actions.length === 1
+        ? legal.actions[0]
+        : legal.actions.includes("unlockDice") && (!coverage.actions.has("unlockDice") || random() < 0.25)
         ? "unlockDice"
         : "rollAdventurerDice";
     } else if (room.phase === Engine.PHASES.adventurerRoll) {

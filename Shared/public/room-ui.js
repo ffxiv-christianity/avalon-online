@@ -72,6 +72,40 @@
     `;
   }
 
+  function orderedTurnMessages({
+    messages = [],
+    currentTurnMessage = "",
+    limit = 5,
+    isTurnMessage = () => false
+  } = {}) {
+    const recent = messages || [];
+    let latestTurnIndex = -1;
+    for (let index = recent.length - 1; index >= 0; index -= 1) {
+      if (isTurnMessage(recent[index])) {
+        latestTurnIndex = index;
+        break;
+      }
+    }
+    if (latestTurnIndex >= 0) {
+      const latestTurnMessage = recent[latestTurnIndex];
+      const messagesBeforeTurn = recent.slice(0, latestTurnIndex)
+        .filter((message) => !isTurnMessage(message));
+      const messagesAfterTurn = recent.slice(latestTurnIndex + 1);
+      if (limit <= 1) return [latestTurnMessage];
+      if (messagesAfterTurn.length >= limit) {
+        return [latestTurnMessage, ...messagesAfterTurn.slice(-(limit - 1))];
+      }
+      const availableBeforeTurn = limit - 1 - messagesAfterTurn.length;
+      return [
+        ...messagesBeforeTurn.slice(-availableBeforeTurn),
+        latestTurnMessage,
+        ...messagesAfterTurn
+      ];
+    }
+    if (!currentTurnMessage) return recent.slice(-limit);
+    return [currentTurnMessage, ...recent.slice(-(limit - 1))];
+  }
+
   function handPanel({
     title = "你的手牌",
     titleHtml = "",
@@ -342,6 +376,7 @@
     seatToneClass,
     seatNumber,
     actionInfoBlock,
+    orderedTurnMessages,
     handPanel,
     resultRows,
     cardStateClasses,

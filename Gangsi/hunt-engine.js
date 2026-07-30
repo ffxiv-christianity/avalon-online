@@ -215,6 +215,11 @@ function applyGameAction(room, actor, action, payload = {}) {
   if (!room.game || room.phase === "lobby") return "遊戲尚未開始。";
   if (room.phase === PHASES.gameOver) return "遊戲已經結束。";
   if (!PHASE_ACTIONS[room.phase]?.includes(action)) return `操作 ${action} 不能在 ${room.phase} 階段執行。`;
+  if (room.phase === PHASES.adventurerPrepare
+    && lockedDiceCount(room) === room.game.dice.length
+    && action !== "unlockDice") {
+    return "所有冒險者骰皆已鎖定，必須先解鎖全部骰子。";
+  }
   switch (action) {
     case "unlockDice": return unlockDice(room, actor);
     case "useWizardUnlock": return useWizardUnlock(room, actor);
@@ -372,9 +377,9 @@ function resolveMechanismFace(room, gateId, rawFace) {
   const baseProgress = face === "X" ? 1 : face;
   const classBonus = piece.profession === "archaeologist" ? 1 : 0;
   const calculatedProgress = baseProgress + classBonus;
-  const finalProgress = Math.min(3, previousProgress + calculatedProgress);
+  const finalProgress = Math.min(MapFormat.HUNT_MECHANISM_TARGET, previousProgress + calculatedProgress);
   const appliedProgress = finalProgress - previousProgress;
-  const sealed = face === "X" && finalProgress < 3;
+  const sealed = face === "X" && finalProgress < MapFormat.HUNT_MECHANISM_TARGET;
   room.game.hunt.mechanisms[id] = finalProgress;
   piece.mechanismContribution = (piece.mechanismContribution || 0) + appliedProgress;
   room.game.hunt.mechanismSeals[id] = sealed ? { remaining: 1, startedThisTurn: true } : null;
@@ -392,11 +397,13 @@ function resolveMechanismFace(room, gateId, rawFace) {
   };
   room.game.endState = result;
   room.phase = PHASES.adventurerEnd;
-  const detail = `擲出 ${face}：骰面進度 +${baseProgress}，遺跡學家加成 +${classBonus}，理論增加 +${calculatedProgress}，實際增加 +${appliedProgress}，最終進度 ${finalProgress} / 3${sealed ? "；機關封印 1 個冒險者回合" : ""}。`;
+  const detail = piece.profession === "archaeologist"
+    ? `擲出 ${face}：骰面進度 +${baseProgress}，遺跡學家加成 +${classBonus}，最終進度 ${finalProgress} / ${MapFormat.HUNT_MECHANISM_TARGET}${sealed ? "；機關封印 1 個冒險者回合" : ""}。`
+    : `擲出 ${face}：進度 +${appliedProgress}，最終進度 ${finalProgress} / ${MapFormat.HUNT_MECHANISM_TARGET}${sealed ? "；機關封印 1 個冒險者回合" : ""}。`;
   addRedactedLog(room, `機關 ${id} ${detail}`, {
     adventurer: `${pieceName(room, piece)} 操作機關 ${id}，${detail}`
   });
-  if (finalProgress >= 3 && room.game.hunt.exits[id] !== "open") openExit(room, id);
+  if (finalProgress >= MapFormat.HUNT_MECHANISM_TARGET && room.game.hunt.exits[id] !== "open") openExit(room, id);
   return result;
 }
 
@@ -582,10 +589,13 @@ function completeAdventurerMove(room) {
     escapePiece(room, piece, piece.position === room.game.hunt.hatch.position ? "密道" : "逃生出口");
     return;
   }
+  const teamTasksComplete = room.game.revealedTasks.length >= room.game.hunt.treasureGoal;
   const hand = room.game.hands[piece.controllerId] || [];
-  room.game.pendingTreasureIds = hand
-    .filter((task) => !task.revealed && treasurePosition(room, task.id) === piece.position)
-    .map((task) => task.id);
+  room.game.pendingTreasureIds = teamTasksComplete
+    ? []
+    : hand
+      .filter((task) => !task.revealed && treasurePosition(room, task.id) === piece.position)
+      .map((task) => task.id);
   if (room.game.pendingTreasureIds.length) {
     room.game.endState = { kind: "treasure", operatorPlayerId: piece.controllerId };
     room.phase = PHASES.adventurerEnd;
@@ -863,9 +873,13 @@ function moveMummy(room, actor, rawCell) {
     return null;
   }
   if (captured.length) {
+    const wasInterrupt = room.game.mummy.moveKind === "interrupt";
     room.game.mummy.remaining = 0;
     capturePieces(room, captured);
-    if (room.phase !== PHASES.gameOver) finishMummyMove(room);
+    if (room.phase !== PHASES.gameOver) {
+      if (wasInterrupt) addLog(room, "提燈怪抓到冒險者，插入回合立即結束。");
+      finishMummyMove(room);
+    }
     return null;
   }
   if (room.game.mummy.remaining === 0) finishMummyMove(room);
@@ -1119,13 +1133,13 @@ function prepareAdventurerTurn(room, piece) {
     beginAdventurerNoMovementEnd(room, "no_legal_move");
     return;
   }
-  if (lockedDiceCount(room) === room.game.dice.length) {
-    beginInterlude(room, piece.id, room.game.dice.length, true, false);
-    return;
-  }
   room.game.forcedSkipReason = null;
   room.phase = PHASES.adventurerPrepare;
   addLog(room, `輪到 ${pieceName(room, piece)}。`);
+  if (lockedDiceCount(room) === room.game.dice.length) {
+    addLog(room, `${pieceName(room, piece)} 的所有冒險者骰皆已鎖定，必須先解鎖全部骰子。`);
+    return;
+  }
 }
 
 function resumeAdventurerPrepare(room, piece) {
@@ -1158,7 +1172,7 @@ function beginMummyNormalTurn(room) {
     tracking.countdown -= 1;
     if (tracking.countdown <= 0) {
       tracking.revealThisTurn = true;
-      addLog(room, "冒險者的位置已暴露；提燈怪在本次正常回合可看見精確位置。 ");
+      addLog(room, "古墓迷霧消散，冒險者的位置已暴露。 ");
     }
   }
   room.phase = PHASES.monsterPrepare;
@@ -1308,6 +1322,9 @@ function makeGameView(room, viewer) {
   const revealsHumans = isMummyViewer && room.game.hunt.tracking.revealThisTurn;
   const infectionState = corruptInfectionState(room);
   const actionInfo = actionInfoFor(room, viewer);
+  const progress = room.players
+    .filter((player) => player.role === "adventurer")
+    .map((player) => taskProgress(room, player.id));
   if (room.phase === PHASES.monsterPrepare && infectionState.notice) actionInfo.push(infectionState.notice);
   const pieces = Object.values(room.game.pieces).map((piece) => {
     const result = {
@@ -1356,7 +1373,7 @@ function makeGameView(room, viewer) {
     currentPieceId: room.game.currentPieceId,
     currentPlayerId: isMummyPhase(room.phase) ? mummy.playerId : (currentPiece(room)?.controllerId || null),
     pieces,
-    progress: isMummyViewer ? [] : room.players.filter((player) => player.role === "adventurer").map((player) => taskProgress(room, player.id)),
+    progress,
     lockedDiceCount: lockedDiceCount(room),
     lockedDice: room.game.dice.filter((die) => die.locked).map((die) => ({ id: die.id, kind: die.kind })),
     dicePoolSize: room.game.dice.length,
@@ -1409,7 +1426,7 @@ function makeGameView(room, viewer) {
     } : null,
     dice: isMummyViewer ? null : room.game.dice.map((die) => ({ ...die, disabled: die.id === room.game.disabledDieId })),
     hand: viewer?.role === "adventurer" ? (room.game.hands[viewer.id] || []).map((task) => ({ ...task })) : [],
-    actionInfo: actionInfo.slice(-5),
+    actionInfo: actionInfo.slice(-7),
     legal: { actions: [] }
   };
   addLegalView(room, viewer, view);
@@ -1423,6 +1440,10 @@ function addLegalView(room, viewer, view) {
   if (isCurrent && room.phase === PHASES.adventurerPrepare) {
     const actions = [];
     const locked = lockedDiceCount(room);
+    if (locked === room.game.dice.length) {
+      view.legal.actions = ["unlockDice"];
+      return;
+    }
     if (usableDice(room).length && canReachAdventurerMovementPhase(room, piece)) actions.push("rollAdventurerDice");
     if (locked) actions.push("unlockDice");
     if (piece.bleeding) actions.push("stopBleeding");
@@ -1531,7 +1552,7 @@ function taskProgress(room, playerId) {
 
 function mechanismIdsForPiece(room, piece) {
   if (!isActivePiece(piece) || room.game.revealedTasks.length < room.game.hunt.treasureGoal || !isFloorPosition(room, piece.position)) return [];
-  return MapFormat.HUNT_MECHANISM_IDS.filter((id) => room.game.hunt.mechanisms[id] < 3)
+  return MapFormat.HUNT_MECHANISM_IDS.filter((id) => room.game.hunt.mechanisms[id] < MapFormat.HUNT_MECHANISM_TARGET)
     .filter((id) => !room.game.hunt.mechanismSeals[id])
     .filter((id) => {
       const mechanism = gameMap(room).hunt.mechanisms[id];
@@ -1541,9 +1562,19 @@ function mechanismIdsForPiece(room, piece) {
 }
 
 function knightTargets(room, piece) {
-  if (piece?.profession !== "knight" || piece.abilityCooldown > 0 || !isFloorPosition(room, piece.position)) return [];
-  return activePieces(room).filter((target) => target.id !== piece.id && !target.guard && isFloorPosition(room, target.position)
-    && isWithinKnightGuardRange(piece.position, target.position));
+  const origin = boardCellForPiece(room, piece);
+  if (piece?.profession !== "knight" || piece.abilityCooldown > 0 || !origin) return [];
+  return activePieces(room).filter((target) => {
+    const targetCell = boardCellForPiece(room, target);
+    return target.id !== piece.id && !target.guard && targetCell
+      && isWithinKnightGuardRange(origin, targetCell);
+  });
+}
+
+function boardCellForPiece(room, piece) {
+  if (!piece?.position) return null;
+  return specialAnchor(gameMap(room), piece.position)
+    || (isFloorPosition(room, piece.position) ? piece.position : null);
 }
 
 function isWithinKnightGuardRange(origin, target) {
@@ -2139,7 +2170,7 @@ function actionInfoFor(room, viewer) {
   return room.game.events
     .map((event) => viewer?.role === "mummy" ? (event.mummy ?? event.public) : (event.adventurer ?? event.public))
     .filter(Boolean)
-    .slice(-5);
+    .slice(-7);
 }
 
 function resetGame(room) { room.game = null; }

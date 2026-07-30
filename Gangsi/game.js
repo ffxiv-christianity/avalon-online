@@ -381,7 +381,7 @@ function makeView(room, playerIdValue) {
         index
       })),
       chat: room.chat.slice(),
-      log: room.log.slice(-5),
+      log: room.log.slice(-7),
       playerJoinEvents: room.playerJoinEvents.slice(-20)
     },
     you: you ? {

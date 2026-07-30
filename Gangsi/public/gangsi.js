@@ -4,6 +4,7 @@
   const STORAGE_KEY = "gangsi-sessions";
   const TAB_KEY = "gangsi-tab-player";
   const CLIENT_INSTANCE_ID = crypto.randomUUID();
+  const ACTION_INFO_LIMIT = 7;
   const Format = global.GangsiMapFormat;
   const Classes = global.GangsiMapClasses;
   const page = {};
@@ -35,6 +36,8 @@
   let composingTokenLabelInput = null;
   let committedTokenLabelInput = null;
   let committedTokenLabelValue = "";
+  let mainPanelTemplate = "";
+  let renderedBoardSignature = "";
   let observedCaptureSerial = null;
   let captureTimer = null;
   let observedGameOverKey = "";
@@ -315,12 +318,72 @@
   }
 
   function renderMain() {
-    // Replacing the lobby DOM during IME composition cancels Zhuyin/Pinyin input.
-    // Keep the active field intact; the latest snapshot is rendered after composition ends.
-    if (composingTokenLabelInput?.isConnected) return;
-    composingTokenLabelInput = null;
     if (snapshot.room.phase === "lobby") renderLobby();
     else renderGameRoom();
+  }
+
+  function commitMainPanel(fragment, template) {
+    if (mainPanelTemplate !== template || !page.mainPanel.childNodes.length) {
+      page.mainPanel.replaceChildren(fragment);
+      mainPanelTemplate = template;
+      return;
+    }
+    reconcileChildren(page.mainPanel, fragment);
+  }
+
+  function reconcileChildren(currentParent, nextParent) {
+    const nextChildren = Array.from(nextParent.childNodes);
+    nextChildren.forEach((nextChild, index) => {
+      const currentChild = currentParent.childNodes[index];
+      if (!currentChild) {
+        currentParent.appendChild(nextChild.cloneNode(true));
+        return;
+      }
+      if (!canReconcileNode(currentChild, nextChild)) {
+        currentChild.replaceWith(nextChild.cloneNode(true));
+        return;
+      }
+      reconcileNode(currentChild, nextChild);
+    });
+    while (currentParent.childNodes.length > nextChildren.length) {
+      currentParent.lastChild.remove();
+    }
+  }
+
+  function canReconcileNode(currentNode, nextNode) {
+    return currentNode.nodeType === nextNode.nodeType
+      && (currentNode.nodeType !== 1 || currentNode.tagName === nextNode.tagName);
+  }
+
+  function reconcileNode(currentNode, nextNode) {
+    if (currentNode.nodeType !== 1) {
+      if (currentNode.nodeValue !== nextNode.nodeValue) currentNode.nodeValue = nextNode.nodeValue;
+      return;
+    }
+    Array.from(currentNode.attributes).forEach((attribute) => {
+      if (!nextNode.hasAttribute(attribute.name)) currentNode.removeAttribute(attribute.name);
+    });
+    Array.from(nextNode.attributes).forEach((attribute) => {
+      if (currentNode.getAttribute(attribute.name) !== attribute.value) {
+        currentNode.setAttribute(attribute.name, attribute.value);
+      }
+    });
+    if (!nextNode.__gangsiPreserveChildren) reconcileChildren(currentNode, nextNode);
+    if (currentNode instanceof HTMLInputElement) {
+      if (currentNode.type === "checkbox" || currentNode.type === "radio") {
+        currentNode.checked = nextNode.checked;
+      } else if (
+        currentNode !== document.activeElement
+        && currentNode !== composingTokenLabelInput
+        && currentNode.value !== nextNode.value
+      ) {
+        currentNode.value = nextNode.value;
+      }
+    } else if (currentNode instanceof HTMLSelectElement && currentNode.value !== nextNode.value) {
+      currentNode.value = nextNode.value;
+    } else if (currentNode instanceof HTMLTextAreaElement && currentNode !== document.activeElement) {
+      if (currentNode.value !== nextNode.value) currentNode.value = nextNode.value;
+    }
   }
 
   function renderLobby() {
@@ -427,7 +490,7 @@
     startControl.innerHTML = snapshot.you.isHost
       ? `<button class="start-button" data-gangsi-start type="button" ${validation.length ? "disabled" : ""}>進入遊戲房間</button>`
       : '<p class="notice">等待房主進入遊戲房間。</p>';
-    page.mainPanel.replaceChildren(fragment);
+    commitMainPanel(fragment, "lobby");
   }
 
   function renderGameRoom() {
@@ -486,7 +549,23 @@
         ? "<span>霧氣消散</span><strong>冒險者行蹤已暴露</strong>"
         : `<span>古墓迷霧</span><strong>迷霧將於 ${game.hunt.trackingCountdown} 回合後消散</strong>`;
     }
-    if (map) renderBoard(fragment.querySelector("[data-gangsi-board]"), map, game);
+    const board = fragment.querySelector("[data-gangsi-board]");
+    if (map) {
+      board.style.setProperty("--cols", map.width);
+      board.style.setProperty("--rows", map.height);
+      const nextBoardSignature = boardRenderSignature(map, game);
+      const currentBoard = mainPanelTemplate === "game"
+        ? page.mainPanel.querySelector("[data-gangsi-board]")
+        : null;
+      if (currentBoard && nextBoardSignature === renderedBoardSignature) {
+        board.__gangsiPreserveChildren = true;
+      } else {
+        renderBoard(board, map, game);
+        renderedBoardSignature = nextBoardSignature;
+      }
+    } else {
+      renderedBoardSignature = "";
+    }
     const diceRow = fragment.querySelector("[data-gangsi-dice-row]");
     diceRow.style.setProperty("--dice-count", displayedDiceCount(game));
     diceRow.innerHTML = renderGameDice(game);
@@ -515,7 +594,14 @@
         : `${ownProgress?.completed || 0} / ${ownProgress?.total || 0}`;
     }
     fragment.querySelector("[data-gangsi-locked-dice]").textContent = `${game.lockedDiceCount} / ${game.dicePoolSize || 5}`;
-    const infoMessages = (game.actionInfo || snapshot.room.log.slice(-5)).slice(-5);
+    const turnMessage = publicTurnMessage(game);
+    const orderInfoMessages = (messages) => SharedRoomUI.orderedTurnMessages({
+      messages,
+      currentTurnMessage: turnMessage,
+      limit: ACTION_INFO_LIMIT,
+      isTurnMessage: (message) => message.trim().startsWith("輪到")
+    });
+    const infoMessages = orderInfoMessages(game.actionInfo || snapshot.room.log.slice(-ACTION_INFO_LIMIT));
     if (snapshot.room.phase === "adventurer_roll" && isYourTurn(game)) {
       const hasRolledFaces = game.dice?.some((die) => !die.locked && die.face);
       if (hasRolledFaces && game.legal.dieIds?.length) {
@@ -532,8 +618,9 @@
         ? `路徑已使用 ${movementCost} 點移動力，請確認移動。`
         : `路徑預覽：${movementCost} / ${movementBudget} 點移動力`);
     }
+    const visibleInfoMessages = orderInfoMessages(infoMessages);
     fragment.querySelector("[data-gangsi-action-info]").innerHTML = SharedRoomUI.actionInfoBlock({
-      messages: infoMessages,
+      messages: visibleInfoMessages,
       emptyText: "目前沒有行動資訊。",
       className: "gangsi-action-info-block",
       bodyClassName: "gangsi-action-info-body"
@@ -548,7 +635,7 @@
     huntStatus.classList.toggle("hidden", game.mode !== "hunt");
     if (game.mode === "hunt") huntStatus.innerHTML = renderHuntStatus(game);
     fragment.querySelector("[data-gangsi-hand-panel]").innerHTML = renderGameHand(game);
-    page.mainPanel.replaceChildren(fragment);
+    commitMainPanel(fragment, "game");
     syncCaptureEffect(game);
     syncGameOverLightbox(game);
   }
@@ -558,9 +645,13 @@
     const progress = game.progress.find((item) => item.playerId === player.id);
     const isCurrent = game.currentPlayerId === player.id;
     const seatTone = SharedRoomUI.seatToneClass(index);
+    const remainingGroups = progress ? Object.entries(progress.remainingByGroup) : [];
+    const visibleRemainingGroups = game.mode === "hunt" && snapshot.you.role === "mummy"
+      ? remainingGroups
+      : remainingGroups.filter(([, count]) => count > 0);
     const groupProgress = player.role === "adventurer" && progress
       ? `<span class="gangsi-progress-groups" aria-label="各類寶藏剩餘任務">
-          ${Object.entries(progress.remainingByGroup).filter(([, count]) => count > 0).map(([group, count]) => `
+          ${visibleRemainingGroups.map(([group, count]) => `
             <span data-group="${group}" title="${escapeAttribute(`${Format.GROUPS[group]?.name || group}剩餘 ${count} 張`)}">${group}:${count}</span>`).join("")}
         </span>`
       : "";
@@ -690,8 +781,8 @@
         ${mechanisms.map((id) => `<button class="primary-button" data-gangsi-mechanism="${id}" type="button">機關 ${id}</button>`).join("")}
         <button class="ghost-button gangsi-submenu-cancel" data-gangsi-close-mechanism type="button">取消操作</button>`;
       if (actions.has("useMasonWall") && masonWallOpen) return `
-        <span class="gangsi-action-hint">選擇相鄰牆邊</span>
-        ${(game.legal.masonWallEdges || []).map((edge) => `<button class="secondary-button" data-gangsi-mason-wall="${escapeAttribute(edge)}" type="button">${escapeHtml(edgeDirectionLabel(game, edge, currentPiece?.position))}</button>`).join("")}
+        <span class="gangsi-action-hint">選擇築牆方向</span>
+        ${wallDirectionGrid(game.legal.masonWallEdges || [], currentPiece?.position, "data-gangsi-mason-wall", "選擇石匠築牆方向")}
         <button class="ghost-button gangsi-submenu-cancel" data-gangsi-close-mason type="button">取消築牆</button>`;
       if (actions.has("useArchaeologistTask") && archaeologistOpen) return `
         <span class="gangsi-action-hint">選擇未完成任務</span>
@@ -767,8 +858,8 @@
         </div>
         <button class="ghost-button gangsi-submenu-cancel" data-gangsi-close-knife type="button">取消投擲</button>`;
       if (actions.has("placePhantomWall") && phantomWallOpen) return `
-        <span class="gangsi-action-hint">選擇相鄰牆邊</span>
-        ${(game.legal.phantomWallEdges || []).map((edge) => `<button class="secondary-button" data-gangsi-phantom-wall="${escapeAttribute(edge)}" type="button">${escapeHtml(edgeDirectionLabel(game, edge, game.mummy.position))}</button>`).join("")}
+        <span class="gangsi-action-hint">選擇築牆方向</span>
+        ${wallDirectionGrid(game.legal.phantomWallEdges || [], game.mummy.position, "data-gangsi-phantom-wall", "選擇幻影牆方向")}
         <button class="ghost-button gangsi-submenu-cancel" data-gangsi-close-phantom type="button">取消放牆</button>`;
       return `
         ${actions.has("hideMummy") ? '<button class="primary-button" data-gangsi-game-action="hideMummy" type="button">進入隱形</button>' : ""}
@@ -821,6 +912,48 @@
       <strong>${escapeHtml(group?.name || "寶藏")}</strong>
       <small>${revealed ? "已揭露" : `${group?.label || ""}色任務`}</small>
     </article>`;
+  }
+
+  function boardRenderSignature(map, game) {
+    return JSON.stringify({
+      map,
+      playerOrder: snapshot.room.players.map((player) => player.id),
+      mode: game.mode,
+      revealedTasks: game.revealedTasks.map((task) => task.id),
+      currentPieceId: game.currentPieceId,
+      currentPlayerId: game.currentPlayerId,
+      pieces: game.pieces.map((piece) => ({
+        id: piece.id,
+        controllerId: piece.controllerId,
+        tokenLabel: piece.tokenLabel,
+        ordinal: piece.ordinal,
+        position: piece.position,
+        eliminated: piece.eliminated
+      })),
+      mummy: {
+        playerId: game.mummy.playerId,
+        position: game.mummy.position
+      },
+      legalTargets: boardLegalTargets(game),
+      actionableMechanisms: game.legal.mechanisms || [],
+      numericPath,
+      hunt: game.mode === "hunt" ? {
+        treasureGoal: game.hunt.treasureGoal,
+        exits: game.hunt.exits,
+        mechanisms: game.hunt.mechanisms,
+        mechanismSeals: game.hunt.mechanismSeals,
+        traps: game.hunt.traps,
+        hatch: game.hunt.hatch,
+        knifeTrackedPositions: game.hunt.knifeTrackedPositions,
+        gazeTrackedPositions: game.hunt.gazeTrackedPositions,
+        gazeLine: game.hunt.gazeLine,
+        purificationPools: game.hunt.purificationPools,
+        infectedTreasures: game.hunt.infectedTreasures,
+        temporaryWall: game.hunt.temporaryWall,
+        phantomWall: game.hunt.phantomWall,
+        grave: game.hunt.grave
+      } : null
+    });
   }
 
   function renderBoard(container, map, game) {
@@ -907,10 +1040,11 @@
           ? `<span class="gangsi-board-piece is-mummy ${game.currentPlayerId === game.mummy.playerId ? "is-current" : ""}">怪</span>`
           : "";
         cells.push(`
-          <button type="button" data-gangsi-board-cell="${cell}" ${originalTreasure ? `data-gangsi-treasure-origin="${originalTreasure.id}"` : ""} class="gangsi-board-cell is-${cellClass} ${huntMarker ? `is-hunt-${huntMarker.type} is-${huntMarker.status || "active"} ${huntMarker.actionable ? "is-mechanism-actionable" : ""}` : ""} ${hatchCell === cell ? "is-hatch" : ""} ${graveCell === cell ? "has-grave" : ""} ${knifeTrackedCells.has(cell) ? "is-knife-tracked" : ""} ${gazeTrackedCells.has(cell) ? "is-gaze-tracked" : ""} ${gazeCells.has(cell) ? "is-gaze-line" : ""} ${purificationPools.has(cell) ? "has-purification-pool" : ""} ${infectedCells.has(cell) ? "has-infection" : ""} ${traps.has(cell) ? "has-trap" : ""} ${walls.has(rightEdge) ? "wall-right" : ""} ${walls.has(bottomEdge) ? "wall-bottom" : ""} ${temporaryWall === rightEdge ? "wall-right is-temporary-wall-right" : ""} ${temporaryWall === bottomEdge ? "wall-bottom is-temporary-wall-bottom" : ""} ${phantomWall === rightEdge ? "wall-right is-phantom-wall-right" : ""} ${phantomWall === bottomEdge ? "wall-bottom is-phantom-wall-bottom" : ""} ${legalTargets.has(cell) ? "is-legal-target" : ""} ${selectedPath.has(cell) ? "is-path-cell" : ""}"
-            aria-label="${escapeAttribute(`${cell} ${labels[cellClass] || "道路"}${treasure ? ` ${treasure.id} ${treasureGroup?.name || "寶藏"}` : ""}${huntMarker ? ` ${huntMarker.type === "mechanism" ? "機關" : "逃生出口"} ${huntMarker.id}${huntMarker.type === "mechanism" ? ` 進度 ${huntMarker.progress}/3${huntMarker.sealed ? " 封印中" : ""}` : ""}${huntMarker.actionable ? " 目前可操作" : ""}` : ""}${hatchCell === cell ? " 密道" : ""}${graveCell === cell ? " 墓穴" : ""}${knifeTrackedCells.has(cell) ? " 飛刀追蹤座標" : ""}${gazeTrackedCells.has(cell) ? " 凝視追蹤座標" : ""}${gazeCells.has(cell) ? " 凝視線" : ""}${purificationPools.has(cell) ? " 淨化池" : ""}${infection ? ` 感染寶藏，傳染倒數 ${infection.remaining} 回合` : ""}`)}">
+          <button type="button" data-gangsi-board-cell="${cell}" ${originalTreasure ? `data-gangsi-treasure-origin="${originalTreasure.id}"` : ""} class="gangsi-board-cell is-${cellClass} ${huntMarker ? `is-hunt-${huntMarker.type} is-${huntMarker.status || "active"} ${huntMarker.actionable ? "is-mechanism-actionable" : ""}` : ""} ${hatchCell === cell ? "is-hatch" : ""} ${graveCell === cell ? "has-grave" : ""} ${knifeTrackedCells.has(cell) ? "is-knife-tracked" : ""} ${gazeTrackedCells.has(cell) ? "is-gaze-tracked" : ""} ${gazeCells.has(cell) ? "is-gaze-line" : ""} ${purificationPools.has(cell) ? "has-purification-pool" : ""} ${infectedCells.has(cell) ? "has-infection" : ""} ${traps.has(cell) ? "has-trap" : ""} ${walls.has(rightEdge) ? "wall-right" : ""} ${walls.has(bottomEdge) ? "wall-bottom" : ""} ${temporaryWall && temporaryWall === rightEdge ? "wall-right is-temporary-wall-right" : ""} ${temporaryWall && temporaryWall === bottomEdge ? "wall-bottom is-temporary-wall-bottom" : ""} ${phantomWall && phantomWall === rightEdge ? "wall-right is-phantom-wall-right" : ""} ${phantomWall && phantomWall === bottomEdge ? "wall-bottom is-phantom-wall-bottom" : ""} ${legalTargets.has(cell) ? "is-legal-target" : ""} ${selectedPath.has(cell) ? "is-path-cell" : ""}"
+            aria-label="${escapeAttribute(`${cell} ${labels[cellClass] || "道路"}${treasure ? ` ${treasure.id} ${treasureGroup?.name || "寶藏"}` : ""}${huntMarker ? ` ${huntMarker.type === "mechanism" ? "機關" : "逃生出口"} ${huntMarker.id}${huntMarker.type === "mechanism" ? ` 進度 ${huntMarker.progress}/${Format.HUNT_MECHANISM_TARGET}${huntMarker.sealed ? " 封印中" : ""}` : ""}${huntMarker.actionable ? " 目前可操作" : ""}` : ""}${hatchCell === cell ? " 密道" : ""}${graveCell === cell ? " 墓穴" : ""}${knifeTrackedCells.has(cell) ? " 飛刀追蹤座標" : ""}${gazeTrackedCells.has(cell) ? " 凝視追蹤座標" : ""}${gazeCells.has(cell) ? " 凝視線" : ""}${purificationPools.has(cell) ? " 淨化池" : ""}${infection ? ` 感染寶藏，傳染倒數 ${infection.remaining} 回合` : ""}`)}">
+            <span class="cell-coordinate">${cell}</span>
             ${labels[cellClass] ? `<span class="gangsi-zone-label">${labels[cellClass]}</span>` : ""}
-            ${huntMarker ? `<span class="gangsi-hunt-marker">${huntMarker.sealed ? "封" : huntMarker.type === "mechanism" ? `機${huntMarker.id}<small>${huntMarker.actionable ? "可操作" : `${huntMarker.progress}/3`}</small>` : `出${huntMarker.id}<small>${huntMarker.status === "open" ? "開" : "關"}</small>`}</span>` : ""}
+            ${huntMarker ? `<span class="gangsi-hunt-marker">${huntMarker.sealed ? "封" : huntMarker.type === "mechanism" ? `機${huntMarker.id}<small>${huntMarker.actionable ? "可操作" : `${huntMarker.progress}/${Format.HUNT_MECHANISM_TARGET}`}</small>` : `出${huntMarker.id}<small>${huntMarker.status === "open" ? "開" : "關"}</small>`}</span>` : ""}
             ${hatchCell === cell ? '<span class="gangsi-hatch-marker">密</span>' : ""}
             ${graveCell === cell ? '<span class="gangsi-grave-marker" title="遁地鬼墓穴">墓</span>' : ""}
             ${knifeTrackedCells.has(cell) ? '<span class="gangsi-knife-tracked-marker" title="飛刀追蹤中的匿名座標">追</span>' : ""}
@@ -1427,7 +1561,7 @@
     if (snapshot.room.phase === "adventurer_end") {
       if (game.endState?.kind === "mechanism") {
         const result = game.endState;
-        return `機關 ${result.mechanismId} 擲出 ${result.diceFace}，進度成為 ${result.finalProgress} / 3${result.sealed ? "，並封印 1 個冒險者回合" : ""}。`;
+        return `機關 ${result.mechanismId} 擲出 ${result.diceFace}，進度成為 ${result.finalProgress} / ${Format.HUNT_MECHANISM_TARGET}${result.sealed ? "，並封印 1 個冒險者回合" : ""}。`;
       }
       if (game.endState?.kind === "no_movement") {
         return game.endState.reason === "all_dice_locked"
@@ -1482,17 +1616,32 @@
     return cost;
   }
 
-  function edgeDirectionLabel(game, edge, origin) {
+  function wallDirectionGrid(edges, origin, actionAttribute, ariaLabel) {
+    const edgesByDirection = new Map();
+    for (const edge of edges) {
+      const direction = edgeDirection(edge, origin);
+      if (direction) edgesByDirection.set(direction, edge);
+    }
+    return `<div class="gangsi-direction-grid" role="group" aria-label="${escapeAttribute(ariaLabel)}">
+      ${[["up", "↑"], ["left", "←"], ["down", "↓"], ["right", "→"]].map(([direction, label]) => {
+        const edge = edgesByDirection.get(direction);
+        const action = edge ? `${actionAttribute}="${escapeAttribute(edge)}"` : "";
+        return `<button class="ghost-button" data-gangsi-wall-direction="${direction}" ${action} type="button" title="向${directionLabel(direction)}築牆" ${edge ? "" : "disabled"}>${label}</button>`;
+      }).join("")}
+    </div>`;
+  }
+
+  function edgeDirection(edge, origin) {
     const cells = String(edge || "").split("|");
     const target = cells.find((cell) => cell !== origin);
-    if (!target || !origin) return edge;
+    if (!target || !origin) return "";
     const [originX, originY] = Format.parseCell(origin);
     const [targetX, targetY] = Format.parseCell(target);
-    if (targetY < originY) return "上方";
-    if (targetX > originX) return "右方";
-    if (targetY > originY) return "下方";
-    if (targetX < originX) return "左方";
-    return edge;
+    if (targetY < originY) return "up";
+    if (targetX > originX) return "right";
+    if (targetY > originY) return "down";
+    if (targetX < originX) return "left";
+    return "";
   }
 
   function renderHuntStatus(game) {
@@ -1515,10 +1664,19 @@
         : "";
     return `
       <div><span>團隊寶藏</span><strong>${game.revealedTasks.length} / ${game.hunt.treasureGoal}</strong></div>
-      ${Format.HUNT_MECHANISM_IDS.map((id) => `<div><span>機關 ${id}</span><strong>${game.hunt.mechanisms[id]} / 3 · ${game.hunt.exits[id] === "open" ? "已轉為出口" : game.hunt.mechanismSeals?.[id] ? "封印中" : "尚未完成"}</strong></div>`).join("")}
+      ${Format.HUNT_MECHANISM_IDS.map((id) => `<div><span>機關 ${id}</span><strong>${game.hunt.mechanisms[id]} / ${Format.HUNT_MECHANISM_TARGET} · ${game.hunt.exits[id] === "open" ? "已轉為出口" : game.hunt.mechanismSeals?.[id] ? "封印中" : "尚未完成"}</strong></div>`).join("")}
       <div><span>你的能力</span><strong>${escapeHtml(ability)}</strong></div>
       ${game.mummy.type === "corrupt" && game.hunt.purificationFallback ? `<div class="is-alert"><span>淨化池</span><strong>${game.hunt.purificationPools.length === 2 ? "本局採用備援配置" : "本地圖無法生成淨化池"}</strong></div>` : ""}
       ${game.hunt.hatch.status === "open" ? `<div><span>密道</span><strong>已在 (${escapeHtml(game.hunt.hatch.position)}) 開啟</strong></div>` : ""}`;
+  }
+
+  function publicTurnMessage(game) {
+    if (snapshot.room.phase === "game_over" || !game.currentPlayerId) return "";
+    const player = playerById(game.currentPlayerId);
+    const name = player?.name || (snapshot.room.phase.startsWith("monster") ? "提燈怪" : "冒險者");
+    return snapshot.room.phase.startsWith("monster_interrupt")
+      ? `輪到 ${name} 進行插入回合。`
+      : `輪到 ${name}。`;
   }
 
   function playerById(playerId) {
@@ -1536,6 +1694,7 @@
     const captures = event.captures?.length ? event.captures : [event];
     const descriptions = captures.map((capture) => {
       const player = playerById(capture.playerId);
+      if (capture.guarded) return `${player?.name || "冒險者"}被抓捕並送回地牢，騎士守護抵銷生命損失`;
       return `${player?.name || "冒險者"}${capture.eliminated ? "已出局" : `剩餘 ${Math.max(0, capture.life)} 點生命`}`;
     });
     page.captureText.textContent = `${captures.length > 1 ? `${captures.length} 名冒險者` : "冒險者"}被提燈怪抓到了！${descriptions.join("、")}`;

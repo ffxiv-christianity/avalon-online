@@ -20,6 +20,7 @@
   )));
   const TREASURE_ID_SET = new Set(TREASURE_IDS);
   const HUNT_MECHANISM_IDS = Object.freeze(["A", "B"]);
+  const HUNT_MECHANISM_TARGET = 4;
   const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
   function clone(value) {
@@ -1256,6 +1257,7 @@
     GROUPS,
     TREASURE_IDS,
     HUNT_MECHANISM_IDS,
+    HUNT_MECHANISM_TARGET,
     clone,
     parseCell,
     cellKey,

@@ -62,8 +62,9 @@ assert.strictEqual(view.room.game.mummy.target, 3);
 assert.strictEqual(view.room.players.find((player) => player.id === host.id).tokenLabel, "勇");
 assert.strictEqual(view.room.players.find((player) => player.id === explorer.id).role, "mummy");
 assert.strictEqual(view.you.isHost, true);
-room.log.push("較早記錄一", "較早記錄二", "最新記錄");
-assert.deepStrictEqual(makeView(room, host.id).room.log, room.log.slice(-5));
+room.log.push(...Array.from({ length: 9 }, (_, index) => `測試記錄 ${index + 1}`));
+assert.deepStrictEqual(makeView(room, host.id).room.log, room.log.slice(-7));
+assert.strictEqual(makeView(room, host.id).room.log.length, 7);
 
 assert(applyRoomAction(room, explorer, "returnLobby").includes("房主"));
 assert.strictEqual(applyRoomAction(room, host, "chat", { message: "game message" }), null);

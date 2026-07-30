@@ -22,6 +22,7 @@ assert.deepStrictEqual(result.map.zones.entrance, { anchor: "4,7", exits: ["3,7"
 assert.deepStrictEqual(result.map.zones.dungeon, { anchor: "6,7", exits: ["6,6", "7,7"] });
 assert.strictEqual(result.map.treasures.length, 23);
 assert.deepStrictEqual([...new Set(result.map.treasures.map((treasure) => treasure.id))], MapFormat.TREASURE_IDS);
+assert.strictEqual(MapFormat.HUNT_MECHANISM_TARGET, 4);
 assert.strictEqual(MapFormat.mapStats(result.map).floorCells, 67);
 
 assert.strictEqual(MapClasses.cellClassAt(result.map, "4,7"), "entrance");

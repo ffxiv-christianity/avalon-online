@@ -272,9 +272,15 @@ function startedTwoPlayerRoom() {
   assert.deepStrictEqual(makeView(room, mummy.id).room.game.legal.actions, []);
   assert(makeView(room, mummy.id).room.log.at(-1).includes("五顆骰子全部鎖定"));
   assert.strictEqual(applyRoomAction(room, lockingActor, "finishAdventurerTurn"), null);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
+  const unlockingPiece = room.game.pieces[room.game.currentPieceId];
+  const unlockingActor = room.players.find((player) => player.id === unlockingPiece.controllerId);
+  assert.deepStrictEqual(makeView(room, unlockingActor.id).room.game.legal.actions, ["unlockDice"]);
+  assert(applyRoomAction(room, unlockingActor, "rollAdventurerDice").includes("必須先解鎖全部骰子"));
+  assert.strictEqual(applyRoomAction(room, unlockingActor, "unlockDice"), null);
   assert.strictEqual(room.phase, Engine.PHASES.monsterInterruptAction);
   assert.strictEqual(room.game.mummy.remaining, 5);
-  assert(room.log.at(-1).includes("已無可用骰子，系統自動解鎖 5 顆骰子"));
+  assert(room.log.at(-1).includes("解鎖 5 顆骰子，提燈怪取得插入回合"));
   assert.strictEqual(applyRoomAction(room, mummy, "stopMummy"), null);
   assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
 }
@@ -285,6 +291,10 @@ function startedTwoPlayerRoom() {
   const lockingActor = room.players.find((player) => player.id === lockingPiece.controllerId);
   Engine.resolveAdventurerFaces(room, ["mummy", "mummy", "mummy", "mummy", "mummy"]);
   assert.strictEqual(applyRoomAction(room, lockingActor, "finishAdventurerTurn"), null);
+  const unlockingPiece = room.game.pieces[room.game.currentPieceId];
+  const unlockingActor = room.players.find((player) => player.id === unlockingPiece.controllerId);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
+  assert.strictEqual(applyRoomAction(room, unlockingActor, "unlockDice"), null);
   assert.strictEqual(room.phase, Engine.PHASES.monsterInterruptAction);
   const blockedPiece = room.game.pieces[room.game.currentPieceId];
   const blockedActor = room.players.find((player) => player.id === blockedPiece.controllerId);
@@ -314,6 +324,9 @@ function startedTwoPlayerRoom() {
   assert.strictEqual(applyRoomAction(room, lockingActor, "finishAdventurerTurn"), null);
   const resumingPieceId = room.game.currentPieceId;
   assert.notStrictEqual(resumingPieceId, lockingPiece.id);
+  const resumingActor = room.players.find((player) => player.id === room.game.pieces[resumingPieceId].controllerId);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
+  assert.strictEqual(applyRoomAction(room, resumingActor, "unlockDice"), null);
   assert.strictEqual(room.phase, Engine.PHASES.monsterInterruptAction);
   assert.strictEqual(room.game.pendingUnlock.pieceId, resumingPieceId);
   assert.strictEqual(room.game.mummy.remaining, 5);
@@ -343,6 +356,11 @@ function startedTwoPlayerRoom() {
   Engine.resolveMummyRoll(room, 1);
   assert.strictEqual(room.game.mummy.remaining, 6);
   assert.strictEqual(applyRoomAction(room, mummy, "stopMummy"), null);
+  assert.strictEqual(room.phase, Engine.PHASES.adventurerPrepare);
+  const unlockingPiece = room.game.pieces[room.game.currentPieceId];
+  const unlockingActor = room.players.find((player) => player.id === unlockingPiece.controllerId);
+  assert.deepStrictEqual(makeView(room, unlockingActor.id).room.game.legal.actions, ["unlockDice"]);
+  assert.strictEqual(applyRoomAction(room, unlockingActor, "unlockDice"), null);
   assert.strictEqual(room.phase, Engine.PHASES.monsterInterruptAction);
   assert.strictEqual(room.game.mummy.remaining, 5);
 }
@@ -381,6 +399,10 @@ function startedTwoPlayerRoom() {
   assert.strictEqual(applyRoomAction(room, first, "revealTreasure"), null);
   assert.strictEqual(task.revealed, true);
   assert.strictEqual(room.game.revealedTasks.at(-1).id, task.id);
+  assert(room.log.at(-2).includes(`揭露了寶藏 ${task.id}`),
+    "the treasure reveal must remain before the next-turn message");
+  assert(room.log.at(-1).startsWith("輪到"),
+    "the next-turn message must be the latest action information");
 
   const target = Engine.mummyMoves(room)[0];
   piece.position = target;

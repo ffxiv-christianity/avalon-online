@@ -98,6 +98,15 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   && Game.MUMMY_TYPES.includes("gazer") && Game.MUMMY_TYPES.includes("corrupt"));
 
 {
+  const { room, first } = setup();
+  room.game.events = Array.from({ length: 9 }, (_, index) => ({ public: `測試行動 ${index + 1}` }));
+  assert.deepStrictEqual(
+    HuntEngine.makeGameView(room, first).actionInfo,
+    Array.from({ length: 7 }, (_, index) => `測試行動 ${index + 3}`)
+  );
+}
+
+{
   const map = huntMap();
   const originalLoadMaps = MapCatalog.loadBuiltInMaps;
   const originalGetMap = MapCatalog.getBuiltInMap;
@@ -180,7 +189,11 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   assert(mummyView.pieces.every((piece) => Object.hasOwn(piece, "guard") && Object.hasOwn(piece, "injured")
     && Object.hasOwn(piece, "bleeding") && Object.hasOwn(piece, "gazeStacks")
     && Object.hasOwn(piece, "corrupted")));
-  assert.deepStrictEqual(mummyView.progress, []);
+  assert.strictEqual(mummyView.progress.length, 2);
+  assert(mummyView.progress.every((progress) => progress.playerId
+    && Object.keys(progress.remainingByGroup).join("") === "ABCDE"));
+  assert(!JSON.stringify(mummyView.progress).includes(room.game.hands[first.id][0].id),
+    "public task counts must not leak unrevealed treasure IDs");
   assert.strictEqual(mummyView.dice, null);
   assert.deepStrictEqual(mummyView.hand, []);
   assert(!Object.hasOwn(mummyView.hunt, "countdown"));
@@ -224,7 +237,7 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
     die.face = "mummy";
   }
   assert(!HuntEngine.makeGameView(room, second).legal.actions.includes("useWizardUnlock"));
-  assert(HuntEngine.applyGameAction(room, second, "useWizardUnlock").includes("全部骰子鎖定"));
+  assert(HuntEngine.applyGameAction(room, second, "useWizardUnlock").includes("必須先解鎖全部骰子"));
   assert.strictEqual(wizard.wizardCharges, 2);
 }
 
@@ -302,7 +315,40 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   assert.strictEqual(room.game.endState.reason, "all_dice_locked");
   assert.strictEqual(HuntEngine.applyGameAction(room, first, "finishAdventurerTurn"), null);
   assert.strictEqual(room.game.currentPieceId, pieceFor(room, second).id);
+  assert.strictEqual(room.phase, HuntEngine.PHASES.adventurerPrepare);
+  assert.deepStrictEqual(HuntEngine.makeGameView(room, second).legal.actions, ["unlockDice"]);
+  assert(HuntEngine.applyGameAction(room, second, "useArchaeologistTask", {
+    taskId: room.game.hands[second.id][0].id
+  }).includes("必須先解鎖全部骰子"));
+  assert.strictEqual(HuntEngine.applyGameAction(room, second, "unlockDice"), null);
   assert.strictEqual(room.phase, HuntEngine.PHASES.monsterInterruptAction);
+}
+
+{
+  const { room, first, second, mummy } = setup();
+  const lastPiece = pieceFor(room, second);
+  makeCurrent(room, lastPiece, HuntEngine.PHASES.adventurerRoll);
+  HuntEngine.resolveAdventurerFaces(room, ["mummy", "mummy", "mummy", "mummy", "mummy"]);
+  assert.strictEqual(HuntEngine.applyGameAction(room, second, "finishAdventurerTurn"), null);
+  assert.strictEqual(room.phase, HuntEngine.PHASES.monsterPrepare,
+    "the last adventurer locking every die must be followed by the normal monster turn");
+  assert.strictEqual(room.game.currentPieceId, null);
+  assert.strictEqual(room.game.pendingUnlock, null);
+  HuntEngine.resolveMummyRoll(room, 1);
+  assert.strictEqual(room.game.mummy.remaining, 6,
+    "the normal monster turn must include the five locked monster dice");
+  assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "stopMummy"), null);
+  assert.strictEqual(room.game.currentPieceId, pieceFor(room, first).id);
+  assert.strictEqual(room.phase, HuntEngine.PHASES.adventurerPrepare,
+    "the next round's first adventurer must confirm the forced unlock");
+  assert.deepStrictEqual(HuntEngine.makeGameView(room, first).legal.actions, ["unlockDice"]);
+  assert.strictEqual(HuntEngine.applyGameAction(room, first, "unlockDice"), null);
+  assert.strictEqual(room.phase, HuntEngine.PHASES.monsterInterruptAction);
+  assert.strictEqual(room.game.mummy.remaining, 5);
+  assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "stopMummy"), null);
+  assert.strictEqual(room.phase, HuntEngine.PHASES.adventurerPrepare);
+  assert.strictEqual(room.game.currentPieceId, pieceFor(room, first).id,
+    "the forced unlock interlude must return to the same first adventurer");
 }
 
 {
@@ -433,22 +479,28 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   assert.deepStrictEqual(HuntEngine.makeGameView(room, second).endState, HuntEngine.makeGameView(room, second).endState, "reconnect views must preserve the same result");
   assert(HuntEngine.applyGameAction(room, second, "activateMechanism", { gateId: "A" }).includes("不能在 adventurer_end"));
   assert.strictEqual(room.game.hunt.mechanisms.A, 1, "a repeated mechanism action must not apply progress twice");
+  const archaeologistMechanismInfo = HuntEngine.makeGameView(room, second).actionInfo
+    .find((message) => message.includes("操作機關 A") && message.includes("擲出 0"));
+  assert(archaeologistMechanismInfo.includes("骰面進度 +0"));
+  assert(archaeologistMechanismInfo.includes("遺跡學家加成 +1"));
+  assert(!archaeologistMechanismInfo.includes("理論增加"));
+  assert(!archaeologistMechanismInfo.includes("實際增加"));
   assert.strictEqual(HuntEngine.applyGameAction(room, second, "finishAdventurerTurn"), null);
   const pieceAfterFinish = room.game.currentPieceId;
   assert(HuntEngine.applyGameAction(room, second, "finishAdventurerTurn").includes("不能在"));
   assert.strictEqual(room.game.currentPieceId, pieceAfterFinish, "duplicate finish must not switch twice");
   engineer.position = "5,1";
   makeCurrent(room, engineer);
-  result = HuntEngine.resolveMechanismFace(room, "A", 1);
-  assert.strictEqual(result.appliedProgress, 2);
-  assert.strictEqual(room.game.hunt.mechanisms.A, 3);
-  assert.strictEqual(engineer.mechanismContribution, 3, "contribution must equal the 1 + 2 progress actually applied");
+  result = HuntEngine.resolveMechanismFace(room, "A", 2);
+  assert.strictEqual(result.appliedProgress, 3);
+  assert.strictEqual(room.game.hunt.mechanisms.A, 4);
+  assert.strictEqual(engineer.mechanismContribution, 4, "contribution must equal the 1 + 3 progress actually applied");
   assert.strictEqual(room.game.hunt.exits.A, "open");
   assert.strictEqual(room.game.hunt.tracking.enabled, false, "opening an exit must not start tracking by itself");
 
   engineer.position = "5,1";
   makeCurrent(room, engineer);
-  room.game.hunt.mechanisms.B = 2;
+  room.game.hunt.mechanisms.B = 3;
   const capped = HuntEngine.resolveMechanismFace(room, "B", 2);
   assert.deepStrictEqual({
     baseProgress: capped.baseProgress,
@@ -456,8 +508,8 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
     calculatedProgress: capped.calculatedProgress,
     appliedProgress: capped.appliedProgress,
     finalProgress: capped.finalProgress
-  }, { baseProgress: 2, classBonus: 1, calculatedProgress: 3, appliedProgress: 1, finalProgress: 3 });
-  assert.strictEqual(engineer.mechanismContribution, 4, "progress beyond the mechanism cap must not add contribution");
+  }, { baseProgress: 2, classBonus: 1, calculatedProgress: 3, appliedProgress: 1, finalProgress: 4 });
+  assert.strictEqual(engineer.mechanismContribution, 5, "progress beyond the mechanism cap must not add contribution");
   assert.strictEqual(room.game.hunt.mechanismSeals.B, null);
 
   engineer.position = "5,1";
@@ -490,6 +542,12 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   assert.strictEqual(room.game.hunt.mechanismSeals.A.remaining, 1);
   const operatorView = HuntEngine.makeGameView(room, first);
   const mummyView = HuntEngine.makeGameView(room, mummy);
+  const standardMechanismInfo = operatorView.actionInfo
+    .find((message) => message.includes("操作機關 A") && message.includes("擲出 X"));
+  assert(standardMechanismInfo.includes("進度 +1"));
+  assert(!standardMechanismInfo.includes("遺跡學家加成"));
+  assert(!standardMechanismInfo.includes("理論增加"));
+  assert(!standardMechanismInfo.includes("實際增加"));
   assert.deepStrictEqual(operatorView.endState, result);
   const { operatorPlayerId, ...publicResult } = result;
   assert.strictEqual(operatorPlayerId, first.id);
@@ -534,9 +592,9 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
 
   doctor.position = "5,1";
   makeCurrent(room, doctor);
-  room.game.hunt.mechanisms.A = 2;
+  room.game.hunt.mechanisms.A = 3;
   const completingX = HuntEngine.resolveMechanismFace(room, "A", "X");
-  assert.strictEqual(completingX.finalProgress, 3);
+  assert.strictEqual(completingX.finalProgress, 4);
   assert.strictEqual(completingX.sealed, false);
   assert.strictEqual(room.game.hunt.mechanismSeals.A, null);
   assert.strictEqual(room.game.hunt.exits.A, "open");
@@ -556,10 +614,10 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
       assert.strictEqual(result.baseProgress, base);
       assert.strictEqual(result.classBonus, bonus);
       assert.strictEqual(result.calculatedProgress, base + bonus);
-      assert.strictEqual(result.finalProgress, Math.min(3, base + bonus));
-      assert.strictEqual(result.appliedProgress, Math.min(3, base + bonus));
+      assert.strictEqual(result.finalProgress, Math.min(4, base + bonus));
+      assert.strictEqual(result.appliedProgress, Math.min(4, base + bonus));
       assert.strictEqual(piece.mechanismContribution, result.appliedProgress);
-      assert.strictEqual(result.sealed, face === "X" && result.finalProgress < 3);
+      assert.strictEqual(result.sealed, face === "X" && result.finalProgress < 4);
     }
   }
 }
@@ -568,6 +626,13 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   const { room, first, second, mummy } = setup({ professions: ["knight", "archaeologist"], mummyType: "trap" });
   const knight = pieceFor(room, first);
   const target = pieceFor(room, second);
+  knight.position = "entrance";
+  target.position = room.game.map.zones.entrance.exits[0];
+  makeCurrent(room, knight);
+  assert(HuntEngine.makeGameView(room, first).legal.guardTargets.includes(target.id), "a knight in the entrance must guard adjacent board cells");
+  knight.position = "dungeon";
+  target.position = room.game.map.zones.dungeon.exits[0];
+  assert(HuntEngine.makeGameView(room, first).legal.guardTargets.includes(target.id), "a knight in the dungeon must guard adjacent board cells");
   knight.position = "6,3";
   target.position = "7,4";
   makeCurrent(room, knight);
@@ -620,6 +685,59 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   assert.strictEqual(room.game.mummy.abilityTriggers, 1);
   assert.deepStrictEqual(room.game.hunt.traps, []);
   assert.strictEqual(HuntEngine.makeGameView(room, mummy).pieces.find((piece) => piece.id === knight.id).injured, true);
+}
+
+{
+  const { room, first, second, mummy } = setup({ professions: ["wizard", "doctor"], mummyType: "trap" });
+  const victim = pieceFor(room, first);
+  const other = pieceFor(room, second);
+  const victimCell = Object.keys(room.game.graph.passages)
+    .find((cell) => (room.game.graph.passages[cell] || []).length > 0);
+  const mummyCell = room.game.graph.passages[victimCell][0];
+  victim.position = victimCell;
+  other.position = "entrance";
+  makeCurrent(room, victim);
+  room.game.resumeState = {
+    playerId: first.id,
+    pieceId: victim.id,
+    phase: HuntEngine.PHASES.adventurerPrepare,
+    disabledDieId: null,
+    newTurn: false
+  };
+  room.game.mummy.position = mummyCell;
+  room.game.mummy.remaining = 2;
+  room.game.mummy.moveKind = "interrupt";
+  room.phase = HuntEngine.PHASES.monsterInterruptAction;
+  assert.strictEqual(HuntEngine.applyGameAction(room, mummy, "moveMummy", { cell: victimCell }), null);
+  assert.strictEqual(room.game.mummy.remaining, 0, "an interrupt capture must consume all remaining movement");
+  assert.strictEqual(room.game.mummy.moveKind, null);
+  assert.strictEqual(room.game.resumeState, null);
+  assert.strictEqual(room.game.currentPieceId, victim.id);
+  assert.strictEqual(room.phase, HuntEngine.PHASES.adventurerPrepare);
+  assert.strictEqual(victim.position, "dungeon");
+  assert(HuntEngine.makeGameView(room, first).actionInfo.includes("提燈怪抓到冒險者，插入回合立即結束。"));
+  assert.deepStrictEqual(HuntEngine.makeGameView(room, mummy).legal.actions, []);
+}
+
+{
+  const { room, first, second } = setup({ professions: ["doctor", "wizard"], mummyType: "trap" });
+  const piece = pieceFor(room, first);
+  const other = pieceFor(room, second);
+  const hiddenTask = room.game.hands[first.id].find((task) => !task.revealed);
+  const treasureCell = treasurePositionForTest(room, hiddenTask.id);
+  const startCell = (room.game.graph.passages[treasureCell] || [])
+    .find((cell) => cell !== room.game.mummy.position);
+  assert(startCell, "fixture must provide a road next to the hidden treasure");
+  room.game.revealedTasks = Array.from({ length: room.game.hunt.treasureGoal }, (_, index) => ({ id: `DONE${index}` }));
+  piece.position = startCell;
+  other.position = "entrance";
+  makeCurrent(room, piece, HuntEngine.PHASES.adventurerAction);
+  room.game.selectedFace = "1";
+  room.game.actionState = { kind: "numeric", movementBudget: 1 };
+  assert.strictEqual(HuntEngine.applyGameAction(room, first, "moveNumeric", { path: [treasureCell] }), null);
+  assert.deepStrictEqual(room.game.pendingTreasureIds, [], "hidden treasures must not prompt after the team goal is complete");
+  assert.notStrictEqual(room.game.endState?.kind, "treasure");
+  assert.strictEqual(hiddenTask.revealed, false);
 }
 
 {
@@ -874,6 +992,11 @@ assert(Game.MUMMY_TYPES.includes("burrow") && Game.MUMMY_TYPES.includes("phantom
   assert.strictEqual(HuntEngine.makeGameView(room, first).turnStage, "end");
   assert.deepStrictEqual(HuntEngine.makeGameView(room, first).endState, { kind: "treasure", operatorPlayerId: first.id });
   assert.strictEqual(HuntEngine.applyGameAction(room, first, "revealTreasure"), null);
+  const adventurerActionInfo = HuntEngine.makeGameView(room, first).actionInfo;
+  assert(adventurerActionInfo.at(-2).includes(`揭露寶藏 ${task.id}`),
+    "the treasure reveal must remain before the next-turn message");
+  assert(adventurerActionInfo.at(-1).startsWith("輪到"),
+    "the next-turn message must be the latest action information");
   const mummyView = HuntEngine.makeGameView(room, mummy);
   assert.strictEqual(mummyView.revealedTasks[0].playerId, undefined);
   assert(!mummyView.actionInfo.join(" ").includes(first.name + " 揭露"));

@@ -119,6 +119,11 @@ function applyGameAction(room, actor, action, payload = {}) {
   if (!room.game || room.phase === "lobby") return "遊戲尚未開始。";
   if (room.phase === PHASES.gameOver) return "遊戲已經結束。";
   if (!PHASE_ACTIONS[room.phase]?.includes(action)) return `操作 ${action} 不能在 ${room.phase} 階段執行。`;
+  if (room.phase === PHASES.adventurerPrepare
+    && lockedDiceCount(room) === room.game.dice.length
+    && action !== "unlockDice") {
+    return "所有冒險者骰皆已鎖定，必須先解鎖全部骰子。";
+  }
   switch (action) {
     case "unlockDice": return unlockDice(room, actor);
     case "finishAdventurerTurn": return finishAdventurerTurn(room, actor);
@@ -440,7 +445,7 @@ function beginAdventurerAtIndex(room, startIndex) {
   room.game.mummy.remaining = 0;
   room.game.mummy.moveKind = null;
   room.phase = PHASES.monsterPrepare;
-  addLog(room, "輪到提燈怪的正常回合。");
+  addLog(room, "提燈怪的正常回合。");
 }
 
 function prepareAdventurerTurn(room, piece) {
@@ -453,7 +458,9 @@ function prepareAdventurerTurn(room, piece) {
     return;
   }
   const locked = lockedDiceCount(room);
-  if (locked === room.game.dice.length) beginInterlude(room, piece.id, locked, true);
+  if (locked === room.game.dice.length) {
+    addLog(room, `${pieceName(room, piece)} 的所有冒險者骰皆已鎖定，必須先解鎖全部骰子。`);
+  }
 }
 
 function finishGame(room, winner) {
@@ -598,10 +605,10 @@ function addLegalView(room, viewer, view) {
   const current = currentPiece(room);
   const isCurrent = viewer.role === "adventurer" && current?.controllerId === viewer.id;
   if (isCurrent && room.phase === PHASES.adventurerPrepare) {
-    view.legal.actions = [
-      "rollAdventurerDice",
-      ...(lockedDiceCount(room) > 0 ? ["unlockDice"] : [])
-    ];
+    const locked = lockedDiceCount(room);
+    view.legal.actions = locked === room.game.dice.length
+      ? ["unlockDice"]
+      : ["rollAdventurerDice", ...(locked > 0 ? ["unlockDice"] : [])];
   } else if (isCurrent && room.phase === PHASES.adventurerRoll) {
     view.legal.dieIds = legalDieIds(room);
     view.legal.actions = [
