@@ -19,6 +19,7 @@ const {
   rememberAction
 } = require("../Shared/server/realtime-contract");
 const { makeRoom, joinRoom, applyRoomAction, makeView } = require("./game");
+const MapCatalog = require("./map-catalog");
 
 const PUBLIC_DIR = path.join(__dirname, "public");
 const MAPS_DIR = path.join(__dirname, "maps");
@@ -31,6 +32,9 @@ const STALE_SAFE_ACTIONS = new Set(["chat", "roll", "updateTokenLabel", "toggleR
 const rooms = new Map();
 const clients = new Set();
 const realtimeMetrics = createRealtimeMetrics();
+
+// Validate and cache every built-in map once so room sync never performs disk I/O.
+MapCatalog.loadBuiltInMaps();
 
 function safeFile(root, relativePath) {
   const rootPath = path.resolve(root);

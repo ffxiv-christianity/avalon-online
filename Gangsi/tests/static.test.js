@@ -16,8 +16,9 @@ async function run() {
     const page = await pageResponse.text();
     assert.strictEqual(pageResponse.status, 200);
     assert(page.includes("古墓迷蹤 Gangsi"));
-    assert(page.includes("最新版本 2026/07/30 v2"));
-    assert(page.includes("<strong>2026/07/30 v2</strong>"));
+    assert(page.includes("最新版本 2026/07/31"));
+    assert(page.includes("<strong>2026/07/31</strong>"));
+    assert(page.includes("玩家進房、切換地圖及遊戲操作不再重複讀取與驗證所有地圖"));
     assert(page.includes("機關改為累積 4 點才開啟"));
     assert(page.includes("A～E 類寶藏卡的剩餘張數屬於公開資訊"));
     assert(page.includes("只能按下「解鎖全部骰子」"));

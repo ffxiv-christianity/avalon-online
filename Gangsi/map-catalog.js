@@ -7,6 +7,7 @@ const MapFormat = require("./map-format");
 
 const MAPS_DIR = path.join(__dirname, "maps");
 const INDEX_FILE = path.join(MAPS_DIR, "index.json");
+let builtInMapsCache = null;
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -33,8 +34,14 @@ function resolveMapFile(fileName) {
   return filePath;
 }
 
-function loadBuiltInMaps() {
-  return loadIndex().map((entry) => {
+function deepFreeze(value) {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  Object.values(value).forEach(deepFreeze);
+  return Object.freeze(value);
+}
+
+function buildBuiltInMaps() {
+  return Object.freeze(loadIndex().map((entry) => {
     const payload = readJson(resolveMapFile(entry.file));
     const result = MapFormat.validateMap(payload);
     if (!result.valid) throw new Error(`Invalid Gangsi map ${entry.id}: ${result.errors.join("; ")}`);
@@ -42,13 +49,18 @@ function loadBuiltInMaps() {
     map.id = entry.id;
     map.name = entry.name || map.name;
     const huntValidation = MapFormat.validateHuntMap(payload);
-    return Object.freeze({
+    return deepFreeze({
       ...entry,
       huntCompatible: huntValidation.valid,
-      huntErrors: Object.freeze(huntValidation.errors.slice()),
-      map: Object.freeze(map)
+      huntErrors: huntValidation.errors.slice(),
+      map
     });
-  });
+  }));
+}
+
+function loadBuiltInMaps() {
+  if (!builtInMapsCache) builtInMapsCache = buildBuiltInMaps();
+  return builtInMapsCache;
 }
 
 function getBuiltInMap(mapId) {
