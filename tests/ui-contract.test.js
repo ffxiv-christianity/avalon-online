@@ -46,12 +46,14 @@ const loveMobileStyles = loveStyles.slice(loveStyles.indexOf("@media (max-width:
   ["LoveLetter", lovePage, loveScript],
   ["Gangsi", gangsiPage, gangsiScript]
 ].forEach(([game, page, script]) => {
-  assert(page.includes('id="nameInput" maxlength="12"'), `${game} name input must expose the 12 half-width-unit limit`);
+  assert(page.includes('id="nameInput" required autocomplete="name"'), `${game} name input must rely on the Shared width limit without native maxlength`);
   assert(page.includes('<script src="/shared/player-name.js"></script>'), `${game} must load the Shared player-name contract`);
   assert(script.includes("SharedPlayerName.bindPlayerNameInput"), `${game} must bind the Shared player-name contract`);
   assert(script.includes("SharedPlayerName.cleanPlayerName"), `${game} must clean submitted or restored names through Shared`);
 });
 assert(sharedPlayerName.includes("MAX_PLAYER_NAME_WIDTH = 12"), "Shared player-name width must remain 12");
+assert(sharedPlayerName.includes('input.addEventListener("compositionstart"'), "Shared player-name input must preserve IME composition");
+assert(sharedPlayerName.includes('input.removeAttribute("maxlength")'), "Shared player-name input must not let native maxlength truncate IME composition");
 assert(avalonScript.includes("本次任務的王者之劍持有者"), "Avalon voting must identify the selected Excalibur holder");
 assert(wolfScript.includes('class="wolf-night-flow-center"'), "One Night Wolf night flow must include center-card information");
 assert(

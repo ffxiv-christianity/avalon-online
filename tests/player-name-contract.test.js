@@ -5,7 +5,8 @@ const {
   MAX_PLAYER_NAME_WIDTH,
   playerNameWidth,
   limitPlayerName,
-  cleanPlayerName
+  cleanPlayerName,
+  bindPlayerNameInput
 } = require("../Shared/public/player-name");
 const Avalon = require("../Avalon/server");
 const Wolf = require("../Onenightwolf/game");
@@ -21,6 +22,29 @@ assert.strictEqual(playerNameWidth("👨‍👩‍👧‍👦"), 2, "one emoji g
 assert.strictEqual(limitPlayerName("ABCDEFGHIJKLM"), "ABCDEFGHIJKL");
 assert.strictEqual(limitPlayerName("玩家玩家玩家玩家"), "玩家玩家玩家");
 assert.strictEqual(cleanPlayerName("  玩家   ABCDEFGHI  "), "玩家 ABCDEFG");
+
+const nameInputListeners = new Map();
+const nameInput = {
+  dataset: {},
+  value: "",
+  title: "",
+  removedAttributes: [],
+  addEventListener(type, listener) { nameInputListeners.set(type, listener); },
+  removeAttribute(name) { this.removedAttributes.push(name); }
+};
+bindPlayerNameInput(nameInput);
+assert.deepStrictEqual(nameInput.removedAttributes, ["maxlength"]);
+nameInputListeners.get("compositionstart")();
+nameInput.value = "ㄉㄚˇㄐㄧˊㄍㄢˇ";
+nameInputListeners.get("input")({ isComposing: true });
+assert.strictEqual(nameInput.value, "ㄉㄚˇㄐㄧˊㄍㄢˇ", "IME composition must not be truncated before candidate selection");
+nameInputListeners.get("compositionend")();
+nameInput.value = "打擊感";
+nameInputListeners.get("input")({ isComposing: false });
+assert.strictEqual(nameInput.value, "打擊感");
+nameInput.value = "玩家玩家玩家玩家";
+nameInputListeners.get("input")({ isComposing: false });
+assert.strictEqual(nameInput.value, "玩家玩家玩家", "committed names must retain the 12-unit limit");
 
 const avalonRoom = Avalon.makeRoom("玩家玩家玩家玩家").room;
 assert.strictEqual(avalonRoom.players[0].name, "玩家玩家玩家");

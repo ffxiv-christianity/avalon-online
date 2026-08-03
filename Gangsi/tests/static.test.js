@@ -169,6 +169,9 @@ async function run() {
     assert(editorPage.includes('data-gangsi-rules-tab="classic"'));
     assert(editorPage.includes('data-gangsi-rules-tab="hunt"'));
     assert(editorPage.includes('class="ghost-button rules-button editor-back-link" href="/Gangsi/"'));
+    assert(editorPage.includes('class="editor-title-row"'));
+    assert(editorPage.includes('class="editor-utility-row"'));
+    assert(editorPage.includes('class="editor-reference-actions"'));
     assert(editorPage.includes('/Gangsi/rules.js'));
     assert(editorPage.includes('href="/Gangsi/gangsi.css"'));
     assert(editorPage.includes("gangsi-rules-dialog"));
@@ -235,6 +238,11 @@ async function run() {
     assert(css.includes(".edge-layer.is-wall-stroke .edge-button"));
     assert(css.includes(".map-cell.is-derived-void"));
     assert(css.includes("touch-action: none"));
+    assert(css.includes(".editor-title-row,"));
+    assert(css.includes(".editor-reference-actions"));
+    assert(css.includes("@media (max-width: 600px)"));
+    assert(css.includes("grid-template-columns: repeat(2, minmax(0, 1fr));"));
+    assert(css.includes("-webkit-overflow-scrolling: touch;"));
 
     const rulesResponse = await fetch(`${base}/Gangsi/rules.js`);
     assert.strictEqual(rulesResponse.status, 200);

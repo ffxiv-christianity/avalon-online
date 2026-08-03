@@ -47,7 +47,7 @@
           </label>
           <label class="field">
             <span>你的名字</span>
-            <input id="nameInput" maxlength="12" required autocomplete="name" aria-description="最多 12 個半形字元；中文、全形字元與表情符號算 2 個">
+            <input id="nameInput" required autocomplete="name" aria-description="最多 12 個半形字元；中文、全形字元與表情符號算 2 個">
           </label>
           <label class="field">
             <span>房間代碼或邀請連結</span>
@@ -70,9 +70,10 @@
         <details class="changelog" open>
           <summary>
             <span>更新日誌</span>
-            <small>最新版本 2026/07/31</small>
+            <small>最新版本 2026/08/03</small>
           </summary>
           <ul>
+            <li><strong>2026/08/03</strong> 調整手機版地圖編輯器RWD。</li>
             <li><strong>2026/07/31</strong> 改善多人房間的大廳與遊戲同步效能；內建地圖改為服務啟動時一次載入並驗證，玩家進房、切換地圖及遊戲操作不再重複讀取與驗證所有地圖。</li>
             <li><strong>2026/07/30 v2</strong> 改善大廳與遊戲同步時的操作流暢度，棋子文字支援注音／拼音選字，並減少按鈕與棋盤更新卡頓；放大古墓迷霧提示，讓棋子、寶藏及地圖標記隨格子尺寸縮放；機關改為累積 4 點才開啟，兩座機關貢獻上限調整為 8 點，並簡化一般職業的機關結果；修正團隊寶藏完成後仍出現揭露選項、騎士無法從入口或地牢守護、插入回合抓捕後未明確結束，以及守護抓捕提示與當前行動者資訊不清楚的問題。</li>
             <li><strong>2026/07/30 v1</strong> 完善地圖編輯器說明，補充獵殺模式驗證、淨化池生成、地圖評級、JSON 匯入與棋盤縮放；地圖驗證新增淨化池最佳／備援位置組數與超距寶藏提示；改善無標準配置時的淨化池判定，依序兼顧最遠寶藏距離、超過 9 步的寶藏數量、整體距離與兩池間距，同時保留標準配置的隨機變化；石匠築牆後可繼續擲骰與行動；地圖評級改依實際合法牆位、封路與繞路效果分析石匠及幻影鬼，並新增築牆空間與幻影空間特徵。</li>

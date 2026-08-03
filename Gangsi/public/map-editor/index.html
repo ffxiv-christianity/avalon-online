@@ -12,14 +12,18 @@
 <body data-game="gangsi-map-editor">
   <main class="map-editor-shell">
     <header class="map-editor-topbar">
-      <div>
-        <p class="eyebrow">Gangsi Map Format v1</p>
-        <h1>古墓迷蹤地圖編輯器</h1>
-      </div>
-      <div class="topbar-actions">
+      <div class="editor-title-row">
+        <div class="editor-title">
+          <p class="eyebrow">Gangsi Map Format v1</p>
+          <h1>古墓迷蹤地圖編輯器</h1>
+        </div>
         <a class="ghost-button rules-button editor-back-link" href="/Gangsi/">返回古墓迷蹤</a>
+      </div>
+      <div class="editor-utility-row">
+        <div class="editor-reference-actions">
         <button class="ghost-button rules-button" id="openEditorHelpButton" type="button">編輯器說明</button>
         <button class="ghost-button rules-button" id="openRulesButton" type="button">遊戲規則</button>
+        </div>
         <output id="editorStatus" class="editor-status" aria-live="polite">載入中</output>
       </div>
     </header>

@@ -81,9 +81,17 @@
   function bindPlayerNameInput(input) {
     if (!input || input.dataset.playerNameContract === "bound") return;
     input.dataset.playerNameContract = "bound";
-    input.maxLength = MAX_PLAYER_NAME_WIDTH;
+    let composing = false;
+    input.removeAttribute("maxlength");
     input.title = "最多 12 個半形字元；中文、全形字元與表情符號算 2 個。";
-    input.addEventListener("input", () => {
+    input.addEventListener("compositionstart", () => {
+      composing = true;
+    });
+    input.addEventListener("compositionend", () => {
+      composing = false;
+    });
+    input.addEventListener("input", (event) => {
+      if (composing || event.isComposing) return;
       const limited = limitPlayerName(input.value);
       if (limited !== input.value) input.value = limited;
     });

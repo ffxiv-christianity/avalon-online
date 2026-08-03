@@ -401,8 +401,8 @@ function startedTwoPlayerRoom() {
   assert.strictEqual(room.game.revealedTasks.at(-1).id, task.id);
   assert(room.log.at(-2).includes(`揭露了寶藏 ${task.id}`),
     "the treasure reveal must remain before the next-turn message");
-  assert(room.log.at(-1).startsWith("輪到"),
-    "the next-turn message must be the latest action information");
+  assert(room.log.at(-1).startsWith("提燈怪的正常回合"),
+    "the monster-turn message must be the latest action information");
 
   const target = Engine.mummyMoves(room)[0];
   piece.position = target;
